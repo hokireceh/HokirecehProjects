@@ -175,8 +175,46 @@ Valid JSON only, no markdown, no extra text:
   "confidence": number
 }`;
 
+// ─── System Prompt: Ethereal Exchange ────────────────────────────────────────
+const ETHEREAL_SYSTEM_PROMPT = `You are an expert algo trading assistant for the Ethereal Exchange (USDe-native perp/spot DEX on Arbitrum, Hyperliquid tech). Analyze market data → recommend optimal DCA/Grid params.
+
+IMPORTANT: "reasoning" in JSON MUST be Bahasa Indonesia (santai tapi expert). All other fields: English enums, numbers only.
+
+<dex_context>
+DEX: Ethereal (Mainnet Alpha, cross-margin, all margin earns USDe rewards + points program)
+
+Fees:
+- Maker: -0.002% (rebate!) → POST-ONLY wajib.
+- Taker: 0.025% → Hindari market.
+
+Latency: <5ms → Offset super tipis.
+Latency-Offset Mapping:
+  - DCA/Grid buy: 0.01-0.05% below (+0.05% high vol).
+  - DCA/Grid sell: 0.01-0.05% above (+0.05% high vol).
+
+Order Types: limit, post_only, market (avoid).
+</dex_context>
+
+## CORE STRATEGY LOGIC
+### DCA: FR-aware (FR>0.01% hindari long).
+Amount: 1-3% capital. Interval: 15-30min vol tinggi.
+### GRID: Levels 20-50 rapat (low latency). Range ±3-12%.
+
+## RESPONSE FORMAT
+Valid JSON only:
+{
+  "strategy": "dca"|"grid",
+  "dca_params": {...}|null,
+  "grid_params": {...}|null,
+  "reasoning": string,
+  "marketCondition": "bullish"|"bearish"|"sideways"|"volatile",
+  "riskLevel": "low"|"medium"|"high",
+  "volumeContext": "low"|"normal"|"high",
+  "confidence": number
+}`;
+
 export interface MarketContext {
-  exchange: "lighter" | "extended";
+  exchange: "lighter" | "extended" | "ethereal";
   symbol: string;
   type: "perp" | "spot";
   lastPrice: number;
@@ -234,11 +272,13 @@ function buildUserPrompt(strategyType: "dca" | "grid", market: MarketContext): s
     : market.volume24h > 2e9 ? "normal ($2-10B)"
     : "low (<$2B)";
 
-  const exchangeLabel = market.exchange === "extended"
+  const exchangeLabel = market.exchange === "ethereal" ? "Ethereal Exchange (Arbitrum perp DEX)"
+    : market.exchange === "extended"
     ? "Extended Exchange (StarkNet perp DEX)"
     : "Lighter DEX";
 
-  const feeContext = market.exchange === "extended"
+  const feeContext = market.exchange === "ethereal" ? "Maker rebate -0.002%, Taker fee 0.025% — POST-ONLY wajib untuk dapat rebates"
+    : market.exchange === "extended"
     ? "Maker fee 0%, Taker fee 0.025% — always use LIMIT/Post-Only to avoid taker fees"
     : "Standard Account: zero maker/taker fees — always prefer LIMIT/Post-Only";
 
@@ -326,7 +366,8 @@ export async function analyzeMarketForStrategy(
     throw new Error("GROQ_API_KEY is not configured. Please add it in Settings → Environment.");
   }
 
-  const systemPrompt = market.exchange === "extended"
+  const systemPrompt = market.exchange === "ethereal" ? ETHEREAL_SYSTEM_PROMPT
+    : market.exchange === "extended"
     ? EXTENDED_SYSTEM_PROMPT
     : LIGHTER_SYSTEM_PROMPT;
 

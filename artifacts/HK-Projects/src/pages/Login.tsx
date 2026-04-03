@@ -73,7 +73,7 @@ export default function Login() {
                 <Input
                   id="password"
                   type="text"
-                  placeholder="Contoh: A1B2C3D4E5"
+                  placeholder="Contoh: SEPIBUKANSAPI"
                   value={password}
                   onChange={(e) => setPassword(e.target.value.toUpperCase())}
                   className="font-mono tracking-widest text-center text-lg"
@@ -104,7 +104,22 @@ export default function Login() {
 
         <div className="text-center text-xs text-muted-foreground space-y-1">
           <p>Belum punya password?</p>
-          <p>Hubungi bot Telegram kami untuk berlangganan.</p>
+          <p>
+            Hubungi{' '}
+            {import.meta.env.VITE_TELEGRAM_BOT_USERNAME ? (
+              <a 
+                href={`https://t.me/${import.meta.env.VITE_TELEGRAM_BOT_USERNAME}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-emerald-500 hover:underline font-medium"
+              >
+                bot Telegram kami
+              </a>
+            ) : (
+              "bot Telegram kami"
+            )}{' '}
+            untuk berlangganan.
+          </p>
         </div>
       </div>
     </div>

@@ -4,7 +4,7 @@ import { getMarketInfo } from "../lib/lighter/marketCache";
 import { getExtendedMarketInfo } from "../lib/extended/extendedMarkets";
 import { getProductByTicker } from "../lib/ethereal/etherealMarkets";
 import { analyzeMarketForStrategy } from "../lib/groqAI";
-import { getBotConfig } from "./configService";
+import { getBotConfig, getEtherealCredentials } from "./configService";
 import { getAccountByIndex } from "../lib/lighter/lighterApi";
 import type { ExtendedNetwork } from "../lib/extended/extendedApi";
 import type { EtherealNetwork } from "../lib/ethereal/etherealApi";
@@ -35,7 +35,7 @@ router.post("/analyze", async (req: AuthRequest, res) => {
   try {
     // ─── Ethereal branch ───────────────────────────────────────────────────────
     if (isEthereal) {
-      const config = await getBotConfig(req.userId!).catch(() => null);
+      const config = await getEtherealCredentials(req.userId!).catch(() => null);
       const network: EtherealNetwork = (config?.etherealNetwork === "testnet") ? "testnet" : "mainnet";
 
       const product = await getProductByTicker(marketSymbol!.trim(), network);
