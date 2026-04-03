@@ -1,0 +1,831 @@
+openapi: 3.1.0
+info:
+  title: Api
+  version: 0.1.0
+  description: Lighter Trading Bot API
+servers:
+  - url: /api
+    description: Base API path
+tags:
+  - name: health
+    description: Health operations
+  - name: market
+    description: Market data from Lighter.xyz
+  - name: config
+    description: Bot configuration management
+  - name: bot
+    description: Bot control and status
+  - name: trades
+    description: Trade history
+
+paths:
+  /healthz:
+    get:
+      operationId: healthCheck
+      tags: [health]
+      summary: Health check
+      responses:
+        "200":
+          description: Healthy
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthStatus"
+
+  /market/orderbooks:
+    get:
+      operationId: getOrderBooks
+      tags: [market]
+      summary: Get available order books (markets)
+      responses:
+        "200":
+          description: List of order books
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OrderBooksResponse"
+
+  /market/ticker/{marketIndex}:
+    get:
+      operationId: getMarketTicker
+      tags: [market]
+      summary: Get current ticker for a market
+      parameters:
+        - name: marketIndex
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Market ticker data
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MarketTicker"
+
+  /market/orderbook/{marketIndex}:
+    get:
+      operationId: getOrderBook
+      tags: [market]
+      summary: Get order book for a specific market
+      parameters:
+        - name: marketIndex
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Order book data
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OrderBookData"
+
+  /config:
+    get:
+      operationId: getBotConfig
+      tags: [config]
+      summary: Get current bot configuration
+      responses:
+        "200":
+          description: Bot configuration
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BotConfig"
+    put:
+      operationId: updateBotConfig
+      tags: [config]
+      summary: Update bot configuration (API keys, account)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateBotConfigRequest"
+      responses:
+        "200":
+          description: Updated configuration
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BotConfig"
+
+  /config/strategies:
+    get:
+      operationId: getStrategies
+      tags: [config]
+      summary: Get all configured strategies
+      responses:
+        "200":
+          description: List of strategies
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StrategiesResponse"
+    post:
+      operationId: createStrategy
+      tags: [config]
+      summary: Create a new strategy (DCA or Grid)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateStrategyRequest"
+      responses:
+        "201":
+          description: Created strategy
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Strategy"
+
+  /config/strategies/{id}:
+    put:
+      operationId: updateStrategy
+      tags: [config]
+      summary: Update a strategy
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateStrategyRequest"
+      responses:
+        "200":
+          description: Updated strategy
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Strategy"
+    delete:
+      operationId: deleteStrategy
+      tags: [config]
+      summary: Delete a strategy
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DeleteResponse"
+
+  /bot/start/{strategyId}:
+    post:
+      operationId: startBot
+      tags: [bot]
+      summary: Start a strategy bot
+      parameters:
+        - name: strategyId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Bot started
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BotStatusResponse"
+
+  /bot/stop/{strategyId}:
+    post:
+      operationId: stopBot
+      tags: [bot]
+      summary: Stop a strategy bot
+      parameters:
+        - name: strategyId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Bot stopped
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BotStatusResponse"
+
+  /bot/status:
+    get:
+      operationId: getBotStatus
+      tags: [bot]
+      summary: Get status of all running bots
+      responses:
+        "200":
+          description: Bot statuses
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AllBotStatusResponse"
+
+  /bot/account:
+    get:
+      operationId: getAccountInfo
+      tags: [bot]
+      summary: Get Lighter account info (balance, positions)
+      responses:
+        "200":
+          description: Account information
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AccountInfo"
+
+  /trades:
+    get:
+      operationId: getTradeHistory
+      tags: [trades]
+      summary: Get trade history
+      parameters:
+        - name: strategyId
+          in: query
+          schema:
+            type: integer
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 50
+      responses:
+        "200":
+          description: Trade history
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TradeHistoryResponse"
+
+  /bot/pnl-chart:
+    get:
+      operationId: getPnlChart
+      tags: [bot]
+      summary: Get PnL chart data for a strategy
+      parameters:
+        - name: strategyId
+          in: query
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: PnL chart data
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PnlChartResponse"
+
+  /bot/logs:
+    get:
+      operationId: getBotLogs
+      tags: [bot]
+      summary: Get recent bot activity logs
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 100
+      responses:
+        "200":
+          description: Bot logs
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BotLogsResponse"
+
+components:
+  schemas:
+    HealthStatus:
+      type: object
+      properties:
+        status:
+          type: string
+      required: [status]
+
+    OrderBooksResponse:
+      type: object
+      properties:
+        markets:
+          type: array
+          items:
+            $ref: "#/components/schemas/Market"
+      required: [markets]
+
+    Market:
+      type: object
+      properties:
+        index:
+          type: integer
+        symbol:
+          type: string
+        baseAsset:
+          type: string
+        quoteAsset:
+          type: string
+        type:
+          type: string
+          enum: [spot, perp]
+        minBaseAmount:
+          type: number
+        minQuoteAmount:
+          type: number
+        sizeDecimals:
+          type: integer
+        priceDecimals:
+          type: integer
+      required: [index, symbol, baseAsset, quoteAsset, type]
+
+    MarketTicker:
+      type: object
+      properties:
+        marketIndex:
+          type: integer
+        lastPrice:
+          type: number
+        bidPrice:
+          type: number
+        askPrice:
+          type: number
+        volume24h:
+          type: number
+        priceChange24h:
+          type: number
+        priceChangePct24h:
+          type: number
+        high24h:
+          type: number
+        low24h:
+          type: number
+        updatedAt:
+          type: string
+      required: [marketIndex, lastPrice, bidPrice, askPrice]
+
+    OrderBookData:
+      type: object
+      properties:
+        marketIndex:
+          type: integer
+        bids:
+          type: array
+          items:
+            $ref: "#/components/schemas/OrderBookLevel"
+        asks:
+          type: array
+          items:
+            $ref: "#/components/schemas/OrderBookLevel"
+        lastPrice:
+          type: number
+        updatedAt:
+          type: string
+      required: [marketIndex, bids, asks]
+
+    OrderBookLevel:
+      type: object
+      properties:
+        price:
+          type: number
+        size:
+          type: number
+        total:
+          type: number
+      required: [price, size, total]
+
+    BotConfig:
+      type: object
+      properties:
+        accountIndex:
+          type: integer
+          nullable: true
+        apiKeyIndex:
+          type: integer
+          nullable: true
+        hasPrivateKey:
+          type: boolean
+        network:
+          type: string
+          enum: [mainnet, testnet]
+        l1Address:
+          type: string
+          nullable: true
+        notifyOnBuy:
+          type: boolean
+          nullable: true
+        notifyOnSell:
+          type: boolean
+          nullable: true
+        notifyOnError:
+          type: boolean
+          nullable: true
+        notifyOnStart:
+          type: boolean
+          nullable: true
+        notifyOnStop:
+          type: boolean
+          nullable: true
+        hasNotifyBotToken:
+          type: boolean
+        notifyChatId:
+          type: string
+          nullable: true
+      required: [hasPrivateKey, network]
+
+    UpdateBotConfigRequest:
+      type: object
+      properties:
+        accountIndex:
+          type: integer
+          nullable: true
+        apiKeyIndex:
+          type: integer
+          nullable: true
+        privateKey:
+          type: string
+          nullable: true
+        network:
+          type: string
+          enum: [mainnet, testnet]
+        l1Address:
+          type: string
+          nullable: true
+        notifyBotToken:
+          type: string
+          nullable: true
+        notifyChatId:
+          type: string
+          nullable: true
+        notifyOnBuy:
+          type: boolean
+          nullable: true
+        notifyOnSell:
+          type: boolean
+          nullable: true
+        notifyOnError:
+          type: boolean
+          nullable: true
+        notifyOnStart:
+          type: boolean
+          nullable: true
+        notifyOnStop:
+          type: boolean
+          nullable: true
+
+    StrategiesResponse:
+      type: object
+      properties:
+        strategies:
+          type: array
+          items:
+            $ref: "#/components/schemas/Strategy"
+      required: [strategies]
+
+    Strategy:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        type:
+          type: string
+          enum: [dca, grid]
+        marketIndex:
+          type: integer
+        marketSymbol:
+          type: string
+        isActive:
+          type: boolean
+        isRunning:
+          type: boolean
+        dcaConfig:
+          $ref: "#/components/schemas/DcaConfig"
+          nullable: true
+        gridConfig:
+          $ref: "#/components/schemas/GridConfig"
+          nullable: true
+        stats:
+          $ref: "#/components/schemas/StrategyStats"
+          nullable: true
+        createdAt:
+          type: string
+        updatedAt:
+          type: string
+      required: [id, name, type, marketIndex, marketSymbol, isActive, isRunning, createdAt, updatedAt]
+
+    DcaConfig:
+      type: object
+      properties:
+        amountPerOrder:
+          type: number
+          description: USDC amount per DCA order
+        intervalMinutes:
+          type: integer
+          description: Minutes between orders
+        maxOrders:
+          type: integer
+          nullable: true
+          description: Max number of orders (null = unlimited)
+        side:
+          type: string
+          enum: [buy, sell]
+        orderType:
+          type: string
+          enum: [market, limit, post_only]
+        limitPriceOffset:
+          type: number
+          nullable: true
+          description: Percentage offset from market price for limit orders
+      required: [amountPerOrder, intervalMinutes, side, orderType]
+
+    GridConfig:
+      type: object
+      properties:
+        lowerPrice:
+          type: number
+        upperPrice:
+          type: number
+        gridLevels:
+          type: integer
+          description: Number of grid levels
+        amountPerGrid:
+          type: number
+          description: USDC amount per grid level
+        mode:
+          type: string
+          enum: [neutral, long, short]
+        orderType:
+          type: string
+          enum: [market, limit, post_only]
+        limitPriceOffset:
+          type: number
+          nullable: true
+          description: USDC offset from crossing price for limit orders
+        stopLoss:
+          type: number
+          nullable: true
+          description: Stop loss price - bot stops if price falls below this
+        takeProfit:
+          type: number
+          nullable: true
+          description: Take profit price - bot stops if price rises above this
+      required: [lowerPrice, upperPrice, gridLevels, amountPerGrid, mode, orderType]
+
+    StrategyStats:
+      type: object
+      properties:
+        totalOrders:
+          type: integer
+        successfulOrders:
+          type: integer
+        totalBought:
+          type: number
+        totalSold:
+          type: number
+        avgBuyPrice:
+          type: number
+        avgSellPrice:
+          type: number
+        realizedPnl:
+          type: number
+        unrealizedPnl:
+          type: number
+      required: [totalOrders, successfulOrders, totalBought, totalSold, realizedPnl, unrealizedPnl]
+
+    CreateStrategyRequest:
+      type: object
+      properties:
+        name:
+          type: string
+        type:
+          type: string
+          enum: [dca, grid]
+        marketIndex:
+          type: integer
+        dcaConfig:
+          $ref: "#/components/schemas/DcaConfig"
+          nullable: true
+        gridConfig:
+          $ref: "#/components/schemas/GridConfig"
+          nullable: true
+      required: [name, type, marketIndex]
+
+    UpdateStrategyRequest:
+      type: object
+      properties:
+        name:
+          type: string
+        isActive:
+          type: boolean
+        dcaConfig:
+          $ref: "#/components/schemas/DcaConfig"
+          nullable: true
+        gridConfig:
+          $ref: "#/components/schemas/GridConfig"
+          nullable: true
+
+    DeleteResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        message:
+          type: string
+      required: [success, message]
+
+    BotStatusResponse:
+      type: object
+      properties:
+        strategyId:
+          type: integer
+        isRunning:
+          type: boolean
+        message:
+          type: string
+        nextRunAt:
+          type: string
+          nullable: true
+      required: [strategyId, isRunning, message]
+
+    AllBotStatusResponse:
+      type: object
+      properties:
+        bots:
+          type: array
+          items:
+            $ref: "#/components/schemas/BotStatusResponse"
+      required: [bots]
+
+    AccountInfo:
+      type: object
+      properties:
+        accountIndex:
+          type: integer
+        l1Address:
+          type: string
+        totalEquity:
+          type: number
+        availableBalance:
+          type: number
+        usedMargin:
+          type: number
+        positions:
+          type: array
+          items:
+            $ref: "#/components/schemas/Position"
+        isConfigured:
+          type: boolean
+      required: [isConfigured]
+
+    Position:
+      type: object
+      properties:
+        marketIndex:
+          type: integer
+        marketSymbol:
+          type: string
+        side:
+          type: string
+          enum: [long, short]
+        size:
+          type: number
+        entryPrice:
+          type: number
+        markPrice:
+          type: number
+        unrealizedPnl:
+          type: number
+        leverage:
+          type: number
+      required: [marketIndex, marketSymbol, side, size, entryPrice, markPrice, unrealizedPnl]
+
+    TradeHistoryResponse:
+      type: object
+      properties:
+        trades:
+          type: array
+          items:
+            $ref: "#/components/schemas/Trade"
+        total:
+          type: integer
+      required: [trades, total]
+
+    Trade:
+      type: object
+      properties:
+        id:
+          type: integer
+        strategyId:
+          type: integer
+        strategyName:
+          type: string
+        marketIndex:
+          type: integer
+        marketSymbol:
+          type: string
+        side:
+          type: string
+          enum: [buy, sell]
+        size:
+          type: number
+        price:
+          type: number
+        fee:
+          type: number
+        status:
+          type: string
+          enum: [pending, filled, cancelled, failed]
+        orderHash:
+          type: string
+          nullable: true
+        clientOrderIndex:
+          type: integer
+          nullable: true
+        errorMessage:
+          type: string
+          nullable: true
+        executedAt:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+        exchange:
+          type: string
+          enum: [lighter, extended]
+          default: lighter
+      required: [id, strategyId, strategyName, marketIndex, marketSymbol, side, status, createdAt]
+
+    BotLogsResponse:
+      type: object
+      properties:
+        logs:
+          type: array
+          items:
+            $ref: "#/components/schemas/BotLog"
+      required: [logs]
+
+    BotLog:
+      type: object
+      properties:
+        id:
+          type: integer
+        strategyId:
+          type: integer
+          nullable: true
+        strategyName:
+          type: string
+          nullable: true
+        level:
+          type: string
+          enum: [info, warn, error, success]
+        message:
+          type: string
+        details:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+      required: [id, level, message, createdAt]
+
+    PnlChartResponse:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/PnlChartPoint"
+      required: [data]
+
+    PnlChartPoint:
+      type: object
+      properties:
+        date:
+          type: string
+        buys:
+          type: integer
+        sells:
+          type: integer
+        buyVolume:
+          type: number
+        sellVolume:
+          type: number
+        estimatedPnl:
+          type: number
+        cumulativePnl:
+          type: number
+      required: [date, buys, sells, buyVolume, sellVolume, estimatedPnl, cumulativePnl]
