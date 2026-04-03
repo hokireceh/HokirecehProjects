@@ -1,0 +1,94 @@
+{
+  "generated": "2026-04-03T06:57:57.166Z",
+  "successful": 10,
+  "failed": 11,
+  "sources": {
+    "openApiSpecs": [
+      "https://api.ethereal.trade/openapi.json",
+      "https://api.etherealtest.net/openapi.json",
+      "https://archive.ethereal.trade/openapi.json"
+    ],
+    "gitbook": "https://docs.ethereal.trade/"
+  },
+  "files": {
+    "openApi": [
+      {
+        "label": "Trading API (mainnet)",
+        "url": "https://api.ethereal.trade/openapi.json",
+        "file": "/home/runner/workspace/referensi/ethereal-docs/openapi-trading-api-mainnet-.json"
+      },
+      {
+        "label": "Trading API (testnet)",
+        "url": "https://api.etherealtest.net/openapi.json",
+        "file": "/home/runner/workspace/referensi/ethereal-docs/openapi-trading-api-testnet-.json"
+      },
+      {
+        "label": "Archive API",
+        "url": "https://archive.ethereal.trade/openapi.json",
+        "file": "/home/runner/workspace/referensi/ethereal-docs/openapi-archive-api.json"
+      }
+    ],
+    "gitbook": [
+      {
+        "url": "https://docs.ethereal.trade/",
+        "file": "/home/runner/workspace/referensi/ethereal-docs/gitbook/overview.md"
+      },
+      {
+        "url": "https://docs.ethereal.trade/developer-guides/trading-api",
+        "file": "/home/runner/workspace/referensi/ethereal-docs/gitbook/developer-guides/trading-api.md"
+      },
+      {
+        "url": "https://docs.ethereal.trade/developer-guides/sdk/python-sdk",
+        "file": "/home/runner/workspace/referensi/ethereal-docs/gitbook/developer-guides/python-sdk.md"
+      },
+      {
+        "url": "https://docs.ethereal.trade/protocol-reference/api-hosts",
+        "file": "/home/runner/workspace/referensi/ethereal-docs/gitbook/protocol-reference/api-hosts.md"
+      },
+      {
+        "url": "https://docs.ethereal.trade/protocol-reference/eip-712",
+        "file": "/home/runner/workspace/referensi/ethereal-docs/gitbook/protocol-reference/eip-712.md"
+      },
+      {
+        "url": "https://docs.ethereal.trade/protocol-reference/linked-signers",
+        "file": "/home/runner/workspace/referensi/ethereal-docs/gitbook/protocol-reference/linked-signers.md"
+      },
+      {
+        "url": "https://docs.ethereal.trade/protocol-reference/subaccounts",
+        "file": "/home/runner/workspace/referensi/ethereal-docs/gitbook/protocol-reference/subaccounts.md"
+      },
+      {
+        "url": "https://docs.ethereal.trade/protocol-reference/websockets",
+        "file": "/home/runner/workspace/referensi/ethereal-docs/gitbook/protocol-reference/websockets.md"
+      },
+      {
+        "url": "https://docs.ethereal.trade/protocol-reference/products",
+        "file": "/home/runner/workspace/referensi/ethereal-docs/gitbook/protocol-reference/products.md"
+      },
+      {
+        "url": "https://docs.ethereal.trade/protocol-reference/orders",
+        "file": "/home/runner/workspace/referensi/ethereal-docs/gitbook/protocol-reference/orders.md"
+      },
+      {
+        "url": "https://docs.ethereal.trade/protocol-reference/positions",
+        "file": "/home/runner/workspace/referensi/ethereal-docs/gitbook/protocol-reference/positions.md"
+      },
+      {
+        "url": "https://docs.ethereal.trade/protocol-reference/fills",
+        "file": "/home/runner/workspace/referensi/ethereal-docs/gitbook/protocol-reference/fills.md"
+      },
+      {
+        "url": "https://docs.ethereal.trade/protocol-reference/funding",
+        "file": "/home/runner/workspace/referensi/ethereal-docs/gitbook/protocol-reference/funding.md"
+      },
+      {
+        "url": "https://docs.ethereal.trade/protocol-reference/balances",
+        "file": "/home/runner/workspace/referensi/ethereal-docs/gitbook/protocol-reference/balances.md"
+      },
+      {
+        "url": "https://docs.ethereal.trade/protocol-reference/withdrawals",
+        "file": "/home/runner/workspace/referensi/ethereal-docs/gitbook/protocol-reference/withdrawals.md"
+      }
+    ]
+  }
+}

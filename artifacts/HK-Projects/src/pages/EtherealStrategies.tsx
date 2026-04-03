@@ -1,0 +1,909 @@
+import { useState, useEffect, useCallback } from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Play, Square, Trash2, Activity, BarChart2, Zap, LineChart, Pencil, Plus, Loader2, RefreshCw, Settings2, Wallet } from "lucide-react";
+import { ExchangeLogo } from "@/components/ui/ExchangeLogo";
+import { useToast } from "@/hooks/use-toast";
+
+// ── Types ──────────────────────────────────────────────────────────────────────
+
+interface EthMarket {
+  id: string;
+  onchainId: number;
+  ticker: string;
+  displayTicker: string;
+  baseAsset: string;
+  quoteAsset: string;
+  minOrderSize: number;
+  tickSize: number;
+  lotSize: number;
+  lastPrice: number;
+}
+
+interface EthStrategy {
+  id: number;
+  name: string;
+  type: "dca" | "grid";
+  exchange: string;
+  marketSymbol: string;
+  marketIndex: number;
+  isRunning: boolean;
+  isActive: boolean;
+  totalOrders: number;
+  successfulOrders: number;
+  totalBought: string;
+  totalSold: string;
+  avgBuyPrice: string;
+  avgSellPrice: string;
+  realizedPnl: string;
+  nextRunAt: string | null;
+  lastRunAt: string | null;
+  createdAt: string;
+  dcaConfig?: {
+    amountPerOrder: number;
+    intervalMinutes: number;
+    side: "buy" | "sell";
+    orderType: string;
+    limitPriceOffset?: number;
+  } | null;
+  gridConfig?: {
+    lowerPrice: number;
+    upperPrice: number;
+    gridLevels: number;
+    amountPerGrid: number;
+    mode: string;
+    orderType: string;
+    limitPriceOffset?: number;
+    stopLoss?: number | null;
+    takeProfit?: number | null;
+  } | null;
+}
+
+interface EthAccount {
+  walletAddress?: string;
+  hasCredentials: boolean;
+  balances: { tokenName?: string; amount: string; available: string }[];
+  positions: any[];
+  openOrders: any[];
+  network?: string;
+}
+
+interface EthCredentials {
+  hasCredentials: boolean;
+  walletAddress?: string;
+  subaccountId?: string;
+  etherealNetwork?: string;
+}
+
+// ── API ────────────────────────────────────────────────────────────────────────
+
+async function apiFetch(path: string, init?: RequestInit) {
+  const res = await fetch(`/api/ethereal/strategies${path}`, {
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
+    ...init,
+  });
+  const json = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(json.error ?? `HTTP ${res.status}`);
+  return json;
+}
+
+// ── Log Section ───────────────────────────────────────────────────────────────
+
+function EthLogSection({ strategyId }: { strategyId: number }) {
+  const [logs, setLogs] = useState<any[]>([]);
+  const [loading, setLoading] = useState(false);
+
+  const refresh = useCallback(() => {
+    setLoading(true);
+    apiFetch(`/logs/strategy/${strategyId}?limit=30`)
+      .then(setLogs)
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, [strategyId]);
+
+  useEffect(() => {
+    refresh();
+    const t = setInterval(refresh, 15000);
+    return () => clearInterval(t);
+  }, [refresh]);
+
+  const levelColor = (lvl: string) => {
+    if (lvl === "error") return "text-destructive";
+    if (lvl === "warn") return "text-yellow-400";
+    if (lvl === "success") return "text-green-400";
+    return "text-muted-foreground";
+  };
+
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center justify-between">
+        <h4 className="text-sm font-medium">Log Bot</h4>
+        <Button variant="ghost" size="sm" onClick={refresh} disabled={loading}>
+          <RefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} />
+        </Button>
+      </div>
+      {loading && logs.length === 0 ? (
+        <div className="h-24 bg-muted animate-pulse rounded-lg" />
+      ) : logs.length === 0 ? (
+        <p className="text-xs text-muted-foreground py-4 text-center">Belum ada log</p>
+      ) : (
+        <div className="space-y-1 max-h-48 overflow-y-auto text-xs font-mono">
+          {logs.slice(0, 30).map((log: any, i: number) => (
+            <div key={log.id ?? i} className="flex gap-2 items-start">
+              <span className="text-muted-foreground shrink-0">
+                {new Date(log.createdAt).toLocaleTimeString("id-ID")}
+              </span>
+              <span className={`shrink-0 font-bold w-14 ${levelColor(log.level)}`}>
+                [{log.level.toUpperCase().slice(0, 5)}]
+              </span>
+              <span className="flex-1 text-foreground/80 break-all">{log.message}</span>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Create Modal ──────────────────────────────────────────────────────────────
+
+function EthCreateModal({
+  open,
+  onClose,
+  onCreated,
+  markets,
+}: {
+  open: boolean;
+  onClose: () => void;
+  onCreated: () => void;
+  markets: EthMarket[];
+}) {
+  const { toast } = useToast();
+  const [tab, setTab] = useState<"dca" | "grid">("dca");
+  const [busy, setBusy] = useState(false);
+
+  const [form, setForm] = useState({
+    name: "",
+    marketSymbol: "",
+    marketIndex: 0,
+    amountPerOrder: 10,
+    intervalMinutes: 60,
+    side: "buy",
+    orderType: "market",
+    limitPriceOffset: 0,
+    lowerPrice: "",
+    upperPrice: "",
+    gridLevels: 10,
+    amountPerGrid: 10,
+    mode: "neutral",
+    stopLoss: "",
+    takeProfit: "",
+  });
+
+  const setField = (k: string, v: any) => setForm((f) => ({ ...f, [k]: v }));
+
+  const selectMarket = (ticker: string) => {
+    const m = markets.find((x) => x.ticker === ticker);
+    setField("marketSymbol", ticker);
+    if (m) setField("marketIndex", m.onchainId);
+  };
+
+  const handleSubmit = async () => {
+    if (!form.name.trim()) {
+      toast({ title: "Nama strategy wajib diisi", variant: "destructive" });
+      return;
+    }
+    if (!form.marketSymbol) {
+      toast({ title: "Pilih market terlebih dahulu", variant: "destructive" });
+      return;
+    }
+
+    setBusy(true);
+    try {
+      if (tab === "dca") {
+        await apiFetch("/", {
+          method: "POST",
+          body: JSON.stringify({
+            name: form.name,
+            type: "dca",
+            marketSymbol: form.marketSymbol,
+            marketIndex: form.marketIndex,
+            dcaConfig: {
+              amountPerOrder: Number(form.amountPerOrder),
+              intervalMinutes: Number(form.intervalMinutes),
+              side: form.side,
+              orderType: form.orderType,
+              limitPriceOffset: Number(form.limitPriceOffset ?? 0),
+            },
+          }),
+        });
+      } else {
+        if (!form.lowerPrice || !form.upperPrice) {
+          toast({ title: "Rentang harga harus diisi", variant: "destructive" });
+          setBusy(false);
+          return;
+        }
+        if (Number(form.upperPrice) <= Number(form.lowerPrice)) {
+          toast({ title: "Harga atas harus lebih besar dari harga bawah", variant: "destructive" });
+          setBusy(false);
+          return;
+        }
+        await apiFetch("/", {
+          method: "POST",
+          body: JSON.stringify({
+            name: form.name,
+            type: "grid",
+            marketSymbol: form.marketSymbol,
+            marketIndex: form.marketIndex,
+            gridConfig: {
+              lowerPrice: Number(form.lowerPrice),
+              upperPrice: Number(form.upperPrice),
+              gridLevels: Number(form.gridLevels),
+              amountPerGrid: Number(form.amountPerGrid),
+              mode: form.mode,
+              orderType: form.orderType,
+              limitPriceOffset: Number(form.limitPriceOffset ?? 0),
+              stopLoss: form.stopLoss ? Number(form.stopLoss) : null,
+              takeProfit: form.takeProfit ? Number(form.takeProfit) : null,
+            },
+          }),
+        });
+      }
+      toast({ title: "Strategy berhasil dibuat" });
+      onCreated();
+      onClose();
+    } catch (err: any) {
+      toast({ title: "Gagal membuat strategy", description: err.message, variant: "destructive" });
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
+      <DialogContent className="sm:max-w-[520px] bg-card border-border max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <ExchangeLogo exchange="ethereal" size={18} />
+            Buat Strategy Ethereal
+          </DialogTitle>
+        </DialogHeader>
+
+        <Tabs value={tab} onValueChange={(v) => setTab(v as any)}>
+          <TabsList className="w-full mb-4">
+            <TabsTrigger value="dca" className="flex-1">DCA</TabsTrigger>
+            <TabsTrigger value="grid" className="flex-1">Grid</TabsTrigger>
+          </TabsList>
+
+          {/* Common fields */}
+          <div className="space-y-3 mb-4">
+            <div>
+              <Label>Nama Strategy</Label>
+              <Input value={form.name} onChange={(e) => setField("name", e.target.value)} placeholder="contoh: ETH DCA Harian" />
+            </div>
+            <div>
+              <Label>Market</Label>
+              <Select value={form.marketSymbol} onValueChange={selectMarket}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Pilih market..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {markets.length === 0 && (
+                    <SelectItem value="__loading" disabled>Memuat market...</SelectItem>
+                  )}
+                  {markets.map((m) => (
+                    <SelectItem key={m.id} value={m.ticker}>
+                      {m.displayTicker || m.ticker}
+                      {m.lastPrice > 0 && (
+                        <span className="ml-2 text-muted-foreground text-xs">${m.lastPrice.toFixed(2)}</span>
+                      )}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label>Order Type</Label>
+              <Select value={form.orderType} onValueChange={(v) => setField("orderType", v)}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="market">Market</SelectItem>
+                  <SelectItem value="limit">Limit</SelectItem>
+                  <SelectItem value="post_only">Post Only</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            {form.orderType !== "market" && (
+              <div>
+                <Label>Offset Harga Limit (USD)</Label>
+                <Input type="number" value={form.limitPriceOffset} onChange={(e) => setField("limitPriceOffset", e.target.value)} min={0} />
+              </div>
+            )}
+          </div>
+
+          <TabsContent value="dca" className="space-y-3 mt-0">
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label>Jumlah per Order (USD)</Label>
+                <Input type="number" value={form.amountPerOrder} onChange={(e) => setField("amountPerOrder", e.target.value)} min={1} />
+              </div>
+              <div>
+                <Label>Interval (menit)</Label>
+                <Input type="number" value={form.intervalMinutes} onChange={(e) => setField("intervalMinutes", e.target.value)} min={1} />
+              </div>
+            </div>
+            <div>
+              <Label>Sisi</Label>
+              <Select value={form.side} onValueChange={(v) => setField("side", v)}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="buy">BUY</SelectItem>
+                  <SelectItem value="sell">SELL</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </TabsContent>
+
+          <TabsContent value="grid" className="space-y-3 mt-0">
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label>Harga Bawah (USD)</Label>
+                <Input type="number" value={form.lowerPrice} onChange={(e) => setField("lowerPrice", e.target.value)} placeholder="e.g. 2000" />
+              </div>
+              <div>
+                <Label>Harga Atas (USD)</Label>
+                <Input type="number" value={form.upperPrice} onChange={(e) => setField("upperPrice", e.target.value)} placeholder="e.g. 3000" />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label>Jumlah Level Grid</Label>
+                <Input type="number" value={form.gridLevels} onChange={(e) => setField("gridLevels", e.target.value)} min={2} max={100} />
+              </div>
+              <div>
+                <Label>Jumlah per Grid (USD)</Label>
+                <Input type="number" value={form.amountPerGrid} onChange={(e) => setField("amountPerGrid", e.target.value)} min={1} />
+              </div>
+            </div>
+            <div>
+              <Label>Mode Grid</Label>
+              <Select value={form.mode} onValueChange={(v) => setField("mode", v)}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="neutral">Neutral (Beli & Jual)</SelectItem>
+                  <SelectItem value="long">Long (Beli Saja)</SelectItem>
+                  <SelectItem value="short">Short (Jual Saja)</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label>Stop Loss (USD, opsional)</Label>
+                <Input type="number" value={form.stopLoss} onChange={(e) => setField("stopLoss", e.target.value)} placeholder="opsional" />
+              </div>
+              <div>
+                <Label>Take Profit (USD, opsional)</Label>
+                <Input type="number" value={form.takeProfit} onChange={(e) => setField("takeProfit", e.target.value)} placeholder="opsional" />
+              </div>
+            </div>
+          </TabsContent>
+        </Tabs>
+
+        <div className="flex gap-2 justify-end pt-2">
+          <Button variant="outline" onClick={onClose} disabled={busy}>Batal</Button>
+          <Button
+            onClick={handleSubmit}
+            disabled={busy}
+            className="bg-purple-600 hover:bg-purple-700 text-white"
+          >
+            {busy ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Plus className="w-4 h-4 mr-2" />}
+            Buat Strategy
+          </Button>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// ── Config Modal ──────────────────────────────────────────────────────────────
+
+function EthConfigModal({
+  open,
+  onClose,
+  credentials,
+  onSaved,
+}: {
+  open: boolean;
+  onClose: () => void;
+  credentials: EthCredentials;
+  onSaved: () => void;
+}) {
+  const { toast } = useToast();
+  const [busy, setBusy] = useState(false);
+  const [privateKey, setPrivateKey] = useState("");
+  const [subaccountId, setSubaccountId] = useState(credentials.subaccountId ?? "");
+  const [network, setNetwork] = useState<"mainnet" | "testnet">(
+    (credentials.etherealNetwork ?? "mainnet") as "mainnet" | "testnet"
+  );
+
+  const save = async () => {
+    if (!privateKey && !credentials.hasCredentials) {
+      toast({ title: "Private key wajib diisi", variant: "destructive" });
+      return;
+    }
+    setBusy(true);
+    try {
+      await apiFetch("/credentials", {
+        method: "PUT",
+        body: JSON.stringify({
+          ...(privateKey && { privateKey }),
+          ...(subaccountId && { subaccountId }),
+          etherealNetwork: network,
+        }),
+      });
+      toast({ title: "Credentials Ethereal tersimpan" });
+      onSaved();
+      onClose();
+    } catch (err: any) {
+      toast({ title: "Gagal menyimpan", description: err.message, variant: "destructive" });
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
+      <DialogContent className="sm:max-w-[440px] bg-card border-border">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <Settings2 className="w-5 h-5 text-purple-400" />
+            Konfigurasi Ethereal DEX
+          </DialogTitle>
+        </DialogHeader>
+
+        <div className="space-y-4 py-2">
+          <div>
+            <Label>Private Key (EVM, 64 hex chars)</Label>
+            <Input
+              type="password"
+              value={privateKey}
+              onChange={(e) => setPrivateKey(e.target.value)}
+              placeholder={credentials.hasCredentials ? "••••••••••••••• (tersimpan)" : "0x..."}
+            />
+            {credentials.walletAddress && (
+              <p className="text-xs text-muted-foreground mt-1">
+                Wallet: {credentials.walletAddress.slice(0, 10)}...{credentials.walletAddress.slice(-8)}
+              </p>
+            )}
+          </div>
+          <div>
+            <Label>Subaccount ID (UUID dari Ethereal)</Label>
+            <Input
+              value={subaccountId}
+              onChange={(e) => setSubaccountId(e.target.value)}
+              placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+            />
+            <p className="text-xs text-muted-foreground mt-1">
+              Dapatkan dari Settings → API Keys di <a href="https://app.ethereal.trade" target="_blank" rel="noopener noreferrer" className="underline text-purple-400">app.ethereal.trade</a>
+            </p>
+          </div>
+          <div>
+            <Label>Network</Label>
+            <Select value={network} onValueChange={(v) => setNetwork(v as any)}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="mainnet">Mainnet</SelectItem>
+                <SelectItem value="testnet">Testnet</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+
+        <div className="flex gap-2 justify-end">
+          <Button variant="outline" onClick={onClose} disabled={busy}>Batal</Button>
+          <Button onClick={save} disabled={busy} className="bg-purple-600 hover:bg-purple-700 text-white">
+            {busy ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
+            Simpan
+          </Button>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// ── Strategy Card ──────────────────────────────────────────────────────────────
+
+function EthStrategyCard({
+  strategy,
+  onToggle,
+  onDelete,
+  onShowLog,
+  isBusy,
+}: {
+  strategy: EthStrategy;
+  onToggle: () => void;
+  onDelete: () => void;
+  onShowLog: () => void;
+  isBusy: boolean;
+}) {
+  const pnl = parseFloat(strategy.realizedPnl ?? "0");
+
+  return (
+    <Card className="glass-panel flex flex-col overflow-hidden relative group">
+      {strategy.isRunning && (
+        <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-purple-500/50 via-purple-400 to-purple-500/50 animate-pulse" />
+      )}
+
+      <CardHeader className="pb-3 border-b border-border/50">
+        <div className="flex justify-between items-start">
+          <div>
+            <CardTitle className="text-lg font-bold">{strategy.name}</CardTitle>
+            <div className="flex items-center gap-2 mt-1.5">
+              <span className="text-xs font-mono bg-purple-500/10 text-purple-300 px-2 py-0.5 rounded border border-purple-500/20">
+                {strategy.marketSymbol}
+              </span>
+              <span className="text-xs uppercase font-bold text-purple-400 tracking-wider">
+                {strategy.type}
+              </span>
+              <span className="text-[10px] text-muted-foreground bg-muted px-1.5 py-0.5 rounded">
+                Ethereal
+              </span>
+            </div>
+          </div>
+          <div className={`px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider flex items-center gap-1.5 ${
+            strategy.isRunning ? "bg-purple-500/20 text-purple-300" : "bg-muted text-muted-foreground"
+          }`}>
+            {strategy.isRunning && (
+              <span className="w-1.5 h-1.5 rounded-full bg-purple-400 animate-pulse" />
+            )}
+            {strategy.isRunning ? "Berjalan" : "Berhenti"}
+          </div>
+        </div>
+      </CardHeader>
+
+      <CardContent className="py-4 flex-1 space-y-4">
+        {/* Config preview */}
+        {strategy.type === "dca" && strategy.dcaConfig && (
+          <div className="grid grid-cols-2 gap-y-2 text-sm">
+            <div><div className="text-xs text-muted-foreground">Jumlah</div><div className="font-mono">${strategy.dcaConfig.amountPerOrder}</div></div>
+            <div><div className="text-xs text-muted-foreground">Interval</div><div className="font-mono">{strategy.dcaConfig.intervalMinutes}m</div></div>
+            <div><div className="text-xs text-muted-foreground">Sisi</div><div className={`font-medium ${strategy.dcaConfig.side === "buy" ? "text-success" : "text-destructive"}`}>{strategy.dcaConfig.side.toUpperCase()}</div></div>
+            <div><div className="text-xs text-muted-foreground">Order</div><div className="font-mono text-xs capitalize">{strategy.dcaConfig.orderType}</div></div>
+          </div>
+        )}
+        {strategy.type === "grid" && strategy.gridConfig && (
+          <div className="grid grid-cols-2 gap-y-2 text-sm">
+            <div><div className="text-xs text-muted-foreground">Rentang</div><div className="font-mono text-xs">${strategy.gridConfig.lowerPrice}–${strategy.gridConfig.upperPrice}</div></div>
+            <div><div className="text-xs text-muted-foreground">Level</div><div className="font-mono">{strategy.gridConfig.gridLevels}</div></div>
+            <div><div className="text-xs text-muted-foreground">Per Grid</div><div className="font-mono">${strategy.gridConfig.amountPerGrid}</div></div>
+            <div><div className="text-xs text-muted-foreground">Mode</div><div className="font-mono capitalize">{strategy.gridConfig.mode}</div></div>
+            {strategy.gridConfig.stopLoss && <div><div className="text-xs text-muted-foreground">Stop Loss</div><div className="font-mono text-destructive">${strategy.gridConfig.stopLoss}</div></div>}
+            {strategy.gridConfig.takeProfit && <div><div className="text-xs text-muted-foreground">Take Profit</div><div className="font-mono text-success">${strategy.gridConfig.takeProfit}</div></div>}
+          </div>
+        )}
+
+        {/* Stats */}
+        <div className="grid grid-cols-3 gap-2 text-xs text-center">
+          <div className="bg-background/50 rounded-lg p-2 border border-border/30">
+            <div className="font-bold font-mono">{strategy.totalOrders}</div>
+            <div className="text-muted-foreground">Order</div>
+          </div>
+          <div className="bg-background/50 rounded-lg p-2 border border-border/30">
+            <div className="font-bold font-mono">{strategy.successfulOrders}</div>
+            <div className="text-muted-foreground">Sukses</div>
+          </div>
+          <div className={`bg-background/50 rounded-lg p-2 border border-border/30 ${pnl >= 0 ? "text-success" : "text-destructive"}`}>
+            <div className="font-bold font-mono">${pnl.toFixed(2)}</div>
+            <div className="text-muted-foreground">PnL</div>
+          </div>
+        </div>
+
+        {strategy.nextRunAt && (
+          <p className="text-[11px] text-muted-foreground">
+            Berikutnya: {new Date(strategy.nextRunAt).toLocaleString("id-ID")}
+          </p>
+        )}
+      </CardContent>
+
+      <div className="p-4 pt-0 flex items-center gap-2">
+        <Button
+          variant={strategy.isRunning ? "destructive" : "default"}
+          size="sm"
+          onClick={onToggle}
+          disabled={isBusy}
+          className={strategy.isRunning ? "" : "bg-purple-600 hover:bg-purple-700 text-white"}
+        >
+          {isBusy ? (
+            <Loader2 className="w-4 h-4 animate-spin" />
+          ) : strategy.isRunning ? (
+            <Square className="w-4 h-4" />
+          ) : (
+            <Play className="w-4 h-4" />
+          )}
+          <span className="ml-1">{strategy.isRunning ? "Stop" : "Start"}</span>
+        </Button>
+        <Button variant="ghost" size="sm" onClick={onShowLog} title="Lihat log">
+          <Activity className="w-4 h-4" />
+        </Button>
+        <Button variant="ghost" size="sm" onClick={onDelete} disabled={strategy.isRunning || isBusy} className="ml-auto text-destructive hover:text-destructive">
+          <Trash2 className="w-4 h-4" />
+        </Button>
+      </div>
+    </Card>
+  );
+}
+
+// ── Log Dialog ────────────────────────────────────────────────────────────────
+
+function EthLogDialog({ strategyId, strategyName, open, onClose }: { strategyId: number; strategyName: string; open: boolean; onClose: () => void }) {
+  return (
+    <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
+      <DialogContent className="sm:max-w-[620px] bg-card border-border max-h-[80vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <Activity className="w-5 h-5 text-purple-400" />
+            Log Ethereal — {strategyName}
+          </DialogTitle>
+        </DialogHeader>
+        <div className="pt-2">
+          <EthLogSection strategyId={strategyId} />
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// ── Account Widget ────────────────────────────────────────────────────────────
+
+function EthAccountWidget({ account }: { account: EthAccount | null }) {
+  if (!account?.hasCredentials) {
+    return (
+      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+        <Wallet className="w-4 h-4" />
+        <span>Belum terkonfigurasi</span>
+      </div>
+    );
+  }
+
+  const usde = account.balances.find(
+    (b) => b.tokenName?.toLowerCase().includes("usde") || b.tokenName?.toLowerCase().includes("usd")
+  );
+
+  const totalUnrealizedPnl = account.positions?.reduce(
+    (sum: number, p: any) => sum + parseFloat(p.unrealizedPnl ?? "0"),
+    0
+  ) ?? 0;
+  const hasPositions = (account.positions?.length ?? 0) > 0;
+
+  return (
+    <div className="flex items-center gap-3 text-sm flex-wrap">
+      <div className="flex items-center gap-1.5 bg-purple-500/10 border border-purple-500/20 px-2.5 py-1.5 rounded-lg">
+        <Wallet className="w-3.5 h-3.5 text-purple-400" />
+        <span className="text-xs text-muted-foreground">Saldo USDe:</span>
+        <span className="font-mono font-bold text-purple-300">
+          {usde ? `$${parseFloat(usde.amount).toFixed(2)}` : "–"}
+        </span>
+      </div>
+      {hasPositions && (
+        <div className="flex items-center gap-1.5 bg-background/50 border border-border/40 px-2.5 py-1.5 rounded-lg">
+          <span className="text-xs text-muted-foreground">{account.positions.length} posisi</span>
+          <span className="text-xs text-muted-foreground">·</span>
+          <span className="text-xs text-muted-foreground">uPnL:</span>
+          <span className={`font-mono font-bold text-xs ${totalUnrealizedPnl >= 0 ? "text-green-400" : "text-red-400"}`}>
+            {totalUnrealizedPnl >= 0 ? "+" : ""}${totalUnrealizedPnl.toFixed(2)}
+          </span>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Main Page ─────────────────────────────────────────────────────────────────
+
+export default function EtherealStrategies() {
+  const { toast } = useToast();
+  const [strategies, setStrategies] = useState<EthStrategy[]>([]);
+  const [markets, setMarkets] = useState<EthMarket[]>([]);
+  const [account, setAccount] = useState<EthAccount | null>(null);
+  const [credentials, setCredentials] = useState<EthCredentials>({ hasCredentials: false });
+  const [loading, setLoading] = useState(true);
+  const [busyIds, setBusyIds] = useState<Set<number>>(new Set());
+
+  const [showCreate, setShowCreate] = useState(false);
+  const [showConfig, setShowConfig] = useState(false);
+  const [logDialogId, setLogDialogId] = useState<number | null>(null);
+  const [deleteConfirmId, setDeleteConfirmId] = useState<number | null>(null);
+
+  const loadAll = useCallback(async () => {
+    try {
+      const [strats, creds, mks] = await Promise.all([
+        apiFetch("/"),
+        apiFetch("/credentials"),
+        apiFetch("/markets"),
+      ]);
+      setStrategies(strats ?? []);
+      setCredentials(creds);
+      setMarkets(mks ?? []);
+    } catch {
+      // ignore
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  const loadAccount = useCallback(async () => {
+    try {
+      const acc = await apiFetch("/account");
+      setAccount(acc);
+    } catch {
+      // ignore
+    }
+  }, []);
+
+  useEffect(() => {
+    loadAll();
+    loadAccount();
+    const t = setInterval(() => {
+      apiFetch("/").then(setStrategies).catch(() => {});
+    }, 10000);
+    return () => clearInterval(t);
+  }, [loadAll, loadAccount]);
+
+  const toggleBot = async (s: EthStrategy) => {
+    setBusyIds((prev) => new Set(prev).add(s.id));
+    try {
+      if (s.isRunning) {
+        await apiFetch(`/stop/${s.id}`, { method: "POST" });
+        toast({ title: `Bot ${s.name} dihentikan` });
+      } else {
+        await apiFetch(`/start/${s.id}`, { method: "POST" });
+        toast({ title: `Bot ${s.name} dimulai` });
+      }
+      await loadAll();
+    } catch (err: any) {
+      toast({ title: "Gagal", description: err.message, variant: "destructive" });
+    } finally {
+      setBusyIds((prev) => { const n = new Set(prev); n.delete(s.id); return n; });
+    }
+  };
+
+  const deleteStrategy = async (id: number) => {
+    setBusyIds((prev) => new Set(prev).add(id));
+    try {
+      await apiFetch(`/${id}`, { method: "DELETE" });
+      toast({ title: "Strategy dihapus" });
+      await loadAll();
+    } catch (err: any) {
+      toast({ title: "Gagal hapus", description: err.message, variant: "destructive" });
+    } finally {
+      setBusyIds((prev) => { const n = new Set(prev); n.delete(id); return n; });
+      setDeleteConfirmId(null);
+    }
+  };
+
+  const logDialog = strategies.find((s) => s.id === logDialogId);
+
+  return (
+    <div className="p-4 md:p-8 space-y-6 max-w-7xl mx-auto">
+
+      {/* Header */}
+      <div className="flex items-center justify-between gap-4 flex-wrap">
+        <div>
+          <h1 className="text-2xl font-bold flex items-center gap-2">
+            <ExchangeLogo exchange="ethereal" size={28} />
+            Ethereal DEX
+          </h1>
+          <p className="text-sm text-muted-foreground mt-1">
+            Perps DEX on Ethena — Grid & DCA dengan EIP-712 signing
+          </p>
+        </div>
+        <div className="flex items-center gap-2 flex-wrap">
+          <EthAccountWidget account={account} />
+          <Button variant="outline" size="sm" onClick={() => setShowConfig(true)}>
+            <Settings2 className="w-4 h-4 mr-1.5" />
+            Konfigurasi
+          </Button>
+          <Button
+            size="sm"
+            onClick={() => setShowCreate(true)}
+            className="bg-purple-600 hover:bg-purple-700 text-white"
+          >
+            <Plus className="w-4 h-4 mr-1.5" />
+            Buat Strategy
+          </Button>
+        </div>
+      </div>
+
+      {/* Credential warning */}
+      {!credentials.hasCredentials && (
+        <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-xl p-4 flex items-start gap-3">
+          <Zap className="w-5 h-5 text-yellow-400 shrink-0 mt-0.5" />
+          <div>
+            <p className="font-semibold text-yellow-300 text-sm">Credentials Belum Dikonfigurasi</p>
+            <p className="text-xs text-muted-foreground mt-1">
+              Bot akan berjalan dalam mode paper trade. Klik <button className="underline text-yellow-300" onClick={() => setShowConfig(true)}>Konfigurasi</button> untuk menghubungkan wallet Ethereal.
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* Strategies grid */}
+      {loading ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {[1, 2, 3].map((i) => <div key={i} className="h-64 bg-muted animate-pulse rounded-xl" />)}
+        </div>
+      ) : strategies.length === 0 ? (
+        <div className="flex flex-col items-center justify-center py-20 text-muted-foreground">
+          <BarChart2 className="w-16 h-16 mb-4 opacity-20" />
+          <p className="text-lg font-semibold">Belum ada strategy Ethereal</p>
+          <p className="text-sm mb-6">Klik "Buat Strategy" untuk memulai</p>
+          <Button onClick={() => setShowCreate(true)} className="bg-purple-600 hover:bg-purple-700 text-white">
+            <Plus className="w-4 h-4 mr-2" />
+            Buat Strategy Pertama
+          </Button>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {strategies.map((s) => (
+            <EthStrategyCard
+              key={s.id}
+              strategy={s}
+              isBusy={busyIds.has(s.id)}
+              onToggle={() => toggleBot(s)}
+              onDelete={() => setDeleteConfirmId(s.id)}
+              onShowLog={() => setLogDialogId(s.id)}
+            />
+          ))}
+        </div>
+      )}
+
+      {/* Modals */}
+      <EthCreateModal
+        open={showCreate}
+        onClose={() => setShowCreate(false)}
+        onCreated={loadAll}
+        markets={markets}
+      />
+
+      <EthConfigModal
+        open={showConfig}
+        onClose={() => setShowConfig(false)}
+        credentials={credentials}
+        onSaved={() => { loadAll(); loadAccount(); }}
+      />
+
+      {logDialog && (
+        <EthLogDialog
+          strategyId={logDialog.id}
+          strategyName={logDialog.name}
+          open={true}
+          onClose={() => setLogDialogId(null)}
+        />
+      )}
+
+      {/* Delete confirm */}
+      <Dialog open={deleteConfirmId !== null} onOpenChange={(v) => !v && setDeleteConfirmId(null)}>
+        <DialogContent className="sm:max-w-[360px] bg-card border-border">
+          <DialogHeader>
+            <DialogTitle>Hapus Strategy?</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground py-2">
+            Strategy ini akan dihapus permanen. Histori trade tetap tersimpan.
+          </p>
+          <div className="flex gap-2 justify-end">
+            <Button variant="outline" onClick={() => setDeleteConfirmId(null)}>Batal</Button>
+            <Button variant="destructive" onClick={() => deleteConfirmId !== null && deleteStrategy(deleteConfirmId)}>
+              Hapus
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}

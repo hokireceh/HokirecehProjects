@@ -1,0 +1,66 @@
+{
+  "generated": "2026-04-03T00:22:42.429Z",
+  "successful": 12,
+  "failed": 0,
+  "sources": {
+    "openApiSpec": [
+      "https://api.starknet.extended.exchange/openapi.json",
+      "https://api.starknet.extended.exchange/api-docs",
+      "https://api.starknet.extended.exchange/docs/openapi.json",
+      "https://api.docs.extended.exchange/openapi.json",
+      "https://api.docs.extended.exchange/openapi.yaml"
+    ],
+    "apiReference": "https://api.docs.extended.exchange/",
+    "gitbook": "https://docs.extended.exchange/"
+  },
+  "files": {
+    "openApi": null,
+    "apiReference": "/home/runner/workspace/referensi/extended-docs/api-reference.md",
+    "gitbook": [
+      {
+        "url": "https://docs.extended.exchange/",
+        "file": "/home/runner/workspace/referensi/extended-docs/gitbook/overview.md"
+      },
+      {
+        "url": "https://docs.extended.exchange/extended-resources/trading/order-types",
+        "file": "/home/runner/workspace/referensi/extended-docs/gitbook/trading/order-types.md"
+      },
+      {
+        "url": "https://docs.extended.exchange/extended-resources/trading/trading-rules",
+        "file": "/home/runner/workspace/referensi/extended-docs/gitbook/trading/trading-rules.md"
+      },
+      {
+        "url": "https://docs.extended.exchange/extended-resources/trading/order-cost",
+        "file": "/home/runner/workspace/referensi/extended-docs/gitbook/trading/order-cost.md"
+      },
+      {
+        "url": "https://docs.extended.exchange/extended-resources/trading/margin-schedule",
+        "file": "/home/runner/workspace/referensi/extended-docs/gitbook/trading/margin-schedule.md"
+      },
+      {
+        "url": "https://docs.extended.exchange/extended-resources/trading/funding-payments",
+        "file": "/home/runner/workspace/referensi/extended-docs/gitbook/trading/funding-payments.md"
+      },
+      {
+        "url": "https://docs.extended.exchange/extended-resources/trading/liquidation-logic",
+        "file": "/home/runner/workspace/referensi/extended-docs/gitbook/trading/liquidation-logic.md"
+      },
+      {
+        "url": "https://docs.extended.exchange/extended-resources/trading/trading-fees-and-rebates",
+        "file": "/home/runner/workspace/referensi/extended-docs/gitbook/trading/fees-and-rebates.md"
+      },
+      {
+        "url": "https://docs.extended.exchange/starknet-migration/rationale-and-vision",
+        "file": "/home/runner/workspace/referensi/extended-docs/gitbook/migration/rationale-and-vision.md"
+      },
+      {
+        "url": "https://docs.extended.exchange/starknet-migration/migration-guide",
+        "file": "/home/runner/workspace/referensi/extended-docs/gitbook/migration/migration-guide.md"
+      },
+      {
+        "url": "https://docs.extended.exchange/extended-resources/more/smart-contract-audits",
+        "file": "/home/runner/workspace/referensi/extended-docs/gitbook/more/smart-contract-audits.md"
+      }
+    ]
+  }
+}

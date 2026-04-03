@@ -1,0 +1,8 @@
+uploads = []
+generated = []
+
+[[outputs]]
+id = "VLXatsdCk_7z4mMcX_Re6"
+uri = "file://output.txt"
+type = "text"
+title = "Laporan Audit Sistem — Lighter & Extended Bot"
