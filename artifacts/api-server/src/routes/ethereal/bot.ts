@@ -487,6 +487,26 @@ router.put("/credentials", async (req: AuthRequest, res) => {
 
     // Jika credentials baru disimpan, otomatis update walletAddress dari private key
     const updated = await getEtherealCredentials(req.userId!);
+
+    // Auto-fetch subaccountId dari Ethereal API jika belum ada
+    if (!updated.subaccountId && updated.walletAddress) {
+      try {
+        const network = updated.etherealNetwork ?? "mainnet";
+        const subaccounts = await getSubaccounts(updated.walletAddress, network);
+        const primary = subaccounts[0];
+        if (primary?.id) {
+          await updateEtherealCredentials(req.userId!, {
+            subaccountId: primary.id,
+            ...(primary.name && { subaccountName: primary.name }),
+          });
+          updated.subaccountId = primary.id;
+          updated.subaccountName = primary.name ?? null;
+        }
+      } catch (e) {
+        req.log.warn({ err: e }, "[EtherealBot] Auto-fetch subaccount gagal, user bisa isi manual");
+      }
+    }
+
     res.json({
       ok: true,
       hasCredentials: updated.hasCredentials,
