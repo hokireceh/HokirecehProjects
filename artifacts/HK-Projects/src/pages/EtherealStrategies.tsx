@@ -983,18 +983,26 @@ export default function EtherealStrategies() {
 
   const loadAll = useCallback(async () => {
     try {
-      const [strats, creds, mks] = await Promise.all([
+      // Fetch strategies + markets together; credentials fetched separately
+      // because /credentials returns 400 when unconfigured, which would cause
+      // Promise.all to reject and block market loading.
+      const [strats, mks] = await Promise.all([
         apiFetch("/"),
-        apiFetch("/credentials"),
         apiFetch("/markets"),
       ]);
       setStrategies(strats ?? []);
-      setCredentials(creds);
       setMarkets(mks ?? []);
     } catch {
       // ignore
     } finally {
       setLoading(false);
+    }
+    // Credentials: 400 = belum dikonfigurasi, itu expected bukan error fatal
+    try {
+      const creds = await apiFetch("/credentials");
+      setCredentials(creds);
+    } catch {
+      setCredentials({ hasCredentials: false });
     }
   }, []);
 
