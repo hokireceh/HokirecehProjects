@@ -6,9 +6,12 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Play, Square, Trash2, Activity, BarChart2, Zap, LineChart, Pencil, Plus, Loader2, RefreshCw, Settings2, Wallet } from "lucide-react";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
+import { Play, Square, Trash2, Activity, BarChart2, Zap, LineChart, Pencil, Plus, Loader2, RefreshCw, Settings2, Wallet, Sparkles, ChevronsUpDown, Check } from "lucide-react";
 import { ExchangeLogo } from "@/components/ui/ExchangeLogo";
 import { useToast } from "@/hooks/use-toast";
+import { cn } from "@/lib/utils";
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -151,6 +154,133 @@ function EthLogSection({ strategyId }: { strategyId: number }) {
   );
 }
 
+// ── Market Picker (Popover+Command) ───────────────────────────────────────────
+
+function EthMarketPicker({
+  markets,
+  selected,
+  onSelect,
+}: {
+  markets: EthMarket[];
+  selected: string;
+  onSelect: (ticker: string, onchainId: number) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const selectedMarket = markets.find((m) => m.ticker === selected);
+
+  return (
+    <div className="space-y-2">
+      <Label>Market</Label>
+      <Popover open={open} onOpenChange={setOpen} modal={true}>
+        <PopoverTrigger asChild>
+          <Button
+            type="button"
+            variant="outline"
+            role="combobox"
+            aria-expanded={open}
+            className="w-full justify-between bg-background font-normal"
+          >
+            {selectedMarket ? (
+              <span className="font-mono text-sm">{selectedMarket.displayTicker || selectedMarket.ticker}</span>
+            ) : markets.length === 0 ? (
+              <span className="flex items-center gap-2 text-muted-foreground">
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                Memuat market...
+              </span>
+            ) : (
+              <span className="text-muted-foreground">Pilih market...</span>
+            )}
+            <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+          </Button>
+        </PopoverTrigger>
+        <PopoverContent className="w-[400px] p-0 z-[200]" align="start">
+          <Command>
+            <CommandInput placeholder="Cari market (mis. ETH, BTC)..." />
+            <CommandList className="max-h-[280px] overflow-y-auto">
+              <CommandEmpty>Market tidak ditemukan.</CommandEmpty>
+              <CommandGroup heading={`${markets.length} market tersedia`}>
+                {markets.map((m) => (
+                  <CommandItem
+                    key={m.id}
+                    value={`${m.ticker} ${m.displayTicker} ${m.baseAsset}`}
+                    onSelect={() => {
+                      onSelect(m.ticker, m.onchainId);
+                      setOpen(false);
+                    }}
+                  >
+                    <Check className={cn("mr-2 h-4 w-4", selected === m.ticker ? "opacity-100" : "opacity-0")} />
+                    <span className="font-mono text-sm">{m.displayTicker || m.ticker}</span>
+                    {m.lastPrice > 0 && (
+                      <span className="ml-auto text-xs text-muted-foreground font-mono">
+                        ${m.lastPrice.toFixed(2)}
+                      </span>
+                    )}
+                  </CommandItem>
+                ))}
+              </CommandGroup>
+            </CommandList>
+          </Command>
+        </PopoverContent>
+      </Popover>
+    </div>
+  );
+}
+
+// ── AI Auto-fill Button ────────────────────────────────────────────────────────
+
+function EthAiButton({
+  strategyType,
+  marketSymbol,
+  onResult,
+}: {
+  strategyType: "dca" | "grid";
+  marketSymbol: string;
+  onResult: (data: any) => void;
+}) {
+  const { toast } = useToast();
+  const [loading, setLoading] = useState(false);
+
+  const handleClick = async () => {
+    if (!marketSymbol) {
+      toast({ title: "Pilih market dulu", description: "Pilih market Ethereal sebelum menggunakan AI.", variant: "destructive" });
+      return;
+    }
+    setLoading(true);
+    try {
+      const res = await fetch("/api/ai/analyze", {
+        method: "POST",
+        credentials: "include",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ strategyType, marketSymbol }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error ?? "Gagal mengambil rekomendasi AI");
+      onResult(json);
+      toast({
+        title: "Parameter diisi otomatis AI",
+        description: `Rekomendasi ${strategyType.toUpperCase()} untuk ${marketSymbol} berhasil dimuat.`,
+      });
+    } catch (err: any) {
+      toast({ title: "AI Gagal", description: err.message, variant: "destructive" });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <Button
+      type="button"
+      variant="outline"
+      className="w-full gap-2 border-violet-500/30 text-violet-300 hover:bg-violet-500/10 hover:text-violet-200 hover:border-violet-500/50"
+      onClick={handleClick}
+      disabled={loading || !marketSymbol}
+    >
+      {loading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />}
+      {loading ? "Menganalisis pasar..." : "Isi Otomatis Parameter (AI)"}
+    </Button>
+  );
+}
+
 // ── Create Modal ──────────────────────────────────────────────────────────────
 
 function EthCreateModal({
@@ -175,7 +305,7 @@ function EthCreateModal({
     amountPerOrder: 10,
     intervalMinutes: 60,
     side: "buy",
-    orderType: "market",
+    orderType: "limit",
     limitPriceOffset: 0,
     lowerPrice: "",
     upperPrice: "",
@@ -188,15 +318,37 @@ function EthCreateModal({
 
   const setField = (k: string, v: any) => setForm((f) => ({ ...f, [k]: v }));
 
-  const selectMarket = (ticker: string) => {
-    const m = markets.find((x) => x.ticker === ticker);
-    setField("marketSymbol", ticker);
-    if (m) setField("marketIndex", m.onchainId);
+  const selectMarket = (ticker: string, onchainId: number) => {
+    setForm((f) => ({ ...f, marketSymbol: ticker, marketIndex: onchainId }));
+  };
+
+  const handleAiResult = (data: any, strategyType: "dca" | "grid") => {
+    if (strategyType === "dca") {
+      const p = data?.dca_params;
+      if (!p) return;
+      if (p.amountPerOrder != null) setField("amountPerOrder", p.amountPerOrder);
+      if (p.intervalMinutes != null) setField("intervalMinutes", p.intervalMinutes);
+      if (p.side) setField("side", p.side);
+      if (p.orderType) setField("orderType", p.orderType);
+      if (p.limitPriceOffset != null) setField("limitPriceOffset", p.limitPriceOffset);
+    } else {
+      const p = data?.grid_params;
+      if (!p) return;
+      if (p.lowerPrice != null) setField("lowerPrice", String(p.lowerPrice));
+      if (p.upperPrice != null) setField("upperPrice", String(p.upperPrice));
+      if (p.gridLevels != null) setField("gridLevels", p.gridLevels);
+      if (p.amountPerGrid != null) setField("amountPerGrid", p.amountPerGrid);
+      if (p.mode) setField("mode", p.mode);
+      if (p.orderType) setField("orderType", p.orderType);
+      if (p.limitPriceOffset != null) setField("limitPriceOffset", p.limitPriceOffset);
+      if (p.stopLoss != null) setField("stopLoss", String(p.stopLoss));
+      if (p.takeProfit != null) setField("takeProfit", String(p.takeProfit));
+    }
   };
 
   const handleSubmit = async () => {
     if (!form.name.trim()) {
-      toast({ title: "Nama strategy wajib diisi", variant: "destructive" });
+      toast({ title: "Nama strategi wajib diisi", variant: "destructive" });
       return;
     }
     if (!form.marketSymbol) {
@@ -255,155 +407,264 @@ function EthCreateModal({
           }),
         });
       }
-      toast({ title: "Strategy berhasil dibuat" });
+      toast({ title: "Strategi berhasil dibuat" });
       onCreated();
       onClose();
     } catch (err: any) {
-      toast({ title: "Gagal membuat strategy", description: err.message, variant: "destructive" });
+      toast({ title: "Gagal membuat strategi", description: err.message, variant: "destructive" });
     } finally {
       setBusy(false);
     }
   };
+
+  const showLimitOffset = form.orderType === "limit" || form.orderType === "post_only";
 
   return (
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
       <DialogContent className="sm:max-w-[520px] bg-card border-border max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <ExchangeLogo exchange="ethereal" size={18} />
-            Buat Strategy Ethereal
+            <ExchangeLogo exchange="ethereal" size={20} />
+            Buat Strategi — Ethereal DEX
           </DialogTitle>
         </DialogHeader>
 
         <Tabs value={tab} onValueChange={(v) => setTab(v as any)}>
-          <TabsList className="w-full mb-4">
-            <TabsTrigger value="dca" className="flex-1">DCA</TabsTrigger>
-            <TabsTrigger value="grid" className="flex-1">Grid</TabsTrigger>
+          <TabsList className="grid w-full grid-cols-2">
+            <TabsTrigger value="dca">DCA</TabsTrigger>
+            <TabsTrigger value="grid">Grid</TabsTrigger>
           </TabsList>
 
           {/* Common fields */}
-          <div className="space-y-3 mb-4">
-            <div>
-              <Label>Nama Strategy</Label>
-              <Input value={form.name} onChange={(e) => setField("name", e.target.value)} placeholder="contoh: ETH DCA Harian" />
+          <div className="space-y-3 mt-4 mb-2">
+            <div className="space-y-2">
+              <Label>Nama Strategi</Label>
+              <Input
+                value={form.name}
+                onChange={(e) => setField("name", e.target.value)}
+                placeholder="contoh: ETH DCA Harian"
+                className="bg-background"
+              />
             </div>
-            <div>
-              <Label>Market</Label>
-              <Select value={form.marketSymbol} onValueChange={selectMarket}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Pilih market..." />
-                </SelectTrigger>
-                <SelectContent>
-                  {markets.length === 0 && (
-                    <SelectItem value="__loading" disabled>Memuat market...</SelectItem>
-                  )}
-                  {markets.map((m) => (
-                    <SelectItem key={m.id} value={m.ticker}>
-                      {m.displayTicker || m.ticker}
-                      {m.lastPrice > 0 && (
-                        <span className="ml-2 text-muted-foreground text-xs">${m.lastPrice.toFixed(2)}</span>
-                      )}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <Label>Order Type</Label>
-              <Select value={form.orderType} onValueChange={(v) => setField("orderType", v)}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="market">Market</SelectItem>
-                  <SelectItem value="limit">Limit</SelectItem>
-                  <SelectItem value="post_only">Post Only</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            {form.orderType !== "market" && (
-              <div>
-                <Label>Offset Harga Limit (USD)</Label>
-                <Input type="number" value={form.limitPriceOffset} onChange={(e) => setField("limitPriceOffset", e.target.value)} min={0} />
-              </div>
-            )}
+            <EthMarketPicker
+              markets={markets}
+              selected={form.marketSymbol}
+              onSelect={selectMarket}
+            />
           </div>
 
-          <TabsContent value="dca" className="space-y-3 mt-0">
+          <TabsContent value="dca" className="space-y-3 mt-2">
+            <EthAiButton
+              strategyType="dca"
+              marketSymbol={form.marketSymbol}
+              onResult={(data) => handleAiResult(data, "dca")}
+            />
+
             <div className="grid grid-cols-2 gap-3">
-              <div>
-                <Label>Jumlah per Order (USD)</Label>
-                <Input type="number" value={form.amountPerOrder} onChange={(e) => setField("amountPerOrder", e.target.value)} min={1} />
+              <div className="space-y-2">
+                <Label>Jumlah (USDe)</Label>
+                <Input
+                  type="text"
+                  inputMode="decimal"
+                  value={form.amountPerOrder}
+                  onChange={(e) => setField("amountPerOrder", e.target.value)}
+                  placeholder="100"
+                  className="bg-background font-mono"
+                />
               </div>
-              <div>
-                <Label>Interval (menit)</Label>
-                <Input type="number" value={form.intervalMinutes} onChange={(e) => setField("intervalMinutes", e.target.value)} min={1} />
+              <div className="space-y-2">
+                <Label>Interval (Menit)</Label>
+                <Input
+                  type="text"
+                  inputMode="numeric"
+                  value={form.intervalMinutes}
+                  onChange={(e) => setField("intervalMinutes", e.target.value)}
+                  placeholder="1440"
+                  className="bg-background font-mono"
+                />
               </div>
             </div>
-            <div>
-              <Label>Sisi</Label>
-              <Select value={form.side} onValueChange={(v) => setField("side", v)}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="buy">BUY</SelectItem>
-                  <SelectItem value="sell">SELL</SelectItem>
-                </SelectContent>
-              </Select>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-2">
+                <Label>Sisi</Label>
+                <Select value={form.side} onValueChange={(v) => setField("side", v)}>
+                  <SelectTrigger className="bg-background"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="buy">Buy</SelectItem>
+                    <SelectItem value="sell">Sell</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Tipe Order</Label>
+                <Select value={form.orderType} onValueChange={(v) => setField("orderType", v)}>
+                  <SelectTrigger className="bg-background"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="post_only">Post-Only (Maker) ⭐⭐</SelectItem>
+                    <SelectItem value="limit">Limit (Maker/Taker) ⭐</SelectItem>
+                    <SelectItem value="market">Market (Taker)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
+
+            {showLimitOffset && (
+              <div className="space-y-2">
+                <Label>
+                  Limit Price Offset (USDe)
+                  <span className="ml-1.5 text-xs text-muted-foreground">— offset dari harga pasar saat eksekusi</span>
+                </Label>
+                <Input
+                  type="text"
+                  inputMode="decimal"
+                  value={form.limitPriceOffset}
+                  onChange={(e) => setField("limitPriceOffset", e.target.value)}
+                  placeholder="mis. 10"
+                  className="bg-background font-mono"
+                />
+                <p className="text-xs text-muted-foreground">
+                  Buy: order di <strong>bawah</strong> harga pasar. Sell: di <strong>atas</strong> harga pasar.
+                </p>
+              </div>
+            )}
           </TabsContent>
 
-          <TabsContent value="grid" className="space-y-3 mt-0">
+          <TabsContent value="grid" className="space-y-3 mt-2">
+            <EthAiButton
+              strategyType="grid"
+              marketSymbol={form.marketSymbol}
+              onResult={(data) => handleAiResult(data, "grid")}
+            />
+
             <div className="grid grid-cols-2 gap-3">
-              <div>
-                <Label>Harga Bawah (USD)</Label>
-                <Input type="number" value={form.lowerPrice} onChange={(e) => setField("lowerPrice", e.target.value)} placeholder="e.g. 2000" />
+              <div className="space-y-2">
+                <Label>Harga Bawah (USDe)</Label>
+                <Input
+                  type="text"
+                  inputMode="decimal"
+                  value={form.lowerPrice}
+                  onChange={(e) => setField("lowerPrice", e.target.value)}
+                  placeholder="e.g. 2000"
+                  className="bg-background font-mono"
+                />
               </div>
-              <div>
-                <Label>Harga Atas (USD)</Label>
-                <Input type="number" value={form.upperPrice} onChange={(e) => setField("upperPrice", e.target.value)} placeholder="e.g. 3000" />
+              <div className="space-y-2">
+                <Label>Harga Atas (USDe)</Label>
+                <Input
+                  type="text"
+                  inputMode="decimal"
+                  value={form.upperPrice}
+                  onChange={(e) => setField("upperPrice", e.target.value)}
+                  placeholder="e.g. 3000"
+                  className="bg-background font-mono"
+                />
               </div>
             </div>
+
             <div className="grid grid-cols-2 gap-3">
-              <div>
-                <Label>Jumlah Level Grid</Label>
-                <Input type="number" value={form.gridLevels} onChange={(e) => setField("gridLevels", e.target.value)} min={2} max={100} />
+              <div className="space-y-2">
+                <Label>Level Grid</Label>
+                <Input
+                  type="text"
+                  inputMode="numeric"
+                  value={form.gridLevels}
+                  onChange={(e) => setField("gridLevels", e.target.value)}
+                  placeholder="10"
+                  className="bg-background font-mono"
+                />
               </div>
-              <div>
-                <Label>Jumlah per Grid (USD)</Label>
-                <Input type="number" value={form.amountPerGrid} onChange={(e) => setField("amountPerGrid", e.target.value)} min={1} />
+              <div className="space-y-2">
+                <Label>Jumlah per Grid (USDe)</Label>
+                <Input
+                  type="text"
+                  inputMode="decimal"
+                  value={form.amountPerGrid}
+                  onChange={(e) => setField("amountPerGrid", e.target.value)}
+                  placeholder="50"
+                  className="bg-background font-mono"
+                />
               </div>
             </div>
-            <div>
-              <Label>Mode Grid</Label>
-              <Select value={form.mode} onValueChange={(v) => setField("mode", v)}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="neutral">Neutral (Beli & Jual)</SelectItem>
-                  <SelectItem value="long">Long (Beli Saja)</SelectItem>
-                  <SelectItem value="short">Short (Jual Saja)</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+
             <div className="grid grid-cols-2 gap-3">
-              <div>
-                <Label>Stop Loss (USD, opsional)</Label>
-                <Input type="number" value={form.stopLoss} onChange={(e) => setField("stopLoss", e.target.value)} placeholder="opsional" />
+              <div className="space-y-2">
+                <Label>Mode Grid</Label>
+                <Select value={form.mode} onValueChange={(v) => setField("mode", v)}>
+                  <SelectTrigger className="bg-background"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="neutral">Netral (Beli &amp; Jual)</SelectItem>
+                    <SelectItem value="long">Long (Beli Saja)</SelectItem>
+                    <SelectItem value="short">Short (Jual Saja)</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
-              <div>
-                <Label>Take Profit (USD, opsional)</Label>
-                <Input type="number" value={form.takeProfit} onChange={(e) => setField("takeProfit", e.target.value)} placeholder="opsional" />
+              <div className="space-y-2">
+                <Label>Tipe Order</Label>
+                <Select value={form.orderType} onValueChange={(v) => setField("orderType", v)}>
+                  <SelectTrigger className="bg-background"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="post_only">Post-Only (Maker) ⭐⭐</SelectItem>
+                    <SelectItem value="limit">Limit (Maker/Taker) ⭐</SelectItem>
+                    <SelectItem value="market">Market (Taker)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            {showLimitOffset && (
+              <div className="space-y-2">
+                <Label>
+                  Limit Price Offset (USDe)
+                  <span className="ml-1.5 text-xs text-muted-foreground">— offset dari harga pasar</span>
+                </Label>
+                <Input
+                  type="text"
+                  inputMode="decimal"
+                  value={form.limitPriceOffset}
+                  onChange={(e) => setField("limitPriceOffset", e.target.value)}
+                  placeholder="mis. 10"
+                  className="bg-background font-mono"
+                />
+              </div>
+            )}
+
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-2">
+                <Label className="text-muted-foreground">Stop Loss (USDe, opsional)</Label>
+                <Input
+                  type="text"
+                  inputMode="decimal"
+                  value={form.stopLoss}
+                  onChange={(e) => setField("stopLoss", e.target.value)}
+                  placeholder="mis. 1700"
+                  className="bg-background font-mono"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label className="text-muted-foreground">Take Profit (USDe, opsional)</Label>
+                <Input
+                  type="text"
+                  inputMode="decimal"
+                  value={form.takeProfit}
+                  onChange={(e) => setField("takeProfit", e.target.value)}
+                  placeholder="mis. 2400"
+                  className="bg-background font-mono"
+                />
               </div>
             </div>
           </TabsContent>
         </Tabs>
 
-        <div className="flex gap-2 justify-end pt-2">
+        <div className="pt-4 flex gap-2 justify-end border-t border-border">
           <Button variant="outline" onClick={onClose} disabled={busy}>Batal</Button>
           <Button
             onClick={handleSubmit}
             disabled={busy}
-            className="bg-purple-600 hover:bg-purple-700 text-white"
+            className="bg-violet-600 hover:bg-violet-700 text-white"
           >
             {busy ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Plus className="w-4 h-4 mr-2" />}
-            Buat Strategy
+            Buat Strategi Ethereal
           </Button>
         </div>
       </DialogContent>

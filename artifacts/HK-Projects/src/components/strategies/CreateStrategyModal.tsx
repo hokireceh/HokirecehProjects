@@ -15,6 +15,7 @@ import { useCreateStrategy, useGetOrderBooks } from "@workspace/api-client-react
 import { Plus, Loader2, ChevronsUpDown, Check, Sparkles, TrendingUp, TrendingDown, Minus } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
+import { ExchangeLogo } from "@/components/ui/ExchangeLogo";
 
 const dcaSchema = z.object({
   name: z.string().min(3, "Nama minimal 3 karakter"),
@@ -357,9 +358,9 @@ function DcaForm({ markets, onSuccess, onCancel }: DcaFormProps) {
 
       <div className="pt-4 flex justify-end gap-3 border-t border-border">
         <Button type="button" variant="outline" onClick={onCancel}>Batal</Button>
-        <Button type="submit" disabled={createMutation.isPending}>
+        <Button type="submit" disabled={createMutation.isPending} className="bg-teal-600 hover:bg-teal-700 text-white">
           {createMutation.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-          Buat Bot
+          Buat Bot Lighter
         </Button>
       </div>
     </form>
@@ -578,9 +579,9 @@ function GridForm({ markets, onSuccess, onCancel }: GridFormProps) {
 
       <div className="pt-4 flex justify-end gap-3 border-t border-border">
         <Button type="button" variant="outline" onClick={onCancel}>Batal</Button>
-        <Button type="submit" disabled={createMutation.isPending}>
+        <Button type="submit" disabled={createMutation.isPending} className="bg-teal-600 hover:bg-teal-700 text-white">
           {createMutation.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-          Buat Bot
+          Buat Bot Lighter
         </Button>
       </div>
     </form>
@@ -608,13 +609,16 @@ export function CreateStrategyModal() {
       </DialogTrigger>
       <DialogContent className="sm:max-w-[520px] max-h-[90vh] overflow-y-auto bg-card border-border shadow-2xl">
         <DialogHeader>
-          <DialogTitle className="text-2xl font-bold">Buat Trading Bot</DialogTitle>
+          <DialogTitle className="flex items-center gap-2">
+            <ExchangeLogo exchange="lighter" size={20} />
+            Strategi Baru — Lighter DEX
+          </DialogTitle>
         </DialogHeader>
 
         <Tabs value={tab} onValueChange={(v: any) => setTab(v)} className="mt-2">
-          <TabsList className="grid w-full grid-cols-2 bg-background border border-border">
-            <TabsTrigger value="dca">DCA Bot</TabsTrigger>
-            <TabsTrigger value="grid">Grid Bot</TabsTrigger>
+          <TabsList className="grid w-full grid-cols-2">
+            <TabsTrigger value="dca">DCA</TabsTrigger>
+            <TabsTrigger value="grid">Grid</TabsTrigger>
           </TabsList>
 
           <TabsContent value="dca">
