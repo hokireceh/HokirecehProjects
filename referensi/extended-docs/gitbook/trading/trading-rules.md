@@ -1,7 +1,7 @@
 # trading rules
 
 > Source: https://docs.extended.exchange/extended-resources/trading/trading-rules
-> Fetched: 2026-04-03T00:22:34.303Z
+> Fetched: 2026-04-03T17:37:19.104Z
 
 
 copyCopychevron-down
@@ -1328,4 +1328,4 @@ $ 100 k
 [PreviousTrading Accounts and Marginchevron-left](/extended-resources/trading/trading-accounts-and-margin)[NextMargin Schedulechevron-right](/extended-resources/trading/margin-schedule)
 
 
-Last updated 36 minutes ago
+Last updated 12 hours ago

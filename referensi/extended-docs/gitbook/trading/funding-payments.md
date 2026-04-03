@@ -1,7 +1,7 @@
 # funding payments
 
 > Source: https://docs.extended.exchange/extended-resources/trading/funding-payments
-> Fetched: 2026-04-03T00:22:36.925Z
+> Fetched: 2026-04-03T17:37:21.171Z
 
 
 copy_Copychevron-down

@@ -19,8 +19,9 @@ import { eq, sql, isNull, and } from "drizzle-orm";
 import Decimal from "decimal.js";
 import { analyzeMarketForStrategy, type MarketContext } from "./groqAI";
 import { getMarketInfo } from "./lighter/marketCache";
-import { getBotConfig, getExtendedCredentials } from "../routes/configService";
+import { getBotConfig, getExtendedCredentials, getEtherealCredentials } from "../routes/configService";
 import { getMarketStats, type ExtendedNetwork } from "./extended/extendedApi";
+import type { EtherealNetwork } from "./ethereal/etherealApi";
 import { logger } from "./logger";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -384,7 +385,25 @@ export async function handleAutoRerange(
   try {
     let marketContext: MarketContext;
 
-    if (strategy.exchange === "extended") {
+    if (strategy.exchange === "ethereal") {
+      // Ethereal: tidak ada endpoint market stats 24h — gunakan harga saat ini saja.
+      // AI tetap mendapat symbol + lastPrice sebagai konteks utama untuk rerange.
+      const ethCreds = userId != null ? await getEtherealCredentials(userId).catch(() => null) : null;
+      const _network = (ethCreds?.etherealNetwork ?? "mainnet") as EtherealNetwork;
+
+      marketContext = {
+        exchange: "ethereal",
+        symbol: strategy.marketSymbol,
+        type: "perp",
+        lastPrice: currentPrice.toNumber(),
+        high24h: 0,
+        low24h: 0,
+        volume24h: 0,
+        priceChangePct24h: 0,
+        minBaseAmount: 0,
+        minQuoteAmount: 0,
+      };
+    } else if (strategy.exchange === "extended") {
       // Extended: ambil market stats dari Extended API
       const extCreds = userId != null ? await getExtendedCredentials(userId).catch(() => null) : null;
       const network = (extCreds?.extendedNetwork ?? "mainnet") as ExtendedNetwork;

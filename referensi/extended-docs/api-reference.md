@@ -1,7 +1,7 @@
 # Extended API Reference
 
 > Source: https://api.docs.extended.exchange/
-> Fetched: 2026-04-03T00:22:31.845Z
+> Fetched: 2026-04-03T17:37:17.160Z
 > Catatan: Halaman ini menggunakan JavaScript rendering (Stoplight/ReDoc).
 > Untuk spec lengkap, gunakan openapi.json jika tersedia.
 

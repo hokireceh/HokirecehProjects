@@ -36,6 +36,7 @@ import {
   getBotConfig,
   getEtherealCredentials,
 } from "../../routes/configService";
+import { handleAutoRerange, clearRerangeState } from "../autoRerange";
 
 Decimal.set({ precision: 20, rounding: Decimal.ROUND_HALF_UP });
 
@@ -544,6 +545,33 @@ async function ethExecuteGridCheck(strategy: typeof strategiesTable.$inferSelect
   if (!config) return;
 
   const userId = strategy.userId ?? null;
+
+  // ── SHORT-CIRCUIT a/b: Cek timeout/pending rerange SEBELUM fetch credentials/harga ──
+  // Identik dengan Lighter/Extended — jika ada pending konfirmasi, bot tidak boleh
+  // menjalankan logika grid sama sekali.
+  if (strategy.pendingRerangeAt) {
+    const elapsed = Date.now() - new Date(strategy.pendingRerangeAt).getTime();
+    const RERANGE_TIMEOUT_MS = 20 * 60 * 1000;
+
+    if (elapsed > RERANGE_TIMEOUT_MS) {
+      // (a) Timeout 20 menit: clear state, pause bot, kirim notifikasi
+      await clearRerangeState(strategy.id);
+      await ethAddLog(
+        userId, strategy.id, strategy.name, "warn",
+        "⏸ Auto-Rerange timeout: tidak ada konfirmasi dalam 20 menit. Bot di-pause.",
+        "User tidak merespons konfirmasi rerange. Atur parameter manual dari dashboard."
+      );
+      await ethNotifyUser(
+        userId,
+        `⏸ *Bot Ethereal Di-Pause*\nStrategy: *${strategy.name}*\n\nTidak ada konfirmasi rerange dalam 20 menit.\nAtur parameter manual dari dashboard lalu start kembali.`
+      );
+      await stopEtherealBot(strategy.id);
+    }
+    // (b) Pending ada tapi belum timeout → jangan jalankan logika grid apapun
+    return;
+  }
+  // ─────────────────────────────────────────────────────────────────────────────
+
   const creds = userId !== null ? await getEtherealConfig(userId) : null;
   const hasCredentials = creds?.hasCredentials ?? false;
   const network = creds?.network ?? "mainnet";
@@ -569,36 +597,76 @@ async function ethExecuteGridCheck(strategy: typeof strategiesTable.$inferSelect
   }
 
   const { lowerPrice, upperPrice, gridLevels, amountPerGrid, mode } = config;
-  const priceRange = upperPrice - lowerPrice;
-  const gridSize = priceRange / gridLevels;
   const currentPriceNum = currentPrice.toNumber();
+  const lower = new Decimal(lowerPrice);
+  const upper = new Decimal(upperPrice);
+  const gridSpacing = upper.sub(lower).div(gridLevels);
 
   // Cek stop loss / take profit
   if (config.stopLoss && currentPriceNum <= config.stopLoss) {
     await ethAddLog(userId, strategy.id, strategy.name, "warn",
-      `Stop Loss triggered! Harga: $${currentPrice.toFixed(2)} ≤ SL: $${config.stopLoss}`
+      `Stop Loss triggered! Harga: $${currentPrice.toFixed(2)} ≤ SL: $${config.stopLoss}`,
+      "Bot Ethereal dihentikan otomatis karena stop loss"
     );
+    if (userId !== null) {
+      const notif = await ethGetNotificationConfig(userId);
+      if (notif.notifyOnStop) {
+        await ethNotifyUser(userId,
+          `⚠️ *Stop Loss Triggered (Ethereal)*\nStrategy: *${strategy.name}*\nHarga: $${currentPrice.toFixed(2)} ≤ SL: $${config.stopLoss}\nBot dihentikan otomatis.`
+        );
+      }
+    }
     await stopEtherealBot(strategy.id);
     return;
   }
   if (config.takeProfit && currentPriceNum >= config.takeProfit) {
-    await ethAddLog(userId, strategy.id, strategy.name, "warn",
-      `Take Profit triggered! Harga: $${currentPrice.toFixed(2)} ≥ TP: $${config.takeProfit}`
+    await ethAddLog(userId, strategy.id, strategy.name, "success",
+      `Take Profit triggered! Harga: $${currentPrice.toFixed(2)} ≥ TP: $${config.takeProfit}`,
+      "Bot Ethereal dihentikan otomatis karena take profit"
     );
+    if (userId !== null) {
+      const notif = await ethGetNotificationConfig(userId);
+      if (notif.notifyOnStop) {
+        await ethNotifyUser(userId,
+          `🎯 *Take Profit Triggered (Ethereal)*\nStrategy: *${strategy.name}*\nHarga: $${currentPrice.toFixed(2)} ≥ TP: $${config.takeProfit}\nBot dihentikan otomatis.`
+        );
+      }
+    }
     await stopEtherealBot(strategy.id);
     return;
   }
 
-  // Cek apakah harga di luar range
-  if (currentPriceNum < lowerPrice || currentPriceNum > upperPrice) {
-    await ethAddLog(userId, strategy.id, strategy.name, "info",
-      `Harga $${currentPrice.toFixed(2)} di luar range [$${lowerPrice}–$${upperPrice}] — menunggu`,
-    );
+  // Cek apakah harga di luar range — delegasikan ke Auto-Rerange engine
+  // Identik dengan Lighter/Extended: handleAutoRerange mengelola counter 5 tick,
+  // cooldown 2 jam, daily limit 3x, AI call, pending state DB, konfirmasi Telegram.
+  // pendingRerangeAt sudah dicek di short-circuit block di atas, jadi di sini
+  // dijamin pendingRerangeAt IS NULL.
+  if (currentPrice.lt(lower) || currentPrice.gt(upper)) {
+    const rerangeResult = await handleAutoRerange(strategy, currentPrice);
+
+    switch (rerangeResult.type) {
+      case "triggered":
+        await ethAddLog(
+          userId, strategy.id, strategy.name, "warn",
+          `🤖 Auto-Rerange triggered: harga $${currentPrice.toFixed(4)} keluar range. Menunggu konfirmasi user.`,
+          `Range lama: $${lower.toFixed(4)}-$${upper.toFixed(4)} | Range baru AI: $${rerangeResult.params.newLowerPrice.toFixed(4)}-$${rerangeResult.params.newUpperPrice.toFixed(4)}`
+        );
+        break;
+      case "continue":
+        await ethAddLog(
+          userId, strategy.id, strategy.name, "warn",
+          `Harga $${currentPrice.toFixed(4)} di luar range ($${lower.toFixed(4)} - $${upper.toFixed(4)}) — menunggu (${(strategy.consecutiveOutOfRange ?? 0) + 1}/5 ticks)`
+        );
+        break;
+    }
     return;
   }
 
-  // Hitung level saat ini
-  const currentLevel = Math.floor((currentPriceNum - lowerPrice) / gridSize);
+  // Hitung level saat ini — gunakan Decimal untuk presisi + clamp ke gridLevels-1
+  const currentLevel = Math.min(
+    Math.floor(currentPrice.sub(lower).div(gridSpacing).toNumber()),
+    gridLevels - 1
+  );
   const prevState = etherealGridStates.get(strategy.id);
   const lastLevel = prevState?.lastLevel ?? currentLevel;
 
@@ -622,14 +690,16 @@ async function ethExecuteGridCheck(strategy: typeof strategiesTable.$inferSelect
   etherealGridStates.set(strategy.id, { lastLevel: currentLevel, initializedAt: prevState.initializedAt });
 
   // Tentukan aksi berdasarkan mode dan arah pergerakan
+  // PENTING: long hanya BUY saat down-cross; short hanya SELL saat up-cross.
+  // Identik dengan logika Lighter/Extended — harga naik (up-cross) di mode long
+  // tidak menambah posisi, harga turun (down-cross) di mode short tidak menjual.
   let orderSide: "buy" | "sell" | null = null;
   let orderCount = Math.abs(levelDelta);
 
-  if (mode === "neutral") {
-    orderSide = levelDelta > 0 ? "sell" : "buy";
-  } else if (mode === "long") {
+  const direction = levelDelta < 0 ? "down" : "up";
+  if (direction === "down" && (mode === "neutral" || mode === "long")) {
     orderSide = "buy";
-  } else if (mode === "short") {
+  } else if (direction === "up" && (mode === "neutral" || mode === "short")) {
     orderSide = "sell";
   }
 
@@ -867,6 +937,11 @@ export async function stopEtherealBot(strategyId: number): Promise<boolean> {
 
   etherealGridStates.delete(strategyId);
   ethWsGridLastTriggered.delete(strategyId);
+
+  // Reset auto-rerange state saat bot di-stop karena alasan apapun.
+  // Mencegah counter stale consecutiveOutOfRange saat bot restart,
+  // sehingga rerange tidak langsung trigger ulang begitu bot dinyalakan kembali.
+  await clearRerangeState(strategyId);
 
   // Unregister WS callback
   const strategy = await db.query.strategiesTable.findFirst({

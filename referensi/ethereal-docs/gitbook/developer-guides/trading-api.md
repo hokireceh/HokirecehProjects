@@ -1,7 +1,7 @@
 # trading api
 
 > Source: https://docs.ethereal.trade/developer-guides/trading-api
-> Fetched: 2026-04-03T06:57:50.452Z
+> Fetched: 2026-04-03T17:37:36.415Z
 
 
 copyCopychevron-down

@@ -1,7 +1,7 @@
 # margin schedule
 
 > Source: https://docs.extended.exchange/extended-resources/trading/margin-schedule
-> Fetched: 2026-04-03T00:22:36.102Z
+> Fetched: 2026-04-03T17:37:20.405Z
 
 
 copy_Copychevron-down

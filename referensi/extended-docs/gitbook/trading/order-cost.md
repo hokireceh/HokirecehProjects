@@ -1,7 +1,7 @@
 # order cost
 
 > Source: https://docs.extended.exchange/extended-resources/trading/order-cost
-> Fetched: 2026-04-03T00:22:35.215Z
+> Fetched: 2026-04-03T17:37:19.918Z
 
 
 copyCopychevron-down

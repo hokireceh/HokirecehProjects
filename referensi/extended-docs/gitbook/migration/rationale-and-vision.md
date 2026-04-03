@@ -1,7 +1,7 @@
 # rationale and vision
 
 > Source: https://docs.extended.exchange/starknet-migration/rationale-and-vision
-> Fetched: 2026-04-03T00:22:39.985Z
+> Fetched: 2026-04-03T17:37:23.668Z
 
 
 copyCopychevron-down

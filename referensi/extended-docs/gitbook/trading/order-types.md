@@ -1,7 +1,7 @@
 # order types
 
 > Source: https://docs.extended.exchange/extended-resources/trading/order-types
-> Fetched: 2026-04-03T00:22:33.446Z
+> Fetched: 2026-04-03T17:37:18.261Z
 
 
 copyCopychevron-down

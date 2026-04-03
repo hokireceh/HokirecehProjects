@@ -1,7 +1,7 @@
 # api hosts
 
 > Source: https://docs.ethereal.trade/protocol-reference/api-hosts
-> Fetched: 2026-04-03T06:57:51.401Z
+> Fetched: 2026-04-03T17:37:37.778Z
 
 
 copyCopychevron-down

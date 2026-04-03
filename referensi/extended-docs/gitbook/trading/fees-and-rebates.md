@@ -1,7 +1,7 @@
 # fees and rebates
 
 > Source: https://docs.extended.exchange/extended-resources/trading/trading-fees-and-rebates
-> Fetched: 2026-04-03T00:22:38.606Z
+> Fetched: 2026-04-03T17:37:22.482Z
 
 
 copyCopychevron-down

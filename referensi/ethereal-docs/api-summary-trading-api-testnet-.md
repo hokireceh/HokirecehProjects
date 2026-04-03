@@ -3,7 +3,7 @@
 > Label   : Trading API (testnet)
 > Versi   : 0.1.0
 > Base URL: https://api.etherealtest.net/
-> Dibuat  : 2026-04-03T06:57:48.707Z
+> Dibuat  : 2026-04-03T17:37:34.346Z
 
 Ethereal HTTP API for real-time trading, order management, and market data access.
 

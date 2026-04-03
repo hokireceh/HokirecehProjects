@@ -1,7 +1,7 @@
 # overview
 
 > Source: https://docs.extended.exchange/
-> Fetched: 2026-04-03T00:22:32.510Z
+> Fetched: 2026-04-03T17:37:17.753Z
 
 
 copyCopychevron-down
@@ -102,4 +102,4 @@ Progress so far
 [NextTechnical Architecturechevron-right](/about-extended/technical-architecture)
 
 
-Last updated 6 days ago
+Last updated 7 days ago

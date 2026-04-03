@@ -1,7 +1,7 @@
 # liquidation logic
 
 > Source: https://docs.extended.exchange/extended-resources/trading/liquidation-logic
-> Fetched: 2026-04-03T00:22:37.803Z
+> Fetched: 2026-04-03T17:37:21.650Z
 
 
 copy_Copychevron-down

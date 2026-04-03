@@ -1,7 +1,7 @@
 # smart contract audits
 
 > Source: https://docs.extended.exchange/extended-resources/more/smart-contract-audits
-> Fetched: 2026-04-03T00:22:42.027Z
+> Fetched: 2026-04-03T17:37:25.736Z
 
 
 copyCopychevron-down

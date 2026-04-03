@@ -1,7 +1,7 @@
 # python sdk
 
 > Source: https://docs.ethereal.trade/developer-guides/sdk/python-sdk
-> Fetched: 2026-04-03T06:57:50.927Z
+> Fetched: 2026-04-03T17:37:36.904Z
 
 
 copyCopychevron-down
@@ -26,4 +26,4 @@ At the time of writing, Ethereal only has support for a Python SDK with many mor
 [PreviousSDKchevron-left](/developer-guides/sdk)[NextSupportchevron-right](/protocol-reference/support)
 
 
-Last updated 17 days ago
+Last updated 18 days ago
