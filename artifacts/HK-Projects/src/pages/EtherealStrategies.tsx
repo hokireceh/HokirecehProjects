@@ -8,7 +8,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
-import { Play, Square, Trash2, Activity, BarChart2, Zap, LineChart, Pencil, Plus, Loader2, RefreshCw, Settings2, Wallet, Sparkles, ChevronsUpDown, Check } from "lucide-react";
+import { Play, Square, Trash2, Activity, BarChart2, Zap, LineChart, Pencil, Plus, Loader2, RefreshCw, Settings2, Wallet, Sparkles, ChevronsUpDown, Check, TrendingUp, TrendingDown, Minus } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 import { ExchangeLogo } from "@/components/ui/ExchangeLogo";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
@@ -81,6 +82,54 @@ interface EthCredentials {
   walletAddress?: string;
   subaccountId?: string;
   etherealNetwork?: string;
+}
+
+// ── AI Result types & card ─────────────────────────────────────────────────────
+
+interface AIResult {
+  reasoning: string;
+  marketCondition: "bullish" | "bearish" | "sideways" | "volatile";
+  riskLevel: "low" | "medium" | "high";
+  confidence: number;
+  modelUsed: string;
+  modelTier: string;
+}
+
+function AIInsightCard({ result }: { result: AIResult }) {
+  const conditionIcon = {
+    bullish: <TrendingUp className="w-3.5 h-3.5 text-green-400" />,
+    bearish: <TrendingDown className="w-3.5 h-3.5 text-destructive" />,
+    sideways: <Minus className="w-3.5 h-3.5 text-yellow-400" />,
+    volatile: <Sparkles className="w-3.5 h-3.5 text-primary" />,
+  }[result.marketCondition];
+
+  const riskColor = {
+    low: "text-green-400",
+    medium: "text-yellow-400",
+    high: "text-destructive",
+  }[result.riskLevel];
+
+  return (
+    <div className="rounded-lg border border-violet-500/30 bg-violet-500/5 p-3 space-y-2">
+      <div className="flex items-center justify-between flex-wrap gap-1">
+        <div className="flex items-center gap-1.5 text-xs font-medium text-violet-300">
+          <Sparkles className="w-3.5 h-3.5" />
+          Analisis AI — {result.modelTier}
+        </div>
+        <div className="flex items-center gap-2 flex-wrap">
+          <div className="flex items-center gap-1 text-xs text-muted-foreground">
+            {conditionIcon}
+            <span className="capitalize">{result.marketCondition === "sideways" ? "Sideways" : result.marketCondition === "bullish" ? "Bullish" : result.marketCondition === "bearish" ? "Bearish" : "Volatile"}</span>
+          </div>
+          <Badge variant="outline" className={cn("text-xs px-1.5 py-0", riskColor)}>
+            {result.riskLevel === "low" ? "risiko rendah" : result.riskLevel === "medium" ? "risiko sedang" : "risiko tinggi"}
+          </Badge>
+          <span className="text-xs text-muted-foreground">{result.confidence}% keyakinan</span>
+        </div>
+      </div>
+      <p className="text-xs text-muted-foreground leading-relaxed">{result.reasoning}</p>
+    </div>
+  );
 }
 
 // ── API ────────────────────────────────────────────────────────────────────────
@@ -251,7 +300,7 @@ function EthAiButton({
         method: "POST",
         credentials: "include",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ strategyType, marketSymbol }),
+        body: JSON.stringify({ strategyType, marketSymbol, exchange: "ethereal" }),
       });
       const json = await res.json();
       if (!res.ok) throw new Error(json.error ?? "Gagal mengambil rekomendasi AI");
@@ -297,6 +346,7 @@ function EthCreateModal({
   const { toast } = useToast();
   const [tab, setTab] = useState<"dca" | "grid">("dca");
   const [busy, setBusy] = useState(false);
+  const [aiResult, setAiResult] = useState<AIResult | null>(null);
 
   const [form, setForm] = useState({
     name: "",
@@ -320,6 +370,7 @@ function EthCreateModal({
 
   const selectMarket = (ticker: string, onchainId: number) => {
     setForm((f) => ({ ...f, marketSymbol: ticker, marketIndex: onchainId }));
+    setAiResult(null);
   };
 
   const handleAiResult = (data: any, strategyType: "dca" | "grid") => {
@@ -343,6 +394,16 @@ function EthCreateModal({
       if (p.limitPriceOffset != null) setField("limitPriceOffset", p.limitPriceOffset);
       if (p.stopLoss != null) setField("stopLoss", String(p.stopLoss));
       if (p.takeProfit != null) setField("takeProfit", String(p.takeProfit));
+    }
+    if (data.reasoning) {
+      setAiResult({
+        reasoning: data.reasoning,
+        marketCondition: data.marketCondition,
+        riskLevel: data.riskLevel,
+        confidence: data.confidence,
+        modelUsed: data.modelUsed,
+        modelTier: data.modelTier,
+      });
     }
   };
 
@@ -429,7 +490,7 @@ function EthCreateModal({
           </DialogTitle>
         </DialogHeader>
 
-        <Tabs value={tab} onValueChange={(v) => setTab(v as any)}>
+        <Tabs value={tab} onValueChange={(v) => { setTab(v as any); setAiResult(null); }}>
           <TabsList className="grid w-full grid-cols-2">
             <TabsTrigger value="dca">DCA</TabsTrigger>
             <TabsTrigger value="grid">Grid</TabsTrigger>
@@ -459,6 +520,8 @@ function EthCreateModal({
               marketSymbol={form.marketSymbol}
               onResult={(data) => handleAiResult(data, "dca")}
             />
+
+            {aiResult && <AIInsightCard result={aiResult} />}
 
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-2">
@@ -536,6 +599,8 @@ function EthCreateModal({
               marketSymbol={form.marketSymbol}
               onResult={(data) => handleAiResult(data, "grid")}
             />
+
+            {aiResult && <AIInsightCard result={aiResult} />}
 
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-2">

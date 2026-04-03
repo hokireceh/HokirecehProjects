@@ -2,33 +2,63 @@ import { Router } from "express";
 import { authMiddleware, type AuthRequest } from "../middlewares/auth";
 import { getMarketInfo } from "../lib/lighter/marketCache";
 import { getExtendedMarketInfo } from "../lib/extended/extendedMarkets";
+import { getProductByTicker } from "../lib/ethereal/etherealMarkets";
 import { analyzeMarketForStrategy } from "../lib/groqAI";
 import { getBotConfig } from "./configService";
 import { getAccountByIndex } from "../lib/lighter/lighterApi";
 import type { ExtendedNetwork } from "../lib/extended/extendedApi";
+import type { EtherealNetwork } from "../lib/ethereal/etherealApi";
 
 const router = Router();
 router.use(authMiddleware as any);
 
 router.post("/analyze", async (req: AuthRequest, res) => {
-  const { strategyType, marketIndex, marketSymbol } = req.body as {
+  const { strategyType, marketIndex, marketSymbol, exchange } = req.body as {
     strategyType: "dca" | "grid";
     marketIndex?: number;
     marketSymbol?: string;
+    exchange?: string;
   };
 
   if (!strategyType || !["dca", "grid"].includes(strategyType)) {
     return res.status(400).json({ error: "strategyType must be 'dca' or 'grid'" });
   }
 
-  const isExtended = typeof marketSymbol === "string" && marketSymbol.trim().length > 0;
-  const isLighter = !isExtended && (marketIndex !== undefined && marketIndex !== null && !isNaN(Number(marketIndex)));
+  const isEthereal = exchange === "ethereal" && typeof marketSymbol === "string" && marketSymbol.trim().length > 0;
+  const isExtended = !isEthereal && typeof marketSymbol === "string" && marketSymbol.trim().length > 0;
+  const isLighter = !isEthereal && !isExtended && (marketIndex !== undefined && marketIndex !== null && !isNaN(Number(marketIndex)));
 
-  if (!isExtended && !isLighter) {
-    return res.status(400).json({ error: "Sertakan marketIndex (Lighter) atau marketSymbol (Extended)" });
+  if (!isEthereal && !isExtended && !isLighter) {
+    return res.status(400).json({ error: "Sertakan marketIndex (Lighter) atau marketSymbol (Extended/Ethereal)" });
   }
 
   try {
+    // ─── Ethereal branch ───────────────────────────────────────────────────────
+    if (isEthereal) {
+      const config = await getBotConfig(req.userId!).catch(() => null);
+      const network: EtherealNetwork = (config?.etherealNetwork === "testnet") ? "testnet" : "mainnet";
+
+      const product = await getProductByTicker(marketSymbol!.trim(), network);
+      if (!product) {
+        return res.status(404).json({ error: `Market Ethereal '${marketSymbol}' tidak ditemukan` });
+      }
+
+      const result = await analyzeMarketForStrategy(strategyType, {
+        exchange: "ethereal",
+        symbol: product.displayTicker || product.ticker,
+        type: "perp",
+        lastPrice: product.lastPrice,
+        high24h: product.lastPrice * 1.03,
+        low24h: product.lastPrice * 0.97,
+        volume24h: 0,
+        priceChangePct24h: 0,
+        minBaseAmount: product.minOrderSize,
+        minQuoteAmount: product.minOrderSize * product.lastPrice,
+      });
+
+      return res.json({ ...result, availableBalance: undefined });
+    }
+
     // ─── Extended branch ───────────────────────────────────────────────────────
     if (isExtended) {
       const config = await getBotConfig(req.userId!).catch(() => null);
