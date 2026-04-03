@@ -48,6 +48,18 @@ The AI analyzes real-time market data (price, 24h range, volume, volatility) and
 
 Proyek ini adalah **multi-DEX trading bot tool**. Setiap penambahan fitur atau DEX baru harus mengikuti prinsip berikut:
 
+### Graceful Shutdown (index.ts)
+`src/index.ts` menangani `SIGTERM` dan `SIGINT` dengan urutan:
+1. Stop HTTP server (no new connections)
+2. Stop semua Lighter bots
+3. Stop semua Extended bots
+4. Stop semua Ethereal bots
+5. Destroy Extended WS connections
+6. Close DB pool
+7. `process.exit(0)`
+
+Ini memastikan pm2 restart bersih tanpa SIGKILL.
+
 ### Status DEX
 | DEX | Status | Keterangan |
 |---|---|---|
@@ -69,6 +81,19 @@ Proyek ini adalah **multi-DEX trading bot tool**. Setiap penambahan fitur atau D
 - Komponen UI yang sama (bot card, form strategi, log viewer, dsb.) **dipakai ulang via konfigurasi**, bukan diduplikasi per-DEX
 - UI harus bisa menampilkan semua DEX secara berdampingan dalam tampilan yang konsisten
 - Template UI Extended mengikuti pola Lighter, tetapi memanggil API endpoint Extended-nya sendiri
+
+### Extended DEX — Frontend Hooks (React Query)
+Data fetching Extended sudah **dimigrasikan ke React Query** (`artifacts/HK-Projects/src/hooks/useExtended.ts`):
+- `useExtendedStrategies()` — refetchInterval 5s + refetchOnWindowFocus
+- `useExtendedAccount()` — refetchInterval 15s
+- `useExtendedLogs(strategyId, enabled)` — refetchInterval 15s saat dialog buka
+- `useExtendedPnlChart(strategyId, enabled)` — fetch on demand
+- `useStartExtendedBot()`, `useStopExtendedBot()`, `useDeleteExtendedStrategy()` — mutations dengan invalidateQueries
+
+Komponen Extended yang sudah ada:
+- `ExtLogDialog.tsx` — log per strategy card (baru)
+- `ExtAccountWidget.tsx` — balance + uPnL widget (baru)
+- `ExtCreateStrategyModal.tsx`, `ExtEditStrategyModal.tsx` — sudah ada sebelumnya
 
 ### Extended DEX — Implementasi Saat Ini
 - API client: `src/lib/extended/extendedApi.ts`

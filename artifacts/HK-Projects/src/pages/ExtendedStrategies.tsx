@@ -1,13 +1,26 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Play, Square, Trash2, Activity, BarChart2, Zap, LineChart, Pencil } from "lucide-react";
+import { Play, Square, Trash2, Activity, BarChart2, Zap, LineChart, Pencil, ScrollText } from "lucide-react";
 import { ExchangeLogo } from "@/components/ui/ExchangeLogo";
 import { ExtCreateStrategyModal } from "@/components/extended/ExtCreateStrategyModal";
 import { ExtEditStrategyModal } from "@/components/extended/ExtEditStrategyModal";
+import { ExtLogDialog } from "@/components/extended/ExtLogDialog";
+import { ExtAccountWidget } from "@/components/extended/ExtAccountWidget";
 import { PriceDisplay } from "@/components/ui/PriceDisplay";
 import { useToast } from "@/hooks/use-toast";
+import {
+  useExtendedStrategies,
+  useStartExtendedBot,
+  useStopExtendedBot,
+  useDeleteExtendedStrategy,
+  useExtendedPnlChart,
+  useExtendedAccount,
+  EXT_QUERY_KEYS,
+  type ExtStrategy,
+} from "@/hooks/useExtended";
 import {
   ResponsiveContainer,
   LineChart as ReLineChart,
@@ -18,67 +31,6 @@ import {
   Tooltip,
   Legend,
 } from "recharts";
-
-// ── Types ──────────────────────────────────────────────────────────────────────
-
-interface ExtStrategy {
-  id: number;
-  name: string;
-  type: "dca" | "grid";
-  exchange: string;
-  marketSymbol: string;
-  isRunning: boolean;
-  isActive: boolean;
-  totalOrders: number;
-  successfulOrders: number;
-  totalBought: string;
-  totalSold: string;
-  avgBuyPrice: string;
-  avgSellPrice: string;
-  realizedPnl: string;
-  nextRunAt: string | null;
-  lastRunAt: string | null;
-  createdAt: string;
-  nextRunAtLive: string | null;
-  dcaConfig?: {
-    amountPerOrder: number;
-    intervalMinutes: number;
-    side: "buy" | "sell";
-    orderType: string;
-    limitPriceOffset?: number;
-  } | null;
-  gridConfig?: {
-    lowerPrice: number;
-    upperPrice: number;
-    gridLevels: number;
-    amountPerGrid: number;
-    mode: string;
-    orderType: string;
-    limitPriceOffset?: number;
-    stopLoss?: number | null;
-    takeProfit?: number | null;
-  } | null;
-}
-
-interface PnlDataPoint {
-  date: string;
-  buys: number;
-  sells: number;
-  estimatedPnl: number;
-  cumulativePnl: number;
-}
-
-// ── API helpers ────────────────────────────────────────────────────────────────
-
-async function apiFetch(path: string, init?: RequestInit) {
-  const res = await fetch(`/api/extended/strategies${path}`, {
-    credentials: "include",
-    ...init,
-  });
-  const json = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(json.error ?? `HTTP ${res.status}`);
-  return json;
-}
 
 // ── PnL Chart Dialog ───────────────────────────────────────────────────────────
 
@@ -93,19 +45,8 @@ function ExtPnlChartDialog({
   open: boolean;
   onClose: () => void;
 }) {
-  const [data, setData] = useState<PnlDataPoint[]>([]);
-  const [loading, setLoading] = useState(false);
-
-  useEffect(() => {
-    if (!open) return;
-    setLoading(true);
-    apiFetch(`/pnl-chart/data?strategyId=${strategyId}`)
-      .then((res) => setData(res.data ?? []))
-      .catch(() => setData([]))
-      .finally(() => setLoading(false));
-  }, [open, strategyId]);
-
-  const hasData = data.length > 0;
+  const { data: chartData = [], isLoading } = useExtendedPnlChart(strategyId, open);
+  const hasData = chartData.length > 0;
 
   return (
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
@@ -117,7 +58,7 @@ function ExtPnlChartDialog({
           </DialogTitle>
         </DialogHeader>
         <div className="pt-2">
-          {loading ? (
+          {isLoading ? (
             <div className="h-64 bg-muted animate-pulse rounded-lg" />
           ) : !hasData ? (
             <div className="h-64 flex flex-col items-center justify-center text-muted-foreground">
@@ -129,27 +70,27 @@ function ExtPnlChartDialog({
               <div className="grid grid-cols-3 gap-3 text-center">
                 <div className="bg-background rounded-lg p-3 border border-border/50">
                   <p className="text-2xl font-bold font-mono text-success">
-                    {data.reduce((a, d) => a + d.buys, 0)}
+                    {chartData.reduce((a, d) => a + d.buys, 0)}
                   </p>
                   <p className="text-xs text-muted-foreground">Total Beli</p>
                 </div>
                 <div className="bg-background rounded-lg p-3 border border-border/50">
                   <p className="text-2xl font-bold font-mono text-destructive">
-                    {data.reduce((a, d) => a + d.sells, 0)}
+                    {chartData.reduce((a, d) => a + d.sells, 0)}
                   </p>
                   <p className="text-xs text-muted-foreground">Total Jual</p>
                 </div>
                 <div className="bg-background rounded-lg p-3 border border-border/50">
                   <p className={`text-2xl font-bold font-mono ${
-                    (data[data.length - 1]?.cumulativePnl ?? 0) >= 0 ? "text-success" : "text-destructive"
+                    (chartData[chartData.length - 1]?.cumulativePnl ?? 0) >= 0 ? "text-success" : "text-destructive"
                   }`}>
-                    ${(data[data.length - 1]?.cumulativePnl ?? 0).toFixed(4)}
+                    ${(chartData[chartData.length - 1]?.cumulativePnl ?? 0).toFixed(4)}
                   </p>
                   <p className="text-xs text-muted-foreground">PnL Kumulatif</p>
                 </div>
               </div>
               <ResponsiveContainer width="100%" height={260}>
-                <ReLineChart data={data} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
+                <ReLineChart data={chartData} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
                   <XAxis dataKey="date" tick={{ fontSize: 11 }} />
                   <YAxis tick={{ fontSize: 11 }} tickFormatter={(v) => `$${v.toFixed(2)}`} />
@@ -182,6 +123,7 @@ function ExtStrategyCard({
   onDelete,
   onShowChart,
   onEdit,
+  onShowLog,
   isBusy,
 }: {
   strategy: ExtStrategy;
@@ -189,6 +131,7 @@ function ExtStrategyCard({
   onDelete: () => void;
   onShowChart: () => void;
   onEdit: () => void;
+  onShowLog: () => void;
   isBusy: boolean;
 }) {
   const pnl = parseFloat(strategy.realizedPnl ?? "0");
@@ -334,9 +277,17 @@ function ExtStrategyCard({
         <Button
           variant="outline"
           size="icon"
+          className="shrink-0 hover:bg-sky-500/10 hover:text-sky-400 hover:border-sky-500/30"
+          title="Lihat Log"
+          onClick={onShowLog}
+        >
+          <ScrollText className="w-4 h-4" />
+        </Button>
+        <Button
+          variant="outline"
+          size="icon"
           className="shrink-0 hover:bg-amber-500/10 hover:text-amber-400 hover:border-amber-500/30"
           title="Edit strategi"
-          disabled={strategy.isRunning}
           onClick={onEdit}
         >
           <Pencil className="w-4 h-4" />
@@ -359,72 +310,51 @@ function ExtStrategyCard({
 
 export default function ExtendedStrategies() {
   const { toast } = useToast();
-  const [strategies, setStrategies] = useState<ExtStrategy[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [busyIds, setBusyIds] = useState<Set<number>>(new Set());
+  const qc = useQueryClient();
+
+  const { data: strategies = [], isLoading } = useExtendedStrategies();
+  const { data: account } = useExtendedAccount();
+
+  const startMutation = useStartExtendedBot();
+  const stopMutation = useStopExtendedBot();
+  const deleteMutation = useDeleteExtendedStrategy();
+
   const [chartStrategy, setChartStrategy] = useState<{ id: number; name: string } | null>(null);
   const [editStrategy, setEditStrategy] = useState<ExtStrategy | null>(null);
+  const [logStrategyId, setLogStrategyId] = useState<number | null>(null);
+  const logStrategy = strategies.find((s) => s.id === logStrategyId);
 
-  const fetchStrategies = useCallback(async () => {
-    try {
-      const data = await apiFetch("/");
-      setStrategies(data.strategies ?? []);
-    } catch {
-      // silent — state tetap sama jika request gagal sementara
-    } finally {
-      setLoading(false);
+  const handleToggle = (strategy: ExtStrategy) => {
+    if (strategy.isRunning) {
+      stopMutation.mutate(strategy.id, {
+        onSuccess: () => toast({ title: "Bot Extended Dihentikan", description: strategy.name }),
+        onError: (err: any) =>
+          toast({ title: "Gagal Menghentikan Bot", description: err.message, variant: "destructive" }),
+      });
+    } else {
+      startMutation.mutate(strategy.id, {
+        onSuccess: () => toast({ title: "Bot Extended Dimulai", description: strategy.name }),
+        onError: (err: any) =>
+          toast({ title: "Gagal Memulai Bot", description: err.message, variant: "destructive" }),
+      });
     }
-  }, []);
+  };
 
-  useEffect(() => {
-    fetchStrategies();
-    const id = setInterval(fetchStrategies, 5000);
-    return () => clearInterval(id);
-  }, [fetchStrategies]);
-
-  const setBusy = (id: number, busy: boolean) => {
-    setBusyIds((prev) => {
-      const next = new Set(prev);
-      busy ? next.add(id) : next.delete(id);
-      return next;
+  const handleDelete = (strategy: ExtStrategy) => {
+    if (!confirm(`Yakin ingin menghapus strategi "${strategy.name}"?`)) return;
+    deleteMutation.mutate(strategy.id, {
+      onSuccess: () => toast({ title: "Strategi Extended Dihapus" }),
+      onError: (err: any) =>
+        toast({ title: "Gagal Menghapus", description: err.message, variant: "destructive" }),
     });
   };
 
-  const handleToggle = async (strategy: ExtStrategy) => {
-    setBusy(strategy.id, true);
-    try {
-      if (strategy.isRunning) {
-        await apiFetch(`/stop/${strategy.id}`, { method: "POST" });
-        toast({ title: "Bot Extended Dihentikan", description: strategy.name });
-      } else {
-        await apiFetch(`/start/${strategy.id}`, { method: "POST" });
-        toast({ title: "Bot Extended Dimulai", description: strategy.name });
-      }
-      fetchStrategies();
-    } catch (err: any) {
-      toast({
-        title: strategy.isRunning ? "Gagal Menghentikan Bot" : "Gagal Memulai Bot",
-        description: err.message,
-        variant: "destructive",
-      });
-    } finally {
-      setBusy(strategy.id, false);
-    }
-  };
+  const isBusy = (id: number) =>
+    (startMutation.isPending && (startMutation.variables as number) === id) ||
+    (stopMutation.isPending && (stopMutation.variables as number) === id) ||
+    (deleteMutation.isPending && (deleteMutation.variables as number) === id);
 
-  const handleDelete = async (strategy: ExtStrategy) => {
-    if (!confirm(`Yakin ingin menghapus strategi "${strategy.name}"?`)) return;
-    setBusy(strategy.id, true);
-    try {
-      await apiFetch(`/${strategy.id}`, { method: "DELETE" });
-      toast({ title: "Strategi Extended Dihapus" });
-      fetchStrategies();
-    } catch (err: any) {
-      toast({ title: "Gagal Menghapus", description: err.message, variant: "destructive" });
-    } finally {
-      setBusy(strategy.id, false);
-    }
-  };
+  const isConfigured = account?.configured ?? false;
 
   return (
     <div className="space-y-8 animate-in fade-in duration-500">
@@ -438,17 +368,28 @@ export default function ExtendedStrategies() {
             Bot trading otomatis di Extended DEX
           </p>
         </div>
-        <ExtCreateStrategyModal onCreated={fetchStrategies} />
+        <div className="flex items-center gap-3 flex-wrap">
+          <ExtAccountWidget />
+          <ExtCreateStrategyModal onCreated={() => qc.invalidateQueries({ queryKey: EXT_QUERY_KEYS.strategies })} />
+        </div>
       </header>
 
-      {/* Info badge Extended DEX */}
-      <div className="flex items-center gap-2 px-4 py-2 rounded-lg bg-violet-500/5 border border-violet-500/20 text-sm w-fit">
+      {/* Info badge — dinamis berdasarkan konfigurasi akun */}
+      <div className={`flex items-center gap-2 px-4 py-2 rounded-lg border text-sm w-fit ${
+        isConfigured
+          ? "bg-violet-500/5 border-violet-500/20"
+          : "bg-muted border-border"
+      }`}>
         <ExchangeLogo exchange="extended" size={14} />
         <span className="text-violet-300 font-medium">Extended DEX</span>
-        <span className="text-green-400 font-medium">aktif ✓</span>
+        {isConfigured ? (
+          <span className="text-green-400 font-medium">aktif ✓</span>
+        ) : (
+          <span className="text-yellow-400 font-medium">belum dikonfigurasi</span>
+        )}
       </div>
 
-      {loading ? (
+      {isLoading ? (
         <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
           {[1, 2, 3].map((i) => (
             <Card key={i} className="glass-panel flex flex-col overflow-hidden">
@@ -491,7 +432,8 @@ export default function ExtendedStrategies() {
               onDelete={() => handleDelete(strategy)}
               onShowChart={() => setChartStrategy({ id: strategy.id, name: strategy.name })}
               onEdit={() => setEditStrategy(strategy)}
-              isBusy={busyIds.has(strategy.id)}
+              onShowLog={() => setLogStrategyId(strategy.id)}
+              isBusy={isBusy(strategy.id)}
             />
           ))}
         </div>
@@ -510,9 +452,18 @@ export default function ExtendedStrategies() {
         strategy={editStrategy}
         onClose={() => {
           setEditStrategy(null);
-          fetchStrategies();
+          qc.invalidateQueries({ queryKey: EXT_QUERY_KEYS.strategies });
         }}
       />
+
+      {logStrategy && (
+        <ExtLogDialog
+          strategyId={logStrategy.id}
+          strategyName={logStrategy.name}
+          open={true}
+          onClose={() => setLogStrategyId(null)}
+        />
+      )}
     </div>
   );
 }
