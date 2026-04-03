@@ -62,6 +62,19 @@ function parseProduct(p: EtherealProduct): ProductInfo {
   const lotSize = parseFloat(p.lotSize ?? "0.001");
   const tickSize = parseFloat(p.tickSize ?? "0.01");
 
+  // Warn jika field kritis tidak ada di response API — silent fallback berbahaya
+  const _missingFields = [
+    !p.minQuantity && "minQuantity",
+    !p.lotSize     && "lotSize",
+    !p.tickSize    && "tickSize",
+  ].filter(Boolean);
+  if (_missingFields.length > 0) {
+    logger.warn(
+      { ticker: p.ticker, missingFields: _missingFields },
+      "[EtherealMarkets] Field tidak ada di response API, pakai default hardcoded"
+    );
+  }
+
   return {
     id: p.id,
     onchainId: p.onchainId,
@@ -184,12 +197,18 @@ export function invalidateProductCache(network?: EtherealNetwork): void {
 
 export function roundToStep(quantity: number, lotSize: number): number {
   if (lotSize <= 0) return quantity;
-  return Math.round(quantity / lotSize) * lotSize;
+  const q = new Decimal(quantity);
+  const step = new Decimal(lotSize);
+  // ROUND_DOWN: jangan pernah over-order dari yang dikonfigurasi user
+  return q.div(step).toDecimalPlaces(0, Decimal.ROUND_DOWN).mul(step).toNumber();
 }
 
 export function roundToTick(price: number, tickSize: number): number {
   if (tickSize <= 0) return price;
-  return Math.round(price / tickSize) * tickSize;
+  const p = new Decimal(price);
+  const tick = new Decimal(tickSize);
+  // ROUND_HALF_UP: standar untuk rounding harga
+  return p.div(tick).toDecimalPlaces(0, Decimal.ROUND_HALF_UP).mul(tick).toNumber();
 }
 
 export function roundToStepStr(quantity: number, lotSize: number, sizeDecimals: number): string {
