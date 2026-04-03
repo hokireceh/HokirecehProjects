@@ -5,6 +5,7 @@ import {
   useStopBot,
   useDeleteStrategy,
   useGetPnlChart,
+  useGetAccountInfo,
   getGetStrategiesQueryKey,
   getGetPnlChartQueryKey
 } from "@workspace/api-client-react";
@@ -12,7 +13,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Play, Square, Settings2, Trash2, Activity, BarChart2, Bot, LineChart, Pencil } from "lucide-react";
+import { Play, Square, Trash2, Activity, BarChart2, Zap, LineChart, Pencil, Wallet } from "lucide-react";
 import { CreateStrategyModal } from "@/components/strategies/CreateStrategyModal";
 import { EditStrategyModal } from "@/components/strategies/EditStrategyModal";
 import { PriceDisplay } from "@/components/ui/PriceDisplay";
@@ -105,8 +106,11 @@ export default function Strategies() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const { data, isLoading } = useGetStrategies({ query: { queryKey: getGetStrategiesQueryKey(), refetchInterval: 5000 } });
+  const { data: account } = useGetAccountInfo();
   const [chartStrategy, setChartStrategy] = useState<{ id: number; name: string } | null>(null);
   const [editStrategy, setEditStrategy] = useState<any | null>(null);
+
+  const isConfigured = account?.isConfigured ?? false;
   
   const startMutation = useStartBot({
     mutation: {
@@ -164,13 +168,45 @@ export default function Strategies() {
       <header className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h1 className="text-3xl font-bold text-foreground flex items-center gap-3">
-            <Settings2 className="w-8 h-8 text-primary" />
-            Strategi
+            <ExchangeLogo exchange="lighter" size={32} className="rounded-lg" />
+            Strategi Lighter
           </h1>
-          <p className="text-muted-foreground mt-1">Kelola bot trading otomatis kamu</p>
+          <p className="text-muted-foreground mt-1">Bot trading otomatis di Lighter DEX</p>
         </div>
-        <CreateStrategyModal />
+        <div className="flex items-center gap-3 flex-wrap">
+          {/* Lighter Account Balance Widget */}
+          {isConfigured && account?.totalEquity != null ? (
+            <div className="flex items-center gap-1.5 bg-teal-500/10 border border-teal-500/20 px-2.5 py-1.5 rounded-lg">
+              <Wallet className="w-3.5 h-3.5 text-teal-400" />
+              <span className="text-xs text-muted-foreground">USDC:</span>
+              <span className="font-mono font-bold text-teal-300">
+                ${account.totalEquity.toFixed(2)}
+              </span>
+            </div>
+          ) : (
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <Wallet className="w-4 h-4" />
+              <span>Belum terkonfigurasi</span>
+            </div>
+          )}
+          <CreateStrategyModal />
+        </div>
       </header>
+
+      {/* Status badge */}
+      <div className={`flex items-center gap-2 px-4 py-2 rounded-lg border text-sm w-fit ${
+        isConfigured
+          ? "bg-teal-500/5 border-teal-500/20"
+          : "bg-muted border-border"
+      }`}>
+        <ExchangeLogo exchange="lighter" size={14} />
+        <span className="text-teal-300 font-medium">Lighter DEX</span>
+        {isConfigured ? (
+          <span className="text-green-400 font-medium">aktif ✓</span>
+        ) : (
+          <span className="text-yellow-400 font-medium">belum dikonfigurasi</span>
+        )}
+      </div>
 
       {isLoading ? (
         <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
@@ -204,10 +240,10 @@ export default function Strategies() {
         </div>
       ) : !data?.strategies.length ? (
         <div className="text-center py-20 bg-card rounded-2xl border border-border flex flex-col items-center">
-          <Bot className="w-16 h-16 text-muted-foreground mb-4 opacity-20" />
-          <h3 className="text-xl font-bold text-foreground">Belum Ada Strategi</h3>
+          <Zap className="w-16 h-16 text-teal-400 mb-4 opacity-20" />
+          <h3 className="text-xl font-bold text-foreground">Belum Ada Strategi Lighter</h3>
           <p className="text-muted-foreground mt-2 max-w-md mx-auto">
-            Kamu belum membuat bot trading. Klik "Strategi Baru" untuk membuat DCA atau Grid bot pertama kamu.
+            Kamu belum membuat bot Lighter. Klik "Strategi Baru" untuk membuat DCA atau Grid bot di Lighter DEX.
           </p>
         </div>
       ) : (
