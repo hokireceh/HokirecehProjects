@@ -5,39 +5,19 @@ interface ExchangeLogoProps {
 }
 
 export function ExchangeLogo({ exchange, size = 16, className = "" }: ExchangeLogoProps) {
-  if (exchange === "ethereal") {
-    return (
-      <span
-        style={{
-          display: "inline-flex",
-          alignItems: "center",
-          justifyContent: "center",
-          width: size,
-          height: size,
-          borderRadius: 3,
-          background: "linear-gradient(135deg, #8b5cf6 0%, #6d28d9 100%)",
-          color: "#fff",
-          fontSize: Math.round(size * 0.6),
-          fontWeight: 700,
-          lineHeight: 1,
-          flexShrink: 0,
-        }}
-        className={className}
-        title="Ethereal DEX"
-        role="img"
-        aria-label="Ethereal DEX"
-      >
-        E
-      </span>
-    );
-  }
-
   const src =
     exchange === "lighter"
       ? "/images/lighter-icon.png"
-      : "/images/extended-icon.png";
+      : exchange === "extended"
+        ? "/images/extended-icon.png"
+        : "/images/ethereal-icon.png";
 
-  const alt = exchange === "lighter" ? "Lighter DEX" : "Extended";
+  const alt =
+    exchange === "lighter"
+      ? "Lighter DEX"
+      : exchange === "extended"
+        ? "Extended DEX"
+        : "Ethereal DEX";
 
   return (
     <img

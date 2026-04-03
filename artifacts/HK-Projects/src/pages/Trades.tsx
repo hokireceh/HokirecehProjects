@@ -7,6 +7,22 @@ import { History, ExternalLink, ReceiptText } from "lucide-react";
 import { formatWIBDateTime } from "@/lib/utils";
 import { ExchangeLogo } from "@/components/ui/ExchangeLogo";
 
+function getExplorerUrl(exchange: string, txHash: string): string {
+  if (!txHash) return "";
+  switch (exchange) {
+    case "lighter":
+      return `https://app.lighter.xyz/explorer/logs/${txHash}`;
+    case "extended":
+      return "";
+    case "ethereal": {
+      const hash = txHash.startsWith("eth_") ? txHash.slice(4) : txHash;
+      return `https://explorer.ethereal.trade/tx/${hash}`;
+    }
+    default:
+      return txHash;
+  }
+}
+
 function SideBadge({ side }: { side: string }) {
   return (
     <span className={`px-2 py-0.5 rounded text-xs font-bold ${
@@ -93,16 +109,19 @@ export default function Trades() {
                   </div>
                   <div className="flex items-center gap-1.5">
                     <StatusText status={trade.status} />
-                    {trade.orderHash && trade.exchange === "lighter" && (
-                      <a
-                        href={`https://app.lighter.xyz/explorer/logs/${trade.orderHash}`}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="text-muted-foreground hover:text-primary transition-colors"
-                      >
-                        <ExternalLink className="w-3.5 h-3.5" />
-                      </a>
-                    )}
+                    {trade.orderHash && (() => {
+                      const url = getExplorerUrl(trade.exchange ?? "", trade.orderHash ?? "");
+                      return url ? (
+                        <a
+                          href={url}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="text-muted-foreground hover:text-primary transition-colors"
+                        >
+                          <ExternalLink className="w-3.5 h-3.5" />
+                        </a>
+                      ) : null;
+                    })()}
                   </div>
                 </div>
                 {/* Row 2: Time + Price */}
@@ -201,16 +220,19 @@ export default function Trades() {
                       <TableCell className="text-right">
                         <div className="flex items-center justify-end gap-1.5">
                           <StatusText status={trade.status} />
-                          {trade.orderHash && trade.exchange === "lighter" && (
-                            <a
-                              href={`https://app.lighter.xyz/explorer/logs/${trade.orderHash}`}
-                              target="_blank"
-                              rel="noreferrer"
-                              className="text-muted-foreground hover:text-primary transition-colors"
-                            >
-                              <ExternalLink className="w-3.5 h-3.5" />
-                            </a>
-                          )}
+                          {trade.orderHash && (() => {
+                            const url = getExplorerUrl(trade.exchange ?? "", trade.orderHash ?? "");
+                            return url ? (
+                              <a
+                                href={url}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="text-muted-foreground hover:text-primary transition-colors"
+                              >
+                                <ExternalLink className="w-3.5 h-3.5" />
+                              </a>
+                            ) : null;
+                          })()}
                         </div>
                       </TableCell>
                     </TableRow>
