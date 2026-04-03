@@ -1038,7 +1038,7 @@ export default function EtherealStrategies() {
     setBusyIds((prev) => new Set(prev).add(id));
     try {
       await apiFetch(`/${id}`, { method: "DELETE" });
-      toast({ title: "Strategy dihapus" });
+      toast({ title: "Strategi dihapus" });
       await loadAll();
     } catch (err: any) {
       toast({ title: "Gagal hapus", description: err.message, variant: "destructive" });
@@ -1076,7 +1076,7 @@ export default function EtherealStrategies() {
             className="bg-purple-600 hover:bg-purple-700 text-white"
           >
             <Plus className="w-4 h-4 mr-1.5" />
-            Buat Strategy
+            Buat Strategi
           </Button>
         </div>
       </div>
@@ -1102,11 +1102,11 @@ export default function EtherealStrategies() {
       ) : strategies.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-20 text-muted-foreground">
           <BarChart2 className="w-16 h-16 mb-4 opacity-20" />
-          <p className="text-lg font-semibold">Belum ada strategy Ethereal</p>
-          <p className="text-sm mb-6">Klik "Buat Strategy" untuk memulai</p>
+          <p className="text-lg font-semibold">Belum ada strategi Ethereal</p>
+          <p className="text-sm mb-6">Klik "Buat Strategi" untuk memulai</p>
           <Button onClick={() => setShowCreate(true)} className="bg-purple-600 hover:bg-purple-700 text-white">
             <Plus className="w-4 h-4 mr-2" />
-            Buat Strategy Pertama
+            Buat Strategi Pertama
           </Button>
         </div>
       ) : (
@@ -1152,10 +1152,10 @@ export default function EtherealStrategies() {
       <Dialog open={deleteConfirmId !== null} onOpenChange={(v) => !v && setDeleteConfirmId(null)}>
         <DialogContent className="sm:max-w-[360px] bg-card border-border">
           <DialogHeader>
-            <DialogTitle>Hapus Strategy?</DialogTitle>
+            <DialogTitle>Hapus Strategi?</DialogTitle>
           </DialogHeader>
           <p className="text-sm text-muted-foreground py-2">
-            Strategy ini akan dihapus permanen. Histori trade tetap tersimpan.
+            Strategi ini akan dihapus permanen. Histori trade tetap tersimpan.
           </p>
           <div className="flex gap-2 justify-end">
             <Button variant="outline" onClick={() => setDeleteConfirmId(null)}>Batal</Button>
