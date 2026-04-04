@@ -463,7 +463,7 @@ export default function Dashboard() {
             </span>
           )}
           <Link
-            href="/strategies"
+            href="/lighter"
             className="ml-auto text-sm text-primary hover:text-primary/80 flex items-center gap-1"
           >
             Kelola <ExternalLink className="w-3 h-3" />

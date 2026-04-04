@@ -498,7 +498,7 @@ export default function AIAdvisor() {
 
           {/* CTA — link ke halaman strategi yang sesuai DEX */}
           <div className="flex flex-col sm:flex-row gap-3">
-            <Link href={selectedDex === "extended" ? "/extended" : "/strategies"}>
+            <Link href={selectedDex === "extended" ? "/extended" : selectedDex === "ethereal" ? "/ethereal" : "/lighter"}>
               <Button className="w-full sm:w-auto gap-2" variant="default">
                 <Bot className="w-4 h-4" />
                 Buat Strategi {selectedDex === "extended" ? "Extended" : "Lighter"} Baru

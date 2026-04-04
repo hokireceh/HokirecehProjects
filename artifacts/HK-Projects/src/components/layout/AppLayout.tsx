@@ -30,7 +30,7 @@ const generalItems = [
 ];
 
 const lighterItems = [
-  { href: "/strategies", label: "Strategi", icon: Bot },
+  { href: "/lighter", label: "Strategi Lighter", icon: Bot },
 ];
 
 const extendedItems = [
