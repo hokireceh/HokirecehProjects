@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -1126,20 +1126,20 @@ export default function EtherealStrategies() {
   const logDialog = strategies.find((s) => s.id === logDialogId);
 
   return (
-    <div className="p-4 md:p-8 space-y-6 max-w-7xl mx-auto">
+    <div className="space-y-8 animate-in fade-in duration-500">
 
       {/* Header */}
-      <div className="flex items-center justify-between gap-4 flex-wrap">
+      <header className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-2xl font-bold flex items-center gap-2">
-            <ExchangeLogo exchange="ethereal" size={28} />
-            Ethereal DEX
+          <h1 className="text-3xl font-bold text-foreground flex items-center gap-3">
+            <ExchangeLogo exchange="ethereal" size={32} className="rounded-lg" />
+            Strategi Ethereal
           </h1>
-          <p className="text-sm text-muted-foreground mt-1">
-            Perps DEX on Ethena — Grid & DCA dengan EIP-712 signing
+          <p className="text-muted-foreground mt-1">
+            Bot trading otomatis di Ethereal DEX
           </p>
         </div>
-        <div className="flex items-center gap-2 flex-wrap">
+        <div className="flex items-center gap-3 flex-wrap">
           <EthAccountWidget account={account} />
           <Button variant="outline" size="sm" onClick={() => setShowConfig(true)}>
             <Settings2 className="w-4 h-4 mr-1.5" />
@@ -1154,38 +1154,61 @@ export default function EtherealStrategies() {
             Buat Strategi
           </Button>
         </div>
-      </div>
+      </header>
 
-      {/* Credential warning */}
-      {!credentials.hasCredentials && (
-        <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-xl p-4 flex items-start gap-3">
-          <Zap className="w-5 h-5 text-yellow-400 shrink-0 mt-0.5" />
-          <div>
-            <p className="font-semibold text-yellow-300 text-sm">Credentials Belum Dikonfigurasi</p>
-            <p className="text-xs text-muted-foreground mt-1">
-              Bot akan berjalan dalam mode paper trade. Klik <button className="underline text-yellow-300" onClick={() => setShowConfig(true)}>Konfigurasi</button> untuk menghubungkan wallet Ethereal.
-            </p>
-          </div>
-        </div>
-      )}
+      {/* DEX badge */}
+      <div className={`flex items-center gap-2 px-4 py-2 rounded-lg border text-sm w-fit ${
+        credentials.hasCredentials
+          ? "bg-purple-500/5 border-purple-500/20"
+          : "bg-muted border-border"
+      }`}>
+        <ExchangeLogo exchange="ethereal" size={14} />
+        <span className="text-purple-300 font-medium">Ethereal DEX</span>
+        {credentials.hasCredentials ? (
+          <span className="text-green-400 font-medium">aktif ✓</span>
+        ) : (
+          <button className="text-yellow-400 font-medium hover:underline" onClick={() => setShowConfig(true)}>
+            belum dikonfigurasi — paper trade
+          </button>
+        )}
+      </div>
 
       {/* Strategies grid */}
       {loading ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {[1, 2, 3].map((i) => <div key={i} className="h-64 bg-muted animate-pulse rounded-xl" />)}
+        <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
+          {[1, 2, 3].map((i) => (
+            <Card key={i} className="glass-panel flex flex-col overflow-hidden">
+              <CardHeader className="pb-3">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="space-y-2 flex-1">
+                    <div className="h-5 w-32 bg-primary/10 animate-pulse rounded" />
+                    <div className="h-4 w-20 bg-muted animate-pulse rounded" />
+                  </div>
+                  <div className="h-6 w-14 bg-muted animate-pulse rounded-full" />
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-3 flex-1">
+                <div className="h-4 w-full bg-muted animate-pulse rounded" />
+                <div className="h-4 w-3/4 bg-muted animate-pulse rounded" />
+              </CardContent>
+              <CardFooter className="flex gap-2 pt-3 border-t border-border/50">
+                <div className="h-8 flex-1 bg-muted animate-pulse rounded" />
+                <div className="h-8 w-8 bg-muted animate-pulse rounded" />
+                <div className="h-8 w-8 bg-muted animate-pulse rounded" />
+              </CardFooter>
+            </Card>
+          ))}
         </div>
       ) : strategies.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-20 text-muted-foreground">
-          <BarChart2 className="w-16 h-16 mb-4 opacity-20" />
-          <p className="text-lg font-semibold">Belum ada strategi Ethereal</p>
-          <p className="text-sm mb-6">Klik "Buat Strategi" untuk memulai</p>
-          <Button onClick={() => setShowCreate(true)} className="bg-purple-600 hover:bg-purple-700 text-white">
-            <Plus className="w-4 h-4 mr-2" />
-            Buat Strategi Pertama
-          </Button>
+        <div className="text-center py-20 bg-card rounded-2xl border border-border flex flex-col items-center">
+          <Zap className="w-16 h-16 text-purple-400 mb-4 opacity-20" />
+          <h3 className="text-xl font-bold text-foreground">Belum Ada Strategi Ethereal</h3>
+          <p className="text-muted-foreground mt-2 max-w-md mx-auto">
+            Kamu belum membuat bot Ethereal. Klik "Buat Strategi" untuk membuat DCA atau Grid bot di Ethereal DEX.
+          </p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
           {strategies.map((s) => (
             <EthStrategyCard
               key={s.id}
