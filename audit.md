@@ -137,7 +137,7 @@ Browser → HTTPS → Cloudflare CDN → HTTP :80 → Apache :80
 
 ### Cara Ubah Config di aaPanel
 
-Masuk **aaPanel → Website → domain → Config** (tombol pensil/edit), cari VirtualHost block yang ada, tambahkan baris yang ditandai `← TAMBAH`:
+Masuk **aaPanel → Website → domain → Config**, replace seluruh isi dengan config berikut (versi bersih, siap pakai):
 
 ```apache
 <VirtualHost *:80>
@@ -146,17 +146,14 @@ Masuk **aaPanel → Website → domain → Config** (tombol pensil/edit), cari V
 
     DocumentRoot /www/wwwroot/HokirecehProjects/artifacts/HK-Projects/dist
 
-    # ── Security Headers (TAMBAH semua ini) ────────────────────────────────────
     <IfModule mod_headers.c>
         Header always set X-Frame-Options "SAMEORIGIN"
         Header always set X-Content-Type-Options "nosniff"
         Header always set Referrer-Policy "strict-origin-when-cross-origin"
         Header always set Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self' https://mainnet.zklighter.elliot.ai https://testnet.zklighter.elliot.ai https://api.starknet.extended.exchange https://api.starknet.sepolia.extended.exchange; object-src 'none'"
-        # Cache headers
         Header set Cache-Control "no-cache, no-store, must-revalidate"
     </IfModule>
 
-    # Cache panjang untuk aset JS/CSS (nama file sudah include hash dari Vite)
     <LocationMatch "\.(js|css|woff2?|ico|png|svg)$">
         Header set Cache-Control "public, max-age=31536000, immutable"
     </LocationMatch>
@@ -166,7 +163,6 @@ Masuk **aaPanel → Website → domain → Config** (tombol pensil/edit), cari V
         Require all granted
         Options -Indexes
 
-        # SPA routing (sudah ada — tetap)
         RewriteEngine On
         RewriteCond %{REQUEST_FILENAME} !-f
         RewriteCond %{REQUEST_FILENAME} !-d
@@ -174,15 +170,14 @@ Masuk **aaPanel → Website → domain → Config** (tombol pensil/edit), cari V
         RewriteRule ^ /index.html [L]
     </Directory>
 
-    # Proxy /api ke backend PM2 (sudah ada — tambah ProxyPreserveHost)
     ProxyRequests Off
-    ProxyPreserveHost On                          ← TAMBAH
+    ProxyPreserveHost On
     ProxyPass /api http://127.0.0.1:8080/api
     ProxyPassReverse /api http://127.0.0.1:8080/api
 </VirtualHost>
 ```
 
-Setelah edit, klik **Save** di aaPanel lalu restart Apache dari panel atau:
+Klik **Save**, lalu:
 ```bash
 /etc/init.d/httpd restart
 ```
