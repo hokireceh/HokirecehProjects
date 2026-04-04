@@ -361,12 +361,30 @@ Di aaPanel → **Website → domain → Config**, replace VirtualHost dengan con
 ### Update Aplikasi
 
 ```bash
+cat > /usr/local/bin/pull-hk << 'EOF'
+#!/bin/bash
+set -e
 cd /www/wwwroot/HokirecehProjects
-git pull
-pnpm install
-pnpm run build
-pm2 restart ecosystem.config.cjs --update-env
+git pull origin main
+
+echo "Checking TypeScript..."
+cd artifacts/api-server
+pnpm tsc --noEmit 2>&1 | grep -v "TS6305" | grep "error TS" && echo "TypeScript error ditemukan, deploy dibatalkan!" && exit 1
+
+echo "Building frontend..."
+cd ../HK-Projects && pnpm build
+
+echo "Building backend..."
+cd ../api-server && pnpm build
+
+echo "Restarting..."
+pm2 restart hokireceh-api --update-env
+echo "Deploy selesai!"
+EOF
+chmod +x /usr/local/bin/pull-hk
 ```
+
+Selanjutnya tinggal ketik pull-hk dari mana saja.
 
 > **Penting:** Selalu gunakan `--update-env` saat restart. Tanpa flag ini PM2 memakai env vars lama dari cache, sehingga perubahan di `.env` (seperti `ADMIN_PASSWORD`) tidak akan terbaca.
 
