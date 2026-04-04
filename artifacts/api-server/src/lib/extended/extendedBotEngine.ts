@@ -24,6 +24,7 @@ import type { ExtendedNetwork, ExtendedOrder } from "./extendedApi";
 import { getExtendedMarketInfo } from "./extendedMarkets";
 import { derivePublicKey } from "./extendedSigner";
 import { getBotConfig, getExtendedCredentials as getExtendedCredsFromConfig } from "../../routes/configService";
+import { getDuplicateTolerance } from "../shared/tolerance";
 
 Decimal.set({ precision: 20, rounding: Decimal.ROUND_HALF_UP });
 
@@ -1152,13 +1153,14 @@ async function extExecuteGridCheck(strategy: typeof strategiesTable.$inferSelect
   );
 
   const targetPrice = currentPrice.toNumber();
+  const { lower: tolLower, upper: tolUpper } = getDuplicateTolerance(targetPrice, gridSpacing.toNumber());
   const existingPending = await db.query.tradesTable.findFirst({
     where: and(
       eq(tradesTable.strategyId, strategy.id),
       eq(tradesTable.status, "pending"),
       eq(tradesTable.side, side),
-      gte(tradesTable.price, String(targetPrice * 0.999)),
-      lte(tradesTable.price, String(targetPrice * 1.001)),
+      gte(tradesTable.price, String(tolLower)),
+      lte(tradesTable.price, String(tolUpper)),
     ),
   });
   if (existingPending) {
