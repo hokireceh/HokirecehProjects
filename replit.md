@@ -301,3 +301,38 @@ pnpm --filter @workspace/scripts run check-lighter-api -- --ping # + live test m
 1. JANGAN sentuh apapun di src/lib/lighter/ — Lighter production 24/7
 2. JANGAN ubah logika signing Extended (Poseidon) atau Ethereal (EIP-712)
 3. JANGAN ubah field yang dikirim ke API backend
+
+## Catatan Bug & Keputusan Arsitektur (Operasional)
+
+### notifyChatId — sumber yang benar
+- `getBotConfig(userId)` → punya `notifyChatId` dan `notifyBotToken` ✅
+- `getNotificationConfig(userId)` / `extGetNotificationConfig` / `ethGetNotificationConfig` → hanya return boolean flags (`notifyOnBuy`, dll) — **TIDAK punya notifyChatId** ❌
+- Selalu pakai `getBotConfig` untuk kirim notifikasi Telegram
+
+### Telegram 2-bot architecture
+- Main bot (`BOT_TOKEN`) → handle commands + rerange/restart inline button callbacks
+- Notification bot (`notifyBotToken`) → kirim notifikasi pasif saja
+- Inline button callback HARUS dikirim via `_globalTelegram` (main bot) supaya bisa diproses
+
+### registerRerangeHandlers — return type
+- Signature: callback harus return `Promise<boolean>`
+- Pakai `return false` (bukan `return;`) untuk early exit — `return;` = `undefined` = TypeScript error
+
+### Ethereal guard di telegramBot.ts
+- Guard Ethereal harus ada di **startFn DAN stopFn** di `registerRerangeHandlers`
+- Kalau hanya di salah satu, yang lain akan fall-through ke Lighter `startBot`/`stopBot`
+
+### Bot tick null guard
+- `!strategy` (DB null transient) → `logger.warn` + `return` — bot tetap jalan ✅
+- `!isActive || !isRunning` (intentional stop) → `stopBot` ✅
+- **Jangan** `stopBot` untuk null strategy — itu bisa permanent stop karena transient DB hiccup
+
+### Vite build — emptyOutDir
+- `emptyOutDir: false` di `vite.config.ts` — JANGAN ubah ke `true`
+- aaPanel menaruh `.user.ini` di dalam `dist/` — Vite `rimraf` crash karena file itu protected/terkunci
+- Tidak masalah pakai `false` karena semua JS/CSS pakai content hash (cache busting otomatis)
+
+### Startup recovery (index.ts)
+- Saat `pm2 restart`, graceful shutdown pakai `skipDbUpdate=true` → `isRunning` tetap `true` di DB
+- Saat startup, `index.ts` auto-restart semua bot yang `isRunning=true` di DB (delay 5s)
+- Ini memastikan bot recovery otomatis setelah deploy tanpa perlu start manual
