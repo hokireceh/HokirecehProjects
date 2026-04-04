@@ -185,6 +185,79 @@ Browser → HTTPS → Cloudflare CDN → HTTP :80 → Apache :80
 
 ---
 
+## 7. Bug & UX Issues Ditemukan
+
+### 7.1 🔴 BUG KRITIS — Ethereal Rerange Handler Salah
+
+**File:** `artifacts/api-server/src/lib/telegramBot.ts` — baris 443–468
+
+**Masalah:**  
+`registerRerangeHandlers()` dipanggil dengan dua fungsi: `startBotFn` dan `stopBotFn`. Saat user klik **✅ Approve** di Telegram, kode cek exchange:
+
+```typescript
+if (strat?.exchange === "extended") {
+  return startExtendedBot(strategyId); // ← Extended ✅
+}
+return startBot(strategyId); // ← Lighter DAN Ethereal ❌
+```
+
+Ethereal tidak punya branch sendiri — fall-through ke `startBot` milik Lighter. Akibatnya:
+- Approve rerange Ethereal → memanggil Lighter `startBot` → bot salah / error / corrupt state
+- Idem untuk `stopBotFn`: Ethereal fall-through ke Lighter `stopBot`
+
+**Fix yang dibutuhkan:**
+```typescript
+// Di telegramBot.ts — kedua fungsi (start & stop)
+if (strat?.exchange === "extended") { ... }
+if (strat?.exchange === "ethereal") {
+  const { startEtherealBot } = await import("./ethereal/etherealBotEngine");
+  return startEtherealBot(strategyId);
+}
+return startBot(strategyId); // Lighter only
+```
+
+**Status:** ❌ Belum difix — perlu dikerjakan segera jika Ethereal strategy sudah dipakai
+
+---
+
+### 7.2 🟡 UX Issue — Notif Pause Tanpa Tombol Restart
+
+**File:** `artifacts/api-server/src/lib/lighter/botEngine.ts` baris 732–735  
+_(identik di `extendedBotEngine.ts` baris 975–981 dan `etherealBotEngine.ts` baris 560–567)_
+
+**Masalah:**  
+Notif "⏸ Bot Di-Pause" yang dikirim setelah timeout 20 menit tidak punya tombol inline:
+
+```typescript
+await notifyUser(userId,
+  `⏸ *Bot Di-Pause*\nStrategy: *${strategy.name}*\n\nTidak ada konfirmasi rerange dalam 20 menit.\nAtur parameter manual dari dashboard lalu start kembali.`
+);
+// ← tidak ada reply_markup / inline_keyboard
+```
+
+User harus buka dashboard manual untuk start ulang — padahal tombol **▶️ Start Bot** bisa ditambahkan langsung di notif Telegram.
+
+**Alur sekarang vs yang diharapkan:**
+| | Rerange Confirmation | Pause Notification |
+|---|---|---|
+| Sekarang | ✅ Ada tombol [✅ Approve] [❌ Reject] | ❌ Plain text saja |
+| Harapan | ✅ Sudah benar | ✅ Tambah tombol [▶️ Start Bot] |
+
+**Fix yang dibutuhkan:** Di ketiga botEngine, ganti `notifyUser()` untuk notif pause dengan `sendMessageWithButton()` yang menyertakan tombol restart. Atau tambahkan callback `bot_restart_${strategyId}` di Telegram handler.
+
+**Status:** ❌ Belum difix — medium priority, bot tetap berfungsi tapi UX buruk
+
+---
+
+### Rekap Bug
+
+| # | Severity | File | Deskripsi | Status |
+|---|----------|------|-----------|--------|
+| 7.1 | 🔴 Kritis | `telegramBot.ts` | Ethereal approve/reject rerange memanggil Lighter `startBot` | ❌ Belum difix |
+| 7.2 | 🟡 Medium | `*BotEngine.ts` (×3) | Notif pause tanpa tombol restart | ❌ Belum difix |
+
+---
+
 ## Ringkasan Skor Akhir
 
 | Kategori | Skor Awal | Skor Akhir | Komentar |
