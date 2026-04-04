@@ -134,3 +134,35 @@ Total perubahan: **Kecil** — hanya 3 fix di `EthStrategyCard`:
 **Keputusan styling:** Button tetap `variant="ghost"` (Opsi B — minimal change), tidak diubah ke `outline`. Alasan: konsistensi internal Ethereal — semua button footer card (Toggle, Log, Delete) pakai `ghost`.
 
 **Gap 3** (`as any` cast) — tidak diimplementasi, ditunda karena opsional dan tidak ada risiko runtime.
+
+---
+
+### Apr 2026 — Layout Alignment & Sidebar Fix
+
+Perubahan di luar scope audit card, dilakukan sesi yang sama:
+
+**Commit:** `0cedff31` — "Align Ethereal strategy layout with Extended and Lighter patterns"
+
+| Bagian | Perubahan | File |
+|---|---|---|
+| Outer wrapper | Hapus `p-4 md:p-8 max-w-7xl`, ganti ke `space-y-8 animate-in fade-in` | `EtherealStrategies.tsx` |
+| Header | `<div>` → `<header>` dengan `sm:flex-row`, judul `text-2xl` → `text-3xl`, "Ethereal DEX" → "Strategi Ethereal" | `EtherealStrategies.tsx` |
+| Credential warning | Banner kuning besar → DEX badge compact (aktif ✓ / paper trade) | `EtherealStrategies.tsx` |
+| Loading skeleton | Kotak polos → skeleton Card detail dengan CardHeader + CardFooter | `EtherealStrategies.tsx` |
+| Empty state | `flex` sederhana → `bg-card rounded-2xl border`, icon `BarChart2` → `Zap` purple | `EtherealStrategies.tsx` |
+| Grid gap | `gap-4` → `gap-6` | `EtherealStrategies.tsx` |
+| Import | Tambah `CardFooter` ke card imports | `EtherealStrategies.tsx` |
+
+**Commit:** `ba1a79cb` — "Improve header layout by removing redundant configuration status"
+
+| Bug | Fix | File |
+|---|---|---|
+| `EthAccountWidget` render "Belum terkonfigurasi" saat account kosong, menyebabkan 3 item wrap di header | Ganti early return ke `return null` | `EtherealStrategies.tsx` |
+
+**Commit:** `c80e0d29` + `71f4fee4` — "Add Ethereal network status to the sidebar"
+
+| Bagian | Perubahan | File |
+|---|---|---|
+| AppLayout sidebar | Tambah `useQuery` untuk `/api/ethereal/strategies/credentials` | `AppLayout.tsx` |
+| DEX status card | Ubah dari `grid-cols-2` (Lighter + Extended) → vertical stack `divide-y` (Lighter + Extended + Ethereal) | `AppLayout.tsx` |
+| Layout status | Tiap DEX 1 baris: nama + network kiri, dot status kanan | `AppLayout.tsx` |
