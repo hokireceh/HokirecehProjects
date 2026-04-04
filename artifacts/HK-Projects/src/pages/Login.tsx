@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
-import { AlertCircle, TrendingUp, Lock, HelpCircle } from "lucide-react";
+import { AlertCircle, TrendingUp, Lock, HelpCircle, Send } from "lucide-react";
 import { ExchangeLogo } from "@/components/ui/ExchangeLogo";
 
 const FAQ_ITEMS = [
@@ -32,20 +32,36 @@ const FAQ_ITEMS = [
 ];
 
 
+const TELEGRAM_URL = import.meta.env.VITE_TELEGRAM_BOT_USERNAME
+  ? `https://t.me/${import.meta.env.VITE_TELEGRAM_BOT_USERNAME}`
+  : null;
+
+const MAX_ATTEMPTS = 3;
+
 export default function Login() {
   const { login } = useAuth();
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [failCount, setFailCount] = useState(0);
+
+  const blocked = failCount >= MAX_ATTEMPTS;
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    if (blocked) return;
     setError("");
     setLoading(true);
     const result = await login(password);
     setLoading(false);
     if (!result.success) {
-      setError(result.error || "Login gagal");
+      const next = failCount + 1;
+      setFailCount(next);
+      if (next >= MAX_ATTEMPTS) {
+        setError("");
+      } else {
+        setError(`${result.error || "Login gagal"} (${next}/${MAX_ATTEMPTS})`);
+      }
     }
   }
 
@@ -92,58 +108,77 @@ export default function Login() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="password">Password</Label>
-                <Input
-                  id="password"
-                  type="text"
-                  placeholder="Contoh: SEPIBUKANSAPI"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value.toUpperCase())}
-                  className="font-mono tracking-widest text-center text-lg"
-                  autoComplete="off"
-                  autoFocus
-                  disabled={loading}
-                />
-              </div>
-
-              {error && (
-                <div className="flex items-center gap-2 text-destructive text-sm">
+            {blocked ? (
+              <div className="space-y-3 text-center">
+                <div className="flex items-center gap-2 text-destructive text-sm justify-center">
                   <AlertCircle className="h-4 w-4 shrink-0" />
-                  <span>{error}</span>
+                  <span>Password salah 3 kali. Silakan hubungi kami.</span>
                 </div>
-              )}
+                {TELEGRAM_URL ? (
+                  <a href={TELEGRAM_URL} target="_blank" rel="noopener noreferrer" className="block">
+                    <Button className="w-full gap-2 text-white border-0" style={{ background: "linear-gradient(135deg, #229ED9 0%, #1a7fb5 100%)" }}>
+                      <Send className="h-4 w-4" />
+                      Hubungi via Telegram
+                    </Button>
+                  </a>
+                ) : (
+                  <p className="text-xs text-muted-foreground">Hubungi bot Telegram kami untuk mendapatkan password.</p>
+                )}
+              </div>
+            ) : (
+              <form onSubmit={handleSubmit} className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="password">Password</Label>
+                  <Input
+                    id="password"
+                    type="text"
+                    placeholder="Contoh: SEPIBUKANSAPI"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value.toUpperCase())}
+                    className="font-mono tracking-widest text-center text-lg"
+                    autoComplete="off"
+                    autoFocus
+                    disabled={loading}
+                  />
+                </div>
 
-              <Button
-                type="submit"
-                className="w-full text-white border-0"
-                style={{ background: "linear-gradient(135deg, #0fd4aa 0%, #0aaa88 100%)" }}
-                disabled={loading || !password.trim()}
-              >
-                {loading ? "Memverifikasi..." : "Masuk"}
-              </Button>
-            </form>
+                {error && (
+                  <div className="flex items-center gap-2 text-destructive text-sm">
+                    <AlertCircle className="h-4 w-4 shrink-0" />
+                    <span>{error}</span>
+                  </div>
+                )}
+
+                <Button
+                  type="submit"
+                  className="w-full text-white border-0"
+                  style={{ background: "linear-gradient(135deg, #0fd4aa 0%, #0aaa88 100%)" }}
+                  disabled={loading || !password.trim()}
+                >
+                  {loading ? "Memverifikasi..." : "Masuk"}
+                </Button>
+              </form>
+            )}
           </CardContent>
         </Card>
 
         <div className="text-center text-xs text-muted-foreground space-y-1">
           <p>Belum punya password?</p>
           <p>
-            Hubungi{' '}
-            {import.meta.env.VITE_TELEGRAM_BOT_USERNAME ? (
-              <a 
-                href={`https://t.me/${import.meta.env.VITE_TELEGRAM_BOT_USERNAME}`}
+            Hubungi bot{' '}
+            {TELEGRAM_URL ? (
+              <a
+                href={TELEGRAM_URL}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="text-emerald-500 hover:underline font-medium"
               >
-                bot Telegram kami
+                Telegram
               </a>
             ) : (
-              "bot Telegram kami"
+              "Telegram"
             )}{' '}
-            untuk berlangganan.
+            kami untuk berlangganan.
           </p>
         </div>
 
