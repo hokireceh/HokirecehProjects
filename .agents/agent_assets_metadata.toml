@@ -6,3 +6,9 @@ id = "VLXatsdCk_7z4mMcX_Re6"
 uri = "file://output.txt"
 type = "text"
 title = "Laporan Audit Sistem — Lighter & Extended Bot"
+
+[[outputs]]
+id = "dZdL11zRljBOsri97UAjJ"
+uri = "file://audit.md"
+type = "text"
+title = "Audit Web Standar 2026 — Hokireceh Projects"
