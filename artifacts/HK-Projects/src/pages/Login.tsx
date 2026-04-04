@@ -4,8 +4,33 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
-import { AlertCircle, TrendingUp, Lock } from "lucide-react";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import { AlertCircle, TrendingUp, Lock, HelpCircle } from "lucide-react";
 import { ExchangeLogo } from "@/components/ui/ExchangeLogo";
+
+const FAQ_ITEMS = [
+  {
+    q: "Apa itu Hokireceh Projects?",
+    a: "Platform manajemen trading bot otomatis yang berjalan di 3 exchange sekaligus: Lighter, Extended, dan Ethereal. Bot bekerja 24/7 mengeksekusi strategi grid trading tanpa perlu intervensi manual.",
+  },
+  {
+    q: "Bagaimana cara mendapatkan password?",
+    a: "Hubungi bot Telegram kami untuk informasi berlangganan. Setelah pembayaran dikonfirmasi, password akan dikirimkan langsung ke Telegram kamu.",
+  },
+  {
+    q: "Exchange apa saja yang didukung?",
+    a: "Saat ini mendukung 3 exchange: Lighter (on-chain orderbook), Extended (Starknet perpetuals), dan Ethereal (EVM perpetuals). Masing-masing bisa dijalankan secara independen.",
+  },
+  {
+    q: "Apakah bot aman digunakan?",
+    a: "Bot hanya menggunakan API key dengan permission trading saja — tidak ada akses withdraw. Private key disimpan terenkripsi dan tidak pernah dikirim ke server pihak ketiga.",
+  },
+  {
+    q: "Apa yang terjadi jika bot error atau server restart?",
+    a: "Bot dilengkapi mekanisme recovery otomatis. Setelah restart, bot akan memeriksa order yang sudah ada sebelum membuat order baru — tidak akan ada duplikasi order.",
+  },
+];
+
 
 export default function Login() {
   const { login } = useAuth();
@@ -120,6 +145,29 @@ export default function Login() {
             )}{' '}
             untuk berlangganan.
           </p>
+        </div>
+
+        <div className="space-y-3">
+          <div className="flex items-center gap-2 text-sm font-semibold text-muted-foreground">
+            <HelpCircle className="h-4 w-4" />
+            <span>Pertanyaan Umum</span>
+          </div>
+          <Accordion type="single" collapsible className="space-y-2">
+            {FAQ_ITEMS.map((item, i) => (
+              <AccordionItem
+                key={i}
+                value={`faq-${i}`}
+                className="border border-border rounded-lg px-4 overflow-hidden"
+              >
+                <AccordionTrigger className="text-sm text-left font-medium py-3 hover:no-underline">
+                  {item.q}
+                </AccordionTrigger>
+                <AccordionContent className="text-xs text-muted-foreground pb-3 leading-relaxed">
+                  {item.a}
+                </AccordionContent>
+              </AccordionItem>
+            ))}
+          </Accordion>
         </div>
       </div>
     </div>
