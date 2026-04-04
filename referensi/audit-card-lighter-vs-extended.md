@@ -18,7 +18,7 @@
 | Stats field path | Nested (`strategy.stats.X`) | Top-level (`strategy.X`) |
 | Type safety gridConfig | ✅ Properly typed (Apr 2026) | Properly typed |
 | Warna tema card | Teal/Green | Violet |
-| Struktur komponen | Inline (monolitik) | Sub-komponen `ExtStrategyCard` |
+| Struktur komponen | ✅ Sub-komponen `LighterStrategyCard` (Apr 2026) | Sub-komponen `ExtStrategyCard` |
 
 ---
 
@@ -104,8 +104,8 @@
 
 | | Lighter | Extended |
 |---|---|---|
-| Card | Inline di dalam loop `data.strategies.map()` | Dipisah ke sub-komponen `ExtStrategyCard` |
-| Props pattern | Akses langsung ke state parent | Callback props (`onToggle`, `onDelete`, `onShowChart`, `onEdit`, `onShowLog`) |
+| Card | ✅ Sub-komponen `LighterStrategyCard` (Apr 2026) | Dipisah ke sub-komponen `ExtStrategyCard` |
+| Props pattern | ✅ Callback props `onToggle`, `onDelete`, `onShowChart`, `onEdit`, `onShowLog`, `isBusy` (Apr 2026) | Callback props (`onToggle`, `onDelete`, `onShowChart`, `onEdit`, `onShowLog`) |
 | Log state | ✅ Ada (Apr 2026): `const [logStrategyId, setLogStrategyId] = useState<number \| null>(null)` | `const [logStrategyId, setLogStrategyId] = useState<number \| null>(null)` |
 | Log dialog | ✅ Ada (Apr 2026): `<LighterLogDialog strategyId={logStrategyId} onClose={...} />` | `<ExtLogDialog strategyId={logStrategyId} onClose={...} />` |
 
@@ -118,7 +118,7 @@
 | Field "Order Type" di DCA config | Card content | ✅ Selesai (Apr 2026) |
 | Tombol Log Dialog (`ScrollText`) | Card footer | ✅ Selesai (Apr 2026) |
 | Badge label DEX ("Lighter") | Card header | ✅ Selesai (Apr 2026) |
-| Sub-komponen card terpisah | Arsitektur | ❌ Belum (tidak diminta) |
+| Sub-komponen card terpisah | Arsitektur | ✅ Selesai (Apr 2026) |
 | Typed gridConfig + dcaConfig (tanpa `as any`) | Type safety | ✅ Selesai (Apr 2026) |
 
 ## 8. Ringkasan: Ada di Lighter, Tidak Ada di Extended
@@ -128,6 +128,19 @@
 ---
 
 ## 9. Changelog Implementasi
+
+### Apr 2026 — Sesi 3 (Refactor Sub-komponen)
+
+**LighterStrategies.tsx**:
+- Card diekstrak ke sub-komponen `LighterStrategyCard` (sebelum main function)
+- Props: `strategy`, `onToggle`, `onDelete`, `onShowChart`, `onEdit`, `onShowLog`, `isBusy`
+- `handleToggle` dan `handleDelete` diubah menerima `Strategy` object (bukan `strategyId: number`)
+- `editStrategy` state diubah dari `any` ke `Strategy | null`
+- Import `DcaConfig`/`GridConfig` dihapus (tidak diperlukan lagi — diakses via `Strategy` type)
+- IIFE pattern dihapus — field DCA/Grid diakses langsung (typed via `Strategy`)
+- Main function sekarang hanya kelola state + render grid + dialogs
+
+---
 
 ### Apr 2026 — Sesi 2 (Badge DEX + Type Safety)
 

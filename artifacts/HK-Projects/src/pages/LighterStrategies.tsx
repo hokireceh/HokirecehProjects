@@ -1,15 +1,14 @@
 import { useState } from "react";
-import { 
-  useGetStrategies, 
-  useStartBot, 
+import {
+  useGetStrategies,
+  useStartBot,
   useStopBot,
   useDeleteStrategy,
   useGetPnlChart,
   useGetAccountInfo,
   getGetStrategiesQueryKey,
   getGetPnlChartQueryKey,
-  type DcaConfig,
-  type GridConfig,
+  type Strategy,
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
@@ -33,13 +32,23 @@ import {
   Legend,
 } from "recharts";
 
-function PnlChartDialog({ strategyId, strategyName, open, onClose }: {
+// ── PnL Chart Dialog ───────────────────────────────────────────────────────────
+
+function PnlChartDialog({
+  strategyId,
+  strategyName,
+  open,
+  onClose,
+}: {
   strategyId: number;
   strategyName: string;
   open: boolean;
   onClose: () => void;
 }) {
-  const { data, isLoading } = useGetPnlChart({ strategyId }, { query: { queryKey: getGetPnlChartQueryKey({ strategyId }), enabled: open } });
+  const { data, isLoading } = useGetPnlChart(
+    { strategyId },
+    { query: { queryKey: getGetPnlChartQueryKey({ strategyId }), enabled: open } },
+  );
 
   const chartData = data?.data ?? [];
   const hasData = chartData.length > 0;
@@ -77,7 +86,11 @@ function PnlChartDialog({ strategyId, strategyName, open, onClose }: {
                   <p className="text-xs text-muted-foreground">Total Jual</p>
                 </div>
                 <div className="bg-background rounded-lg p-3 border border-border/50">
-                  <p className={`text-2xl font-bold font-mono ${(chartData[chartData.length - 1]?.cumulativePnl ?? 0) >= 0 ? "text-success" : "text-destructive"}`}>
+                  <p className={`text-2xl font-bold font-mono ${
+                    (chartData[chartData.length - 1]?.cumulativePnl ?? 0) >= 0
+                      ? "text-success"
+                      : "text-destructive"
+                  }`}>
                     ${(chartData[chartData.length - 1]?.cumulativePnl ?? 0).toFixed(4)}
                   </p>
                   <p className="text-xs text-muted-foreground">PnL Kumulatif</p>
@@ -105,18 +118,208 @@ function PnlChartDialog({ strategyId, strategyName, open, onClose }: {
   );
 }
 
+// ── Strategy Card ──────────────────────────────────────────────────────────────
+
+function LighterStrategyCard({
+  strategy,
+  onToggle,
+  onDelete,
+  onShowChart,
+  onEdit,
+  onShowLog,
+  isBusy,
+}: {
+  strategy: Strategy;
+  onToggle: () => void;
+  onDelete: () => void;
+  onShowChart: () => void;
+  onEdit: () => void;
+  onShowLog: () => void;
+  isBusy: boolean;
+}) {
+  return (
+    <Card className="glass-panel flex flex-col overflow-hidden relative group">
+      {strategy.isRunning && (
+        <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-success/50 via-success to-success/50 animate-pulse" />
+      )}
+
+      <CardHeader className="pb-3 border-b border-border/50">
+        <div className="flex justify-between items-start">
+          <div>
+            <CardTitle className="text-lg font-bold flex items-center gap-2">
+              {strategy.name}
+            </CardTitle>
+            <div className="flex items-center gap-2 mt-1.5">
+              <span className="text-xs font-mono bg-muted px-2 py-0.5 rounded text-foreground">
+                {strategy.marketSymbol}
+              </span>
+              <span className="text-xs uppercase font-bold text-primary tracking-wider">
+                {strategy.type}
+              </span>
+              <span className="text-[10px] text-muted-foreground bg-muted px-1.5 py-0.5 rounded">
+                Lighter
+              </span>
+            </div>
+          </div>
+          <div className={`px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider flex items-center gap-1.5 ${
+            strategy.isRunning ? "bg-success/20 text-success" : "bg-muted text-muted-foreground"
+          }`}>
+            {strategy.isRunning && (
+              <span className="w-1.5 h-1.5 rounded-full bg-success animate-pulse" />
+            )}
+            {strategy.isRunning ? "Berjalan" : "Berhenti"}
+          </div>
+        </div>
+      </CardHeader>
+
+      <CardContent className="py-4 flex-1">
+        {strategy.type === "dca" && strategy.dcaConfig && (
+          <div className="grid grid-cols-2 gap-y-3 text-sm">
+            <div>
+              <div className="text-muted-foreground text-xs">Jumlah</div>
+              <div className="font-mono">${strategy.dcaConfig.amountPerOrder}</div>
+            </div>
+            <div>
+              <div className="text-muted-foreground text-xs">Interval</div>
+              <div className="font-mono">{strategy.dcaConfig.intervalMinutes}m</div>
+            </div>
+            <div>
+              <div className="text-muted-foreground text-xs">Sisi</div>
+              <div className={`font-medium ${strategy.dcaConfig.side === "buy" ? "text-success" : "text-destructive"}`}>
+                {strategy.dcaConfig.side.toUpperCase()}
+              </div>
+            </div>
+            {strategy.dcaConfig.orderType && (
+              <div>
+                <div className="text-muted-foreground text-xs">Order Type</div>
+                <div className="font-mono text-xs capitalize">{strategy.dcaConfig.orderType}</div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {strategy.type === "grid" && strategy.gridConfig && (
+          <div className="grid grid-cols-2 gap-y-3 text-sm">
+            <div>
+              <div className="text-muted-foreground text-xs">Rentang</div>
+              <div className="font-mono text-xs">
+                ${strategy.gridConfig.lowerPrice} - ${strategy.gridConfig.upperPrice}
+              </div>
+            </div>
+            <div>
+              <div className="text-muted-foreground text-xs">Level</div>
+              <div className="font-mono">{strategy.gridConfig.gridLevels}</div>
+            </div>
+            <div>
+              <div className="text-muted-foreground text-xs">Per Grid</div>
+              <div className="font-mono">${strategy.gridConfig.amountPerGrid}</div>
+            </div>
+            <div>
+              <div className="text-muted-foreground text-xs">Mode</div>
+              <div className="font-mono capitalize">{strategy.gridConfig.mode}</div>
+            </div>
+            {strategy.gridConfig.stopLoss && (
+              <div>
+                <div className="text-muted-foreground text-xs">Stop Loss</div>
+                <div className="font-mono text-destructive">${strategy.gridConfig.stopLoss}</div>
+              </div>
+            )}
+            {strategy.gridConfig.takeProfit && (
+              <div>
+                <div className="text-muted-foreground text-xs">Take Profit</div>
+                <div className="font-mono text-success">${strategy.gridConfig.takeProfit}</div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {strategy.stats && (
+          <div className="mt-4 pt-4 border-t border-border/50">
+            <div className="flex justify-between items-center mb-1">
+              <span className="text-xs text-muted-foreground flex items-center gap-1">
+                <BarChart2 className="w-3 h-3" /> PnL Terealisasi
+              </span>
+              <PriceDisplay value={strategy.stats.realizedPnl} format="currency" showIcon />
+            </div>
+            <div className="text-xs text-muted-foreground">
+              Trade: {strategy.stats.successfulOrders} / {strategy.stats.totalOrders}
+            </div>
+          </div>
+        )}
+      </CardContent>
+
+      <CardFooter className="pt-3 pb-4 border-t border-border/50 bg-background/50 flex justify-between gap-2">
+        <Button
+          variant={strategy.isRunning ? "destructive" : "default"}
+          className={`flex-1 ${!strategy.isRunning ? "bg-success hover:bg-success/90 text-success-foreground" : ""}`}
+          onClick={onToggle}
+          disabled={isBusy}
+        >
+          {strategy.isRunning ? (
+            <><Square className="w-4 h-4 mr-2 fill-current" /> Hentikan Bot</>
+          ) : (
+            <><Play className="w-4 h-4 mr-2 fill-current" /> Mulai Bot</>
+          )}
+        </Button>
+        <Button
+          variant="outline"
+          size="icon"
+          className="shrink-0 hover:bg-primary/10 hover:text-primary hover:border-primary/30"
+          title="Lihat Grafik PnL"
+          onClick={onShowChart}
+        >
+          <Activity className="w-4 h-4" />
+        </Button>
+        <Button
+          variant="outline"
+          size="icon"
+          className="shrink-0 hover:bg-teal-500/10 hover:text-teal-400 hover:border-teal-500/30"
+          title="Lihat Log"
+          onClick={onShowLog}
+        >
+          <ScrollText className="w-4 h-4" />
+        </Button>
+        <Button
+          variant="outline"
+          size="icon"
+          className="shrink-0 hover:bg-blue-500/10 hover:text-blue-400 hover:border-blue-500/30"
+          title="Edit Strategi"
+          onClick={onEdit}
+        >
+          <Pencil className="w-4 h-4" />
+        </Button>
+        <Button
+          variant="outline"
+          size="icon"
+          className="shrink-0 hover:bg-destructive/10 hover:text-destructive hover:border-destructive/30"
+          title="Hapus strategi"
+          onClick={onDelete}
+        >
+          <Trash2 className="w-4 h-4" />
+        </Button>
+      </CardFooter>
+    </Card>
+  );
+}
+
+// ── Main Page ──────────────────────────────────────────────────────────────────
+
 export default function Strategies() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
-  const { data, isLoading } = useGetStrategies({ query: { queryKey: getGetStrategiesQueryKey(), refetchInterval: 5000 } });
+  const { data, isLoading } = useGetStrategies({
+    query: { queryKey: getGetStrategiesQueryKey(), refetchInterval: 5000 },
+  });
   const { data: account } = useGetAccountInfo();
-  const [chartStrategy, setChartStrategy] = useState<{ id: number; name: string } | null>(null);
-  const [editStrategy, setEditStrategy] = useState<any | null>(null);
-  const [logStrategyId, setLogStrategyId] = useState<number | null>(null);
-  const logStrategy = data?.strategies.find((s) => s.id === logStrategyId);
 
+  const [chartStrategy, setChartStrategy] = useState<{ id: number; name: string } | null>(null);
+  const [editStrategy, setEditStrategy] = useState<Strategy | null>(null);
+  const [logStrategyId, setLogStrategyId] = useState<number | null>(null);
+
+  const strategies = data?.strategies ?? [];
+  const logStrategy = strategies.find((s) => s.id === logStrategyId);
   const isConfigured = account?.isConfigured ?? false;
-  
+
   const startMutation = useStartBot({
     mutation: {
       onSuccess: () => {
@@ -128,7 +331,7 @@ export default function Strategies() {
         toast({ title: "Tidak Dapat Memulai Bot", description: msg, variant: "destructive" });
         queryClient.invalidateQueries({ queryKey: getGetStrategiesQueryKey() });
       },
-    }
+    },
   });
 
   const stopMutation = useStopBot({
@@ -142,7 +345,7 @@ export default function Strategies() {
         toast({ title: "Tidak Dapat Menghentikan Bot", description: msg, variant: "destructive" });
         queryClient.invalidateQueries({ queryKey: getGetStrategiesQueryKey() });
       },
-    }
+    },
   });
 
   const deleteMutation = useDeleteStrategy({
@@ -150,23 +353,25 @@ export default function Strategies() {
       onSuccess: () => {
         toast({ title: "Strategi Dihapus" });
         queryClient.invalidateQueries({ queryKey: getGetStrategiesQueryKey() });
-      }
-    }
+      },
+    },
   });
 
-  const handleToggle = (strategyId: number, isRunning: boolean) => {
-    if (isRunning) {
-      stopMutation.mutate({ strategyId });
+  const handleToggle = (strategy: Strategy) => {
+    if (strategy.isRunning) {
+      stopMutation.mutate({ strategyId: strategy.id });
     } else {
-      startMutation.mutate({ strategyId });
+      startMutation.mutate({ strategyId: strategy.id });
     }
   };
 
-  const handleDelete = (strategyId: number) => {
+  const handleDelete = (strategy: Strategy) => {
     if (confirm("Yakin ingin menghapus strategi ini?")) {
-      deleteMutation.mutate({ id: strategyId });
+      deleteMutation.mutate({ id: strategy.id });
     }
   };
+
+  const isBusy = startMutation.isPending || stopMutation.isPending;
 
   return (
     <div className="space-y-8 animate-in fade-in duration-500">
@@ -179,7 +384,6 @@ export default function Strategies() {
           <p className="text-muted-foreground mt-1">Bot trading otomatis di Lighter DEX</p>
         </div>
         <div className="flex items-center gap-3 flex-wrap">
-          {/* Lighter Account Balance Widget */}
           {isConfigured && account?.totalEquity != null ? (
             <div className="flex items-center gap-1.5 bg-teal-500/10 border border-teal-500/20 px-2.5 py-1.5 rounded-lg">
               <Wallet className="w-3.5 h-3.5 text-teal-400" />
@@ -198,11 +402,8 @@ export default function Strategies() {
         </div>
       </header>
 
-      {/* Status badge */}
       <div className={`flex items-center gap-2 px-4 py-2 rounded-lg border text-sm w-fit ${
-        isConfigured
-          ? "bg-teal-500/5 border-teal-500/20"
-          : "bg-muted border-border"
+        isConfigured ? "bg-teal-500/5 border-teal-500/20" : "bg-muted border-border"
       }`}>
         <ExchangeLogo exchange="lighter" size={14} />
         <span className="text-teal-300 font-medium">Lighter DEX</span>
@@ -215,7 +416,7 @@ export default function Strategies() {
 
       {isLoading ? (
         <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
-          {[1, 2, 3].map(i => (
+          {[1, 2, 3].map((i) => (
             <Card key={i} className="glass-panel flex flex-col overflow-hidden">
               <CardHeader className="pb-3">
                 <div className="flex items-start justify-between gap-2">
@@ -243,7 +444,7 @@ export default function Strategies() {
             </Card>
           ))}
         </div>
-      ) : !data?.strategies.length ? (
+      ) : !strategies.length ? (
         <div className="text-center py-20 bg-card rounded-2xl border border-border flex flex-col items-center">
           <Zap className="w-16 h-16 text-teal-400 mb-4 opacity-20" />
           <h3 className="text-xl font-bold text-foreground">Belum Ada Strategi Lighter</h3>
@@ -253,158 +454,17 @@ export default function Strategies() {
         </div>
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
-          {data.strategies.map(strategy => (
-            <Card key={strategy.id} className="glass-panel flex flex-col overflow-hidden relative group">
-              {strategy.isRunning && (
-                <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-success/50 via-success to-success/50 animate-pulse" />
-              )}
-              
-              <CardHeader className="pb-3 border-b border-border/50">
-                <div className="flex justify-between items-start">
-                  <div>
-                    <CardTitle className="text-lg font-bold flex items-center gap-2">
-                      {strategy.name}
-                    </CardTitle>
-                    <div className="flex items-center gap-2 mt-1.5">
-                      <span className="text-xs font-mono bg-muted px-2 py-0.5 rounded text-foreground">
-                        {strategy.marketSymbol}
-                      </span>
-                      <span className="text-xs uppercase font-bold text-primary tracking-wider">
-                        {strategy.type}
-                      </span>
-                      <span className="text-[10px] text-muted-foreground bg-muted px-1.5 py-0.5 rounded">
-                        Lighter
-                      </span>
-                    </div>
-                  </div>
-                  <div className={`px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider flex items-center gap-1.5 ${
-                    strategy.isRunning ? 'bg-success/20 text-success' : 'bg-muted text-muted-foreground'
-                  }`}>
-                    {strategy.isRunning && <span className="w-1.5 h-1.5 rounded-full bg-success animate-pulse" />}
-                    {strategy.isRunning ? 'Berjalan' : 'Berhenti'}
-                  </div>
-                </div>
-              </CardHeader>
-
-              <CardContent className="py-4 flex-1">
-                {strategy.type === 'dca' && strategy.dcaConfig && (() => {
-                  const dca = strategy.dcaConfig as DcaConfig;
-                  return (
-                    <div className="grid grid-cols-2 gap-y-3 text-sm">
-                      <div>
-                        <div className="text-muted-foreground text-xs">Jumlah</div>
-                        <div className="font-mono">${dca.amountPerOrder}</div>
-                      </div>
-                      <div>
-                        <div className="text-muted-foreground text-xs">Interval</div>
-                        <div className="font-mono">{dca.intervalMinutes}m</div>
-                      </div>
-                      <div>
-                        <div className="text-muted-foreground text-xs">Sisi</div>
-                        <div className={`font-medium ${dca.side === 'buy' ? 'text-success' : 'text-destructive'}`}>
-                          {dca.side.toUpperCase()}
-                        </div>
-                      </div>
-                      {dca.orderType && (
-                        <div>
-                          <div className="text-muted-foreground text-xs">Order Type</div>
-                          <div className="font-mono text-xs capitalize">{dca.orderType}</div>
-                        </div>
-                      )}
-                    </div>
-                  );
-                })()}
-                
-                {strategy.type === 'grid' && strategy.gridConfig && (() => {
-                  const grid = strategy.gridConfig as GridConfig;
-                  return (
-                    <div className="grid grid-cols-2 gap-y-3 text-sm">
-                      <div>
-                        <div className="text-muted-foreground text-xs">Rentang</div>
-                        <div className="font-mono text-xs">${grid.lowerPrice} - ${grid.upperPrice}</div>
-                      </div>
-                      <div>
-                        <div className="text-muted-foreground text-xs">Level</div>
-                        <div className="font-mono">{grid.gridLevels}</div>
-                      </div>
-                      <div>
-                        <div className="text-muted-foreground text-xs">Per Grid</div>
-                        <div className="font-mono">${grid.amountPerGrid}</div>
-                      </div>
-                      <div>
-                        <div className="text-muted-foreground text-xs">Mode</div>
-                        <div className="font-mono capitalize">{grid.mode}</div>
-                      </div>
-                      {grid.stopLoss && (
-                        <div>
-                          <div className="text-muted-foreground text-xs">Stop Loss</div>
-                          <div className="font-mono text-destructive">${grid.stopLoss}</div>
-                        </div>
-                      )}
-                      {grid.takeProfit && (
-                        <div>
-                          <div className="text-muted-foreground text-xs">Take Profit</div>
-                          <div className="font-mono text-success">${grid.takeProfit}</div>
-                        </div>
-                      )}
-                    </div>
-                  );
-                })()}
-
-                {strategy.stats && (
-                  <div className="mt-4 pt-4 border-t border-border/50">
-                    <div className="flex justify-between items-center mb-1">
-                      <span className="text-xs text-muted-foreground flex items-center gap-1"><BarChart2 className="w-3 h-3" /> PnL Terealisasi</span>
-                      <PriceDisplay value={strategy.stats.realizedPnl} format="currency" showIcon />
-                    </div>
-                    <div className="text-xs text-muted-foreground">
-                      Trade: {strategy.stats.successfulOrders} / {strategy.stats.totalOrders}
-                    </div>
-                  </div>
-                )}
-              </CardContent>
-
-              <CardFooter className="pt-3 pb-4 border-t border-border/50 bg-background/50 flex justify-between gap-2">
-                <Button 
-                  variant={strategy.isRunning ? "destructive" : "default"} 
-                  className={`flex-1 ${!strategy.isRunning && 'bg-success hover:bg-success/90 text-success-foreground'}`}
-                  onClick={() => handleToggle(strategy.id, strategy.isRunning)}
-                  disabled={startMutation.isPending || stopMutation.isPending}
-                >
-                  {strategy.isRunning ? <><Square className="w-4 h-4 mr-2 fill-current" /> Hentikan Bot</> : <><Play className="w-4 h-4 mr-2 fill-current" /> Mulai Bot</>}
-                </Button>
-                <Button
-                  variant="outline"
-                  size="icon"
-                  className="shrink-0 hover:bg-primary/10 hover:text-primary hover:border-primary/30"
-                  title="Lihat Grafik PnL"
-                  onClick={() => setChartStrategy({ id: strategy.id, name: strategy.name })}
-                >
-                  <Activity className="w-4 h-4" />
-                </Button>
-                <Button
-                  variant="outline"
-                  size="icon"
-                  className="shrink-0 hover:bg-teal-500/10 hover:text-teal-400 hover:border-teal-500/30"
-                  title="Lihat Log"
-                  onClick={() => setLogStrategyId(strategy.id)}
-                >
-                  <ScrollText className="w-4 h-4" />
-                </Button>
-                <Button
-                  variant="outline"
-                  size="icon"
-                  className="shrink-0 hover:bg-blue-500/10 hover:text-blue-400 hover:border-blue-500/30"
-                  title="Edit Strategi"
-                  onClick={() => setEditStrategy(strategy)}
-                >
-                  <Pencil className="w-4 h-4" />
-                </Button>
-                <Button variant="outline" size="icon" className="shrink-0 hover:bg-destructive/10 hover:text-destructive hover:border-destructive/30" onClick={() => handleDelete(strategy.id)}>
-                  <Trash2 className="w-4 h-4" />
-                </Button>
-              </CardFooter>
-            </Card>
+          {strategies.map((strategy) => (
+            <LighterStrategyCard
+              key={strategy.id}
+              strategy={strategy}
+              onToggle={() => handleToggle(strategy)}
+              onDelete={() => handleDelete(strategy)}
+              onShowChart={() => setChartStrategy({ id: strategy.id, name: strategy.name })}
+              onEdit={() => setEditStrategy(strategy)}
+              onShowLog={() => setLogStrategyId(strategy.id)}
+              isBusy={isBusy}
+            />
           ))}
         </div>
       )}
