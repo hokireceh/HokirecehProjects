@@ -12,11 +12,11 @@
 
 | Kategori | Lighter | Extended |
 |---|---|---|
-| DCA field "Order Type" | ✅ Ada (conditional, `as any` cast) | ✅ Ada |
+| DCA field "Order Type" | ✅ Ada (properly typed, Apr 2026) | ✅ Ada |
 | Tombol Log Dialog | ✅ Ada (teal theme, `LighterLogDialog`) | ✅ Ada (ScrollText icon) |
-| Badge DEX di header | ❌ Tidak ada | ✅ Ada ("Extended") |
+| Badge DEX di header | ✅ Ada "Lighter" (Apr 2026) | ✅ Ada ("Extended") |
 | Stats field path | Nested (`strategy.stats.X`) | Top-level (`strategy.X`) |
-| Type safety gridConfig | `as any` cast | Properly typed |
+| Type safety gridConfig | ✅ Properly typed (Apr 2026) | Properly typed |
 | Warna tema card | Teal/Green | Violet |
 | Struktur komponen | Inline (monolitik) | Sub-komponen `ExtStrategyCard` |
 
@@ -34,7 +34,7 @@
 |---|---|---|
 | Styling | `bg-muted` (abu polos) | `bg-violet-500/10 text-violet-300 border border-violet-500/20` |
 | Warna label type | `text-primary` | `text-violet-400` |
-| Badge label DEX | ❌ Tidak ada | ✅ Badge kecil `"Extended"` (`text-[10px] bg-muted`) |
+| Badge label DEX | ✅ Badge kecil `"Lighter"` (`text-[10px] bg-muted`, Apr 2026) | ✅ Badge kecil `"Extended"` (`text-[10px] bg-muted`) |
 
 ### Status Badge (Berjalan / Berhenti)
 | | Lighter | Extended |
@@ -117,9 +117,9 @@
 |---|---|---|
 | Field "Order Type" di DCA config | Card content | ✅ Selesai (Apr 2026) |
 | Tombol Log Dialog (`ScrollText`) | Card footer | ✅ Selesai (Apr 2026) |
-| Badge label DEX ("Extended") | Card header | ❌ Belum (tidak diminta) |
+| Badge label DEX ("Lighter") | Card header | ✅ Selesai (Apr 2026) |
 | Sub-komponen card terpisah | Arsitektur | ❌ Belum (tidak diminta) |
-| Typed gridConfig (tanpa `as any`) | Type safety | ❌ Belum (tidak diminta) |
+| Typed gridConfig + dcaConfig (tanpa `as any`) | Type safety | ✅ Selesai (Apr 2026) |
 
 ## 8. Ringkasan: Ada di Lighter, Tidak Ada di Extended
 
@@ -128,6 +128,16 @@
 ---
 
 ## 9. Changelog Implementasi
+
+### Apr 2026 — Sesi 2 (Badge DEX + Type Safety)
+
+**LighterStrategies.tsx**:
+- Badge `"Lighter"` (`text-[10px] bg-muted`) ditambah di samping label type di card header
+- Import `DcaConfig` + `GridConfig` dari `@workspace/api-client-react`
+- Semua `as any` cast dihapus — `dcaConfig` dan `gridConfig` sekarang properly typed via IIFE pattern
+- `stopLoss`, `takeProfit`, `orderType` di grid/dca sekarang diakses langsung tanpa cast
+
+---
 
 ### Apr 2026 — Langkah 1–3 (Log Dialog + Order Type)
 

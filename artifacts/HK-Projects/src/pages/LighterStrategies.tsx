@@ -7,7 +7,9 @@ import {
   useGetPnlChart,
   useGetAccountInfo,
   getGetStrategiesQueryKey,
-  getGetPnlChartQueryKey
+  getGetPnlChartQueryKey,
+  type DcaConfig,
+  type GridConfig,
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
@@ -270,6 +272,9 @@ export default function Strategies() {
                       <span className="text-xs uppercase font-bold text-primary tracking-wider">
                         {strategy.type}
                       </span>
+                      <span className="text-[10px] text-muted-foreground bg-muted px-1.5 py-0.5 rounded">
+                        Lighter
+                      </span>
                     </div>
                   </div>
                   <div className={`px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider flex items-center gap-1.5 ${
@@ -282,63 +287,69 @@ export default function Strategies() {
               </CardHeader>
 
               <CardContent className="py-4 flex-1">
-                {strategy.type === 'dca' && strategy.dcaConfig && (
-                  <div className="grid grid-cols-2 gap-y-3 text-sm">
-                    <div>
-                      <div className="text-muted-foreground text-xs">Jumlah</div>
-                      <div className="font-mono">${strategy.dcaConfig.amountPerOrder}</div>
-                    </div>
-                    <div>
-                      <div className="text-muted-foreground text-xs">Interval</div>
-                      <div className="font-mono">{strategy.dcaConfig.intervalMinutes}m</div>
-                    </div>
-                    <div>
-                      <div className="text-muted-foreground text-xs">Sisi</div>
-                      <div className={`font-medium ${strategy.dcaConfig.side === 'buy' ? 'text-success' : 'text-destructive'}`}>
-                        {strategy.dcaConfig.side.toUpperCase()}
-                      </div>
-                    </div>
-                    {(strategy.dcaConfig as any).orderType && (
+                {strategy.type === 'dca' && strategy.dcaConfig && (() => {
+                  const dca = strategy.dcaConfig as DcaConfig;
+                  return (
+                    <div className="grid grid-cols-2 gap-y-3 text-sm">
                       <div>
-                        <div className="text-muted-foreground text-xs">Order Type</div>
-                        <div className="font-mono text-xs capitalize">{(strategy.dcaConfig as any).orderType}</div>
+                        <div className="text-muted-foreground text-xs">Jumlah</div>
+                        <div className="font-mono">${dca.amountPerOrder}</div>
                       </div>
-                    )}
-                  </div>
-                )}
+                      <div>
+                        <div className="text-muted-foreground text-xs">Interval</div>
+                        <div className="font-mono">{dca.intervalMinutes}m</div>
+                      </div>
+                      <div>
+                        <div className="text-muted-foreground text-xs">Sisi</div>
+                        <div className={`font-medium ${dca.side === 'buy' ? 'text-success' : 'text-destructive'}`}>
+                          {dca.side.toUpperCase()}
+                        </div>
+                      </div>
+                      {dca.orderType && (
+                        <div>
+                          <div className="text-muted-foreground text-xs">Order Type</div>
+                          <div className="font-mono text-xs capitalize">{dca.orderType}</div>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()}
                 
-                {strategy.type === 'grid' && strategy.gridConfig && (
-                  <div className="grid grid-cols-2 gap-y-3 text-sm">
-                    <div>
-                      <div className="text-muted-foreground text-xs">Rentang</div>
-                      <div className="font-mono text-xs">${strategy.gridConfig.lowerPrice} - ${strategy.gridConfig.upperPrice}</div>
-                    </div>
-                    <div>
-                      <div className="text-muted-foreground text-xs">Level</div>
-                      <div className="font-mono">{strategy.gridConfig.gridLevels}</div>
-                    </div>
-                    <div>
-                      <div className="text-muted-foreground text-xs">Per Grid</div>
-                      <div className="font-mono">${strategy.gridConfig.amountPerGrid}</div>
-                    </div>
-                    <div>
-                      <div className="text-muted-foreground text-xs">Mode</div>
-                      <div className="font-mono capitalize">{strategy.gridConfig.mode}</div>
-                    </div>
-                    {(strategy.gridConfig as any).stopLoss && (
+                {strategy.type === 'grid' && strategy.gridConfig && (() => {
+                  const grid = strategy.gridConfig as GridConfig;
+                  return (
+                    <div className="grid grid-cols-2 gap-y-3 text-sm">
                       <div>
-                        <div className="text-muted-foreground text-xs">Stop Loss</div>
-                        <div className="font-mono text-destructive">${(strategy.gridConfig as any).stopLoss}</div>
+                        <div className="text-muted-foreground text-xs">Rentang</div>
+                        <div className="font-mono text-xs">${grid.lowerPrice} - ${grid.upperPrice}</div>
                       </div>
-                    )}
-                    {(strategy.gridConfig as any).takeProfit && (
                       <div>
-                        <div className="text-muted-foreground text-xs">Take Profit</div>
-                        <div className="font-mono text-success">${(strategy.gridConfig as any).takeProfit}</div>
+                        <div className="text-muted-foreground text-xs">Level</div>
+                        <div className="font-mono">{grid.gridLevels}</div>
                       </div>
-                    )}
-                  </div>
-                )}
+                      <div>
+                        <div className="text-muted-foreground text-xs">Per Grid</div>
+                        <div className="font-mono">${grid.amountPerGrid}</div>
+                      </div>
+                      <div>
+                        <div className="text-muted-foreground text-xs">Mode</div>
+                        <div className="font-mono capitalize">{grid.mode}</div>
+                      </div>
+                      {grid.stopLoss && (
+                        <div>
+                          <div className="text-muted-foreground text-xs">Stop Loss</div>
+                          <div className="font-mono text-destructive">${grid.stopLoss}</div>
+                        </div>
+                      )}
+                      {grid.takeProfit && (
+                        <div>
+                          <div className="text-muted-foreground text-xs">Take Profit</div>
+                          <div className="font-mono text-success">${grid.takeProfit}</div>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()}
 
                 {strategy.stats && (
                   <div className="mt-4 pt-4 border-t border-border/50">
