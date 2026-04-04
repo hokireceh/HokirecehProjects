@@ -301,23 +301,66 @@ pm2 startup && pm2 save
 
 ### Langkah 6 — Konfigurasi Apache
 
-Cari block `<Directory ...>` yang ada `AllowOverride All`-nya, tambahkan:
+Di aaPanel → **Website → domain → Config**, replace VirtualHost dengan config berikut:
 
 ```apache
-RewriteEngine On
-RewriteCond %{REQUEST_FILENAME} !-f
-RewriteCond %{REQUEST_FILENAME} !-d
-RewriteCond %{REQUEST_URI} !^/api
-RewriteRule ^ /index.html [L]
+<VirtualHost *:80>
+    ServerName hokireceh.online
+    ServerAlias www.hokireceh.online
+
+    DocumentRoot /www/wwwroot/HokirecehProjects/artifacts/HK-Projects/dist
+
+    # Security headers untuk static files (HTML/JS/CSS)
+    <IfModule mod_headers.c>
+        Header always set X-Frame-Options "SAMEORIGIN"
+        Header always set X-Content-Type-Options "nosniff"
+        Header always set Referrer-Policy "strict-origin-when-cross-origin"
+        Header always set Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self' https://mainnet.zklighter.elliot.ai https://testnet.zklighter.elliot.ai https://api.starknet.extended.exchange https://api.starknet.sepolia.extended.exchange; object-src 'none'"
+        Header set Cache-Control "no-cache, no-store, must-revalidate"
+    </IfModule>
+
+    # Cache panjang untuk aset dengan hash di nama file (aman di-cache 1 tahun)
+    <LocationMatch "\.(js|css|woff2?|ico|png|svg)$">
+        Header set Cache-Control "public, max-age=31536000, immutable"
+    </LocationMatch>
+
+    <Directory /www/wwwroot/HokirecehProjects/artifacts/HK-Projects/dist>
+        AllowOverride All
+        Require all granted
+        Options -Indexes
+
+        # SPA routing
+        RewriteEngine On
+        RewriteCond %{REQUEST_FILENAME} !-f
+        RewriteCond %{REQUEST_FILENAME} !-d
+        RewriteCond %{REQUEST_URI} !^/api
+        RewriteRule ^ /index.html [L]
+    </Directory>
+
+    # Proxy /api ke backend PM2
+    ProxyRequests Off
+    ProxyPreserveHost On
+    ProxyPass /api http://127.0.0.1:8080/api
+    ProxyPassReverse /api http://127.0.0.1:8080/api
+</VirtualHost>
 ```
 
 ```bash
 /etc/init.d/httpd restart
 ```
 
-### Langkah 7 — SSL
+### Langkah 7 — SSL & Cloudflare
 
-aaPanel → **Website → domain kamu → SSL → Let's Encrypt → Apply**
+**Jika pakai Cloudflare (direkomendasikan):**
+- Cloudflare yang handle HTTPS — tidak perlu SSL cert di Apache
+- Di Cloudflare dashboard:
+  - SSL/TLS → Mode: **Flexible**
+  - Edge Certificates → **Always Use HTTPS: On**
+  - Edge Certificates → **HSTS: Enable**
+  - Security → Bots → **Bot Fight Mode: On**
+
+**Jika tidak pakai Cloudflare:**
+- aaPanel → **Website → domain kamu → SSL → Let's Encrypt → Apply**
 
 ### Update Aplikasi
 

@@ -106,78 +106,67 @@
 
 ## 6. Konfigurasi Reverse Proxy — Apache 2.4 + aaPanel
 
-> Analisa berdasarkan VirtualHost config aktual yang digunakan.
+> Analisa berdasarkan VirtualHost config aktual + **Cloudflare DNS/Proxy** di depan server.
 
-### Arsitektur Aktual
+### Arsitektur Aktual (dengan Cloudflare)
 
 ```
-Browser → Apache :80 → serve dist/ langsung (static files)
-                  └→ ProxyPass /api → Node.js :8080
+Browser → HTTPS → Cloudflare CDN → HTTP :80 → Apache :80
+                                              ├── serve dist/ (static files)
+                                              └── ProxyPass /api → Node.js :8080
 ```
 
-**Implikasi kritis:** `helmet` di Express **hanya berlaku untuk `/api/*`**. File `index.html`, semua chunk JS, CSS → dilayani Apache langsung, tanpa security headers apapun.
+**Port 80 adalah benar** untuk setup Cloudflare Flexible SSL — Cloudflare yang terminate HTTPS, origin server cukup terima HTTP.
+
+**Implikasi kritis yang tetap berlaku:** `helmet` di Express **hanya berlaku untuk `/api/*`**. File `index.html`, semua chunk JS, CSS → dilayani Apache langsung, tanpa security headers apapun. Cloudflare **tidak** inject CSP atau X-Frame-Options secara otomatis.
 
 | # | Item | Status | Prioritas | Catatan |
 |---|------|--------|-----------|---------|
-| 6.1 | Security headers untuk static files (HTML/JS/CSS) | ❌ | 🔴 | Apache serve `dist/` langsung tanpa `Header set` → CSP, X-Frame-Options, dll tidak dikirim ke browser untuk halaman utama |
-| 6.2 | HTTPS / Redirect HTTP→HTTPS | ⚠️ | 🔴 | VirtualHost hanya port 80. Jika ada HTTPS VirtualHost via aaPanel SSL, pastikan port 80 redirect ke 443 |
-| 6.3 | `RequestHeader set X-Forwarded-Proto` | ❌ | 🔴 | Tidak ada di config → Express `req.secure = false` → HSTS tidak dikirim, cookie Secure tidak aktif |
-| 6.4 | `ProxyPreserveHost On` | ❌ | 🟡 | Tidak ada di config → Express tidak dapat hostname asli dari request |
-| 6.5 | `trust proxy` di Express | ✅ | — | Sudah ada di `app.ts` — rate limiter baca IP dari `X-Forwarded-For` dengan benar |
-| 6.6 | WebSocket proxy (`mod_proxy_wstunnel`) | ✅ | — | Tidak diperlukan — semua WS outbound dari server ke DEX |
-| 6.7 | HTTP/2 via `mod_http2` | ❌ | 🟡 | Belum ada `Protocols h2 http/1.1` — perlu HTTPS VirtualHost dulu |
-| 6.8 | Gzip compression static files | ⚠️ | 🟡 | aaPanel biasanya punya `mod_deflate` tapi perlu verifikasi aktif |
+| 6.1 | Security headers untuk static files | ❌ | 🔴 | Apache serve `dist/` tanpa `Header set` → CSP, X-Frame-Options dll tidak sampai ke browser. Cloudflare tidak inject ini. |
+| 6.2 | HTTPS enforcement | ✅ | — | Cloudflare handle — aktifkan **Always Use HTTPS** di Cloudflare dashboard (SSL/TLS → Edge) |
+| 6.3 | `X-Forwarded-Proto` ke Express | ✅ | — | Cloudflare otomatis kirim header ini — Apache pass-through ke Express via ProxyPass |
+| 6.4 | `ProxyPreserveHost On` | ❌ | 🟡 | Belum ada di config → Express tidak dapat hostname asli |
+| 6.5 | `trust proxy` di Express | ✅ | — | Sudah ada — Express baca `X-Forwarded-For` dari Cloudflare dengan benar |
+| 6.6 | WebSocket proxy | ✅ | — | Tidak diperlukan — semua WS outbound dari server ke DEX |
+| 6.7 | HTTP/2 | ✅ | — | Cloudflare sudah HTTP/2 antara browser↔Cloudflare. Origin ke Apache HTTP/1.1 tidak masalah. |
+| 6.8 | Gzip / compression | ✅ | — | Cloudflare compress di edge. `mod_deflate` di Apache tetap boleh aktif sebagai backup. |
+| 6.9 | HSTS | ⚠️ | 🟡 | Aktifkan di Cloudflare: SSL/TLS → Edge Certificates → HSTS. Lebih efektif dari Apache level. |
+| 6.10 | Cloudflare WAF / Bot protection | ⚠️ | 🟡 | Free tier: aktifkan **Bot Fight Mode** + **Security Level: Medium** di Cloudflare dashboard |
 
 ---
 
-### Konfigurasi yang Disarankan
+### Cara Ubah Config di aaPanel
 
-Ganti VirtualHost kamu dengan versi ini:
+Masuk **aaPanel → Website → domain → Config** (tombol pensil/edit), cari VirtualHost block yang ada, tambahkan baris yang ditandai `← TAMBAH`:
 
 ```apache
-# ── Redirect HTTP → HTTPS ─────────────────────────────────────────────────────
 <VirtualHost *:80>
-    ServerName hokireceh.online
-    ServerAlias www.hokireceh.online
-    RewriteEngine On
-    RewriteRule ^(.*)$ https://%{HTTP_HOST}$1 [R=301,L]
-</VirtualHost>
-
-# ── HTTPS (main config) ────────────────────────────────────────────────────────
-<VirtualHost *:443>
     ServerName hokireceh.online
     ServerAlias www.hokireceh.online
 
     DocumentRoot /www/wwwroot/HokirecehProjects/artifacts/HK-Projects/dist
 
-    # ── SSL (isi path sesuai aaPanel Let's Encrypt) ────────────────────────────
-    SSLEngine on
-    SSLCertificateFile      /www/server/panel/vhost/cert/hokireceh.online/fullchain.pem
-    SSLCertificateKeyFile   /www/server/panel/vhost/cert/hokireceh.online/privkey.pem
-
-    # ── Security Headers untuk static files ───────────────────────────────────
+    # ── Security Headers (TAMBAH semua ini) ────────────────────────────────────
     <IfModule mod_headers.c>
         Header always set X-Frame-Options "SAMEORIGIN"
         Header always set X-Content-Type-Options "nosniff"
         Header always set Referrer-Policy "strict-origin-when-cross-origin"
-        Header always set Strict-Transport-Security "max-age=31536000; includeSubDomains" env=HTTPS
-        Header always set Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self' https://mainnet.zklighter.elliot.ai https://testnet.zklighter.elliot.ai https://api.starknet.extended.exchange https://api.starknet.sepolia.extended.exchange; object-src 'none'; frame-ancestors 'none'"
+        Header always set Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self' https://mainnet.zklighter.elliot.ai https://testnet.zklighter.elliot.ai https://api.starknet.extended.exchange https://api.starknet.sepolia.extended.exchange; object-src 'none'"
+        # Cache headers
+        Header set Cache-Control "no-cache, no-store, must-revalidate"
     </IfModule>
 
-    # ── HTTP/2 ─────────────────────────────────────────────────────────────────
-    Protocols h2 http/1.1
+    # Cache panjang untuk aset JS/CSS (nama file sudah include hash dari Vite)
+    <LocationMatch "\.(js|css|woff2?|ico|png|svg)$">
+        Header set Cache-Control "public, max-age=31536000, immutable"
+    </LocationMatch>
 
-    # ── Gzip compression ───────────────────────────────────────────────────────
-    <IfModule mod_deflate.c>
-        AddOutputFilterByType DEFLATE text/html text/css application/javascript application/json
-    </IfModule>
-
-    # ── Static files SPA routing ───────────────────────────────────────────────
     <Directory /www/wwwroot/HokirecehProjects/artifacts/HK-Projects/dist>
         AllowOverride All
         Require all granted
         Options -Indexes
 
+        # SPA routing (sudah ada — tetap)
         RewriteEngine On
         RewriteCond %{REQUEST_FILENAME} !-f
         RewriteCond %{REQUEST_FILENAME} !-d
@@ -185,41 +174,43 @@ Ganti VirtualHost kamu dengan versi ini:
         RewriteRule ^ /index.html [L]
     </Directory>
 
-    # ── Proxy /api ke backend Node.js ──────────────────────────────────────────
+    # Proxy /api ke backend PM2 (sudah ada — tambah ProxyPreserveHost)
     ProxyRequests Off
-    ProxyPreserveHost On
+    ProxyPreserveHost On                          ← TAMBAH
     ProxyPass /api http://127.0.0.1:8080/api
     ProxyPassReverse /api http://127.0.0.1:8080/api
-
-    # Kirim info HTTPS ke Express (krusial untuk cookie Secure)
-    RequestHeader set X-Forwarded-Proto "https"
-    RequestHeader set X-Forwarded-Port "443"
-
-    # ── Browser cache untuk static assets (hash di filename, aman di-cache lama) ─
-    <LocationMatch "\.(js|css|woff2?|ico)$">
-        Header set Cache-Control "public, max-age=31536000, immutable"
-    </LocationMatch>
-    # index.html jangan di-cache (SPA entry point)
-    <LocationMatch "^/$|\.html$">
-        Header set Cache-Control "no-cache, no-store, must-revalidate"
-    </LocationMatch>
 </VirtualHost>
 ```
 
-> **Catatan path SSL:** aaPanel Let's Encrypt biasanya simpan cert di `/www/server/panel/vhost/cert/<domain>/`. Sesuaikan path jika berbeda. Kalau aaPanel yang generate HTTPS VirtualHost otomatis, tambahkan directive di atas ke dalam VirtualHost yang sudah ada.
+Setelah edit, klik **Save** di aaPanel lalu restart Apache dari panel atau:
+```bash
+/etc/init.d/httpd restart
+```
 
 ---
 
-### Yang Berubah dari Config Lama
+### Checklist Cloudflare Dashboard (gratis)
 
-| Sebelum | Sesudah | Alasan |
-|---------|---------|--------|
-| Port 80 saja | 80 redirect → 443, main di 443 | Enforce HTTPS |
-| Tidak ada `Header set` | Security headers untuk semua static files | CSP & X-Frame-Options butuh ini |
-| Tidak ada `ProxyPreserveHost` | `ProxyPreserveHost On` | Express dapat hostname asli |
-| Tidak ada `RequestHeader` | `RequestHeader set X-Forwarded-Proto "https"` | Cookie Secure + HSTS aktif |
-| Tidak ada cache control | Cache 1 tahun untuk JS/CSS, no-cache untuk HTML | Performa + correctness |
-| Tidak ada HTTP/2 | `Protocols h2 http/1.1` | Load chunk JS paralel |
+| Lokasi | Setting | Nilai |
+|--------|---------|-------|
+| SSL/TLS → Overview | SSL mode | **Flexible** (origin HTTP) |
+| SSL/TLS → Edge Certificates | Always Use HTTPS | **On** |
+| SSL/TLS → Edge Certificates | HSTS | Enable, max-age 6 bulan |
+| Security → Settings | Security Level | **Medium** |
+| Security → Bots | Bot Fight Mode | **On** |
+| Speed → Optimization | Auto Minify | JS ✅ CSS ✅ HTML ✅ |
+
+---
+
+### Yang Berubah dari Analisa Sebelumnya (koreksi)
+
+| Item | Analisa Lama (tanpa Cloudflare) | Koreksi (dengan Cloudflare) |
+|------|--------------------------------|---------------------------|
+| Port 80 VirtualHost | ⚠️ Harus migrate ke :443 | ✅ Sudah benar untuk Flexible SSL |
+| HTTPS redirect | Harus tambah di Apache | Cloudflare handle — aktifkan di dashboard |
+| `X-Forwarded-Proto` | Harus set manual di Apache | Cloudflare sudah kirim otomatis |
+| HTTP/2 | Harus enable mod_http2 | Cloudflare sudah HTTP/2 |
+| Security headers static | ❌ Tetap perlu di Apache | ❌ Tetap perlu di Apache (tidak berubah) |
 
 ---
 
@@ -232,8 +223,8 @@ Ganti VirtualHost kamu dengan versi ini:
 | Performa | 7/11 | **9/11** | Chunking dioptimasi, emptyOutDir fix |
 | Desain 2026 | 8/9 | **8/9** | Belum ada toggle dark/light |
 | Teknologi W3C | 6/10 | **9/10** | Meta description, robots.txt, viewport fix |
-| **Apache Proxy** | **0/8 (baru)** | **2/8** | `trust proxy` & WebSocket oke; 6 item perlu config di VPS |
-| **Total** | **29/56 (52%)** | **41/56 (73%)** | Setelah revisi temuan Apache static file serving |
+| **Apache + Cloudflare** | **0/10 (baru)** | **6/10** | HTTPS/HTTP2/Gzip/X-Forwarded-Proto sudah oke via CF; security headers static files + ProxyPreserveHost perlu ditambah |
+| **Total** | **29/58 (50%)** | **45/58 (78%)** | Setelah revisi dengan konteks Cloudflare |
 
 ---
 
@@ -251,18 +242,21 @@ Ganti VirtualHost kamu dengan versi ini:
 9. ~~**emptyOutDir: true**~~ ✅
 10. ~~**Optimasi chunk Vite**~~ — tambah `vendor-icons`, `vendor-motion` ✅
 
-### 🔴 Segera — Apache VPS (dikerjakan manual di server)
-> Gunakan config lengkap di Section 6 sebagai referensi.
+### 🔴 Segera — aaPanel Apache (edit config di GUI aaPanel)
+> Masuk **aaPanel → Website → domain → Config**, tambahkan ke VirtualHost yang ada.  
+> Config lengkap ada di Section 6 audit ini.
 
-11. **Tambah `Header always set` untuk security headers** di `<Directory dist>` block — CSP, X-Frame-Options, X-Content-Type-Options, Referrer-Policy
-12. **Migrate ke HTTPS VirtualHost (:443)** + redirect 80 → 443 — jika belum ada
-13. **Tambah `RequestHeader set X-Forwarded-Proto "https"`** di VirtualHost :443 — agar cookie Secure & HSTS aktif
-14. **Tambah `ProxyPreserveHost On`** sebelum `ProxyPass`
-15. **Tambah cache headers** — `max-age=31536000` untuk JS/CSS, `no-cache` untuk HTML
+11. **Tambah `<IfModule mod_headers.c>` block** dengan CSP, X-Frame-Options, X-Content-Type-Options, Referrer-Policy
+12. **Tambah `ProxyPreserveHost On`** sebelum `ProxyPass`
+13. **Tambah cache headers** — JS/CSS `max-age=31536000 immutable`, HTML `no-cache`
 
-### 🟡 Jangka Menengah (Kualitas)
-- **Enable HTTP/2** (`Protocols h2 http/1.1`) di VirtualHost :443
-- **Verifikasi Gzip aktif** (`mod_deflate`) untuk JS/CSS/HTML
+### 🟡 Jangka Menengah (Cloudflare Dashboard — gratis)
+- **SSL/TLS → Edge Certificates → Always Use HTTPS: On**
+- **SSL/TLS → Edge Certificates → HSTS: Enable**
+- **Security → Bots → Bot Fight Mode: On**
+- **Speed → Optimization → Auto Minify: On** (JS/CSS/HTML)
+
+### 🟡 Jangka Menengah (Kualitas Kode)
 - **Verifikasi bundle size setelah build** — jalankan `pnpm run build` di VPS, cek ukuran tiap chunk
 - **Color contrast audit** — verifikasi `text-muted-foreground` ratio ≥ 4.5:1
 
