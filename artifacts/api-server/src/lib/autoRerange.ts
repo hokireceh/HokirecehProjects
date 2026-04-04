@@ -71,6 +71,31 @@ export function setGlobalBotTelegramForRerange(tg: TelegramInstance): void {
   _globalTelegram = tg;
 }
 
+export async function sendMainBotMessageWithButton(
+  chatId: string | null | undefined,
+  text: string,
+  button: { text: string; callback_data: string }
+): Promise<void> {
+  if (!chatId) {
+    logger.warn("[AutoRerange] sendMainBotMessageWithButton: chatId kosong, pesan tidak dikirim");
+    return;
+  }
+  if (!_globalTelegram) {
+    logger.warn("[AutoRerange] sendMainBotMessageWithButton: _globalTelegram belum diset, pesan tidak dikirim");
+    return;
+  }
+  try {
+    await _globalTelegram.sendMessage(chatId, text, {
+      parse_mode: "Markdown",
+      reply_markup: {
+        inline_keyboard: [[button]],
+      },
+    });
+  } catch (err: any) {
+    logger.warn({ err: err?.message, chatId }, "[AutoRerange] Gagal kirim pesan dengan tombol via main bot");
+  }
+}
+
 // ─── TP/SL Calculation ────────────────────────────────────────────────────────
 
 /**

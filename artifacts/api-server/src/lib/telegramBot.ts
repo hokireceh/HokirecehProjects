@@ -439,7 +439,8 @@ export function startTelegramBot() {
   // ─── AUTO-RERANGE: Daftarkan action handler approve/reject ───────────────
   // Dipasang di sini (setelah session middleware) agar session tersedia jika dibutuhkan.
   // startBot/stopBot di-import secara lazy untuk menghindari circular dependency.
-  // Callbacks dispatch berdasarkan strategy.exchange — mendukung Lighter dan Extended
+  // Callbacks dispatch berdasarkan strategy.exchange — mendukung Lighter dan Extended.
+  // Ethereal: rerange via Telegram belum didukung (guard eksplisit, tidak fall-through ke Lighter).
   registerRerangeHandlers(
     bot,
     async (strategyId) => {
@@ -450,6 +451,10 @@ export function startTelegramBot() {
       if (strat?.exchange === "extended") {
         const { startExtendedBot } = await import("./extended/extendedBotEngine");
         return startExtendedBot(strategyId);
+      }
+      if (strat?.exchange === "ethereal") {
+        logger.warn({ strategyId }, "[TelegramBot] Ethereal rerange approve not yet supported via Telegram");
+        return;
       }
       const { startBot } = await import("./lighter/botEngine");
       return startBot(strategyId);
@@ -463,10 +468,46 @@ export function startTelegramBot() {
         const { stopExtendedBot } = await import("./extended/extendedBotEngine");
         return stopExtendedBot(strategyId);
       }
+      if (strat?.exchange === "ethereal") {
+        logger.warn({ strategyId }, "[TelegramBot] Ethereal rerange reject not yet supported via Telegram");
+        return;
+      }
       const { stopBot } = await import("./lighter/botEngine");
       return stopBot(strategyId);
     }
   );
+
+  // ─── BOT RESTART (dari notif pause) ──────────────────────────────────────
+  // Dipasang setelah session middleware agar handler berjalan dalam konteks bot.
+  // Callback data: bot_restart_<strategyId> — dikirim oleh pause notification di *BotEngine.ts
+  bot.action(/^bot_restart_(\d+)$/, async (ctx) => {
+    await ctx.answerCbQuery("⏳ Memulai ulang bot...");
+    const strategyId = Number(ctx.match![1]);
+    try {
+      const { db: botDb } = await import("@workspace/db");
+      const { strategiesTable: st } = await import("@workspace/db");
+      const { eq: eqFn } = await import("drizzle-orm");
+      const strat = await botDb.query.strategiesTable.findFirst({ where: eqFn(st.id, strategyId) });
+      if (!strat) {
+        await ctx.reply(`❌ Strategy ID ${strategyId} tidak ditemukan.`);
+        return;
+      }
+      if (strat.exchange === "extended") {
+        const { startExtendedBot } = await import("./extended/extendedBotEngine");
+        await startExtendedBot(strategyId);
+      } else if (strat.exchange === "ethereal") {
+        const { startEtherealBot } = await import("./ethereal/etherealBotEngine");
+        await startEtherealBot(strategyId);
+      } else {
+        const { startBot } = await import("./lighter/botEngine");
+        await startBot(strategyId);
+      }
+      await ctx.reply(`▶️ *Bot Dimulai Kembali*\nStrategy: *${strat.name}*`, { parse_mode: "Markdown" });
+    } catch (err: any) {
+      logger.error({ err, strategyId }, "[TelegramBot] Gagal restart bot dari tombol pause");
+      await ctx.reply(`❌ Gagal memulai bot: ${err?.message ?? "Unknown error"}`);
+    }
+  });
 
   // ─── TOMBOL KEMBALI ───────────────────────────────────────────────────────
   bot.action("back_main", async (ctx) => {

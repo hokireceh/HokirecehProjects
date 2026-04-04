@@ -187,74 +187,45 @@ Browser → HTTPS → Cloudflare CDN → HTTP :80 → Apache :80
 
 ## 7. Bug & UX Issues Ditemukan
 
-### 7.1 🔴 BUG KRITIS — Ethereal Rerange Handler Salah
-
-**File:** `artifacts/api-server/src/lib/telegramBot.ts` — baris 443–468
-
-**Masalah:**  
-`registerRerangeHandlers()` dipanggil dengan dua fungsi: `startBotFn` dan `stopBotFn`. Saat user klik **✅ Approve** di Telegram, kode cek exchange:
-
-```typescript
-if (strat?.exchange === "extended") {
-  return startExtendedBot(strategyId); // ← Extended ✅
-}
-return startBot(strategyId); // ← Lighter DAN Ethereal ❌
-```
-
-Ethereal tidak punya branch sendiri — fall-through ke `startBot` milik Lighter. Akibatnya:
-- Approve rerange Ethereal → memanggil Lighter `startBot` → bot salah / error / corrupt state
-- Idem untuk `stopBotFn`: Ethereal fall-through ke Lighter `stopBot`
-
-**Fix yang dibutuhkan:**
-```typescript
-// Di telegramBot.ts — kedua fungsi (start & stop)
-if (strat?.exchange === "extended") { ... }
-if (strat?.exchange === "ethereal") {
-  const { startEtherealBot } = await import("./ethereal/etherealBotEngine");
-  return startEtherealBot(strategyId);
-}
-return startBot(strategyId); // Lighter only
-```
-
-**Status:** ❌ Belum difix — perlu dikerjakan segera jika Ethereal strategy sudah dipakai
-
----
-
-### 7.2 🟡 UX Issue — Notif Pause Tanpa Tombol Restart
-
-**File:** `artifacts/api-server/src/lib/lighter/botEngine.ts` baris 732–735  
-_(identik di `extendedBotEngine.ts` baris 975–981 dan `etherealBotEngine.ts` baris 560–567)_
-
-**Masalah:**  
-Notif "⏸ Bot Di-Pause" yang dikirim setelah timeout 20 menit tidak punya tombol inline:
-
-```typescript
-await notifyUser(userId,
-  `⏸ *Bot Di-Pause*\nStrategy: *${strategy.name}*\n\nTidak ada konfirmasi rerange dalam 20 menit.\nAtur parameter manual dari dashboard lalu start kembali.`
-);
-// ← tidak ada reply_markup / inline_keyboard
-```
-
-User harus buka dashboard manual untuk start ulang — padahal tombol **▶️ Start Bot** bisa ditambahkan langsung di notif Telegram.
-
-**Alur sekarang vs yang diharapkan:**
-| | Rerange Confirmation | Pause Notification |
-|---|---|---|
-| Sekarang | ✅ Ada tombol [✅ Approve] [❌ Reject] | ❌ Plain text saja |
-| Harapan | ✅ Sudah benar | ✅ Tambah tombol [▶️ Start Bot] |
-
-**Fix yang dibutuhkan:** Di ketiga botEngine, ganti `notifyUser()` untuk notif pause dengan `sendMessageWithButton()` yang menyertakan tombol restart. Atau tambahkan callback `bot_restart_${strategyId}` di Telegram handler.
-
-**Status:** ❌ Belum difix — medium priority, bot tetap berfungsi tapi UX buruk
-
----
-
 ### Rekap Bug
 
 | # | Severity | File | Deskripsi | Status |
 |---|----------|------|-----------|--------|
-| 7.1 | 🔴 Kritis | `telegramBot.ts` | Ethereal approve/reject rerange memanggil Lighter `startBot` | ❌ Belum difix |
-| 7.2 | 🟡 Medium | `*BotEngine.ts` (×3) | Notif pause tanpa tombol restart | ❌ Belum difix |
+| 7.1 | 🔴 Kritis | `telegramBot.ts` | Ethereal approve/reject rerange memanggil Lighter `startBot` | ✅ 🏁 Difix |
+| 7.2 | 🟡 Medium | `*BotEngine.ts` (×3) | Notif pause tanpa tombol restart | ✅ 🏁 Difix |
+| 7.3 | 🔴 Kritis | `index.ts` | Graceful shutdown reset `isRunning=false` → recovery tidak jalan setelah pm2 restart | ✅ 🏁 Sudah fix (sesi sebelumnya: `skipDbUpdate=true`) |
+| 7.4 | 🟡 Medium | `*BotEngine.ts` (×2) | `strategy === null` → `stopBot()` permanent alih-alih skip tick | ✅ 🏁 Difix |
+| 7.5 | 🟡 Medium | `index.ts` | Tidak ada `uncaughtException`/`unhandledRejection` handler → crash sulit di-trace | ✅ 🏁 Difix |
+
+---
+
+### Detail Fix Sesi Ini
+
+**7.1 🔴 🏁 — telegramBot.ts: Ethereal rerange approve/reject**
+
+Guard eksplisit ditambahkan di kedua callback (startFn & stopFn) pada `registerRerangeHandlers`. Ethereal tidak fall-through ke Lighter `startBot`/`stopBot`. Log `logger.warn` dikirim agar tercatat di PM2 log jika terjadi.
+
+**7.2 🟡 🏁 — Notif pause dengan tombol [▶️ Start Bot]**
+
+- `sendMainBotMessageWithButton(chatId, text, button)` ditambahkan sebagai export di `autoRerange.ts` — menggunakan `_globalTelegram` (main bot) sehingga callback bisa ditangani.
+- Ketiga engine (`botEngine.ts`, `extendedBotEngine.ts`, `etherealBotEngine.ts`) mengganti `notifyUser()` di pause timeout dengan `sendMainBotMessageWithButton()` dan button `bot_restart_<strategyId>`.
+- Handler `bot.action(/^bot_restart_(\d+)$/, ...)` ditambahkan di `telegramBot.ts` — dispatch by exchange (Lighter/Extended/Ethereal).
+
+**7.3 🔴 🏁 — Graceful shutdown + startup recovery**
+
+Dikerjakan sesi sebelumnya. `gracefulShutdown()` di `index.ts` sudah pakai `stopBot(id, true)` / `stopExtendedBot(id, true)` / `stopEtherealBot(id, true)` (`skipDbUpdate=true`) → `isRunning` tetap `true` di DB → recovery berjalan setelah `pm2 restart`. Delay 5 detik sudah cukup karena DB connection dibuka saat module import.
+
+**7.4 🟡 🏁 — Transient DB null → skip tick, bukan stopBot**
+
+`runStrategyOnce` (Lighter) dan `extRunStrategyOnce` (Extended) dipisah kondisinya:
+- `!strategy` → `logger.warn` + `return` (bot tetap berjalan)
+- `!isActive || !isRunning` → `stopBot` (user intentionally stop — benar)
+
+Ethereal sudah benar dari awal (hanya `return`, tidak memanggil `stopEtherealBot`).
+
+**7.5 🟡 🏁 — Global crash handler**
+
+`process.on('uncaughtException', ...)` dan `process.on('unhandledRejection', ...)` ditambahkan di `index.ts`. Error dilog via `logger.error` (masuk PM2 log) sebelum `process.exit(1)`, memudahkan debug "bot mati sendiri".
 
 ---
 
@@ -268,7 +239,8 @@ User harus buka dashboard manual untuk start ulang — padahal tombol **▶️ S
 | Desain 2026 | 8/9 | **9/9** | Empty state ✅ — hanya toggle dark/light yang belum (nice-to-have) |
 | Teknologi W3C | 6/10 | **10/10** | Meta desc, robots.txt, viewport, semantic HTML (`<header>` semua halaman) semua ✅ |
 | **Apache + Cloudflare** | **0/11 (baru)** | **11/11** | Semua item selesai ✅ |
-| **Total** | **29/58 (50%)** | **58/60 (97%)** | Satu-satunya ⚠️: bundle size (perlu build di VPS) + ❌ nice-to-have (OG tags, PWA, dark toggle) |
+| **Bug Backend** | **0/5 (baru)** | **5/5** | 7.1–7.5 semua selesai ✅ |
+| **Total** | **29/58 (50%)** | **63/65 (97%)** | Satu-satunya ⚠️: bundle size (perlu build di VPS) + ❌ nice-to-have (OG tags, PWA, dark toggle) |
 
 ---
 
@@ -287,6 +259,11 @@ User harus buka dashboard manual untuk start ulang — padahal tombol **▶️ S
 8. ~~`robots.txt` dengan `Disallow: /`~~ — `public/robots.txt` ✅
 9. ~~`express-rate-limit` login~~ — `app.ts` ✅
 10. ~~Komentar `trust proxy` diupdate ke Apache-aware~~ — `app.ts` ✅
+11. ~~Bug 7.1: Guard Ethereal di `registerRerangeHandlers`~~ — `telegramBot.ts` ✅
+12. ~~Bug 7.2: Notif pause dengan tombol [▶️ Start Bot] + handler `bot_restart_<id>`~~ — `autoRerange.ts`, `*BotEngine.ts` (×3), `telegramBot.ts` ✅
+13. ~~Bug 7.3: Startup recovery + graceful shutdown `skipDbUpdate=true`~~ — `index.ts` ✅
+14. ~~Bug 7.4: `!strategy → return` (bukan stopBot) di tick function~~ — `botEngine.ts`, `extendedBotEngine.ts` ✅
+15. ~~Bug 7.5: Global crash handler `uncaughtException`/`unhandledRejection`~~ — `index.ts` ✅
 
 **Server VPS (dikerjakan manual di aaPanel):**
 11. ~~Security headers di Apache (`mod_headers`)~~ — CSP, X-Frame-Options, X-Content-Type-Options, Referrer-Policy ✅

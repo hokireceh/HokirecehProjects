@@ -19,7 +19,7 @@ import {
 } from "./extendedWs";
 import type { ExtendedTrade as ExtendedWsTrade } from "./extendedWs";
 import { getOrderBookDepth, getMidPrice, getMarketStats, validateExtendedApiKey, getAccountDetails, getOrderByExternalId } from "./extendedApi";
-import { handleAutoRerange, clearRerangeState } from "../autoRerange";
+import { handleAutoRerange, clearRerangeState, sendMainBotMessageWithButton } from "../autoRerange";
 import type { ExtendedNetwork, ExtendedOrder } from "./extendedApi";
 import { getExtendedMarketInfo } from "./extendedMarkets";
 import { derivePublicKey } from "./extendedSigner";
@@ -976,9 +976,11 @@ async function extExecuteGridCheck(strategy: typeof strategiesTable.$inferSelect
         "⏸ Auto-Rerange timeout: tidak ada konfirmasi dalam 20 menit. Bot di-pause.",
         "User tidak merespons konfirmasi rerange. Atur parameter manual dari dashboard."
       );
-      await extNotifyUser(
-        userId,
-        `⏸ *Bot Extended Di-Pause*\nStrategy: *${strategy.name}*\n\nTidak ada konfirmasi rerange dalam 20 menit.\nAtur parameter manual dari dashboard lalu start kembali.`
+      const pauseNotifCfg = userId !== null ? await extGetNotificationConfig(userId).catch(() => null) : null;
+      await sendMainBotMessageWithButton(
+        pauseNotifCfg?.notifyChatId,
+        `⏸ *Bot Extended Di-Pause*\nStrategy: *${strategy.name}*\n\nTidak ada konfirmasi rerange dalam 20 menit.\nAtur parameter manual dari dashboard lalu start kembali.`,
+        { text: "▶️ Start Bot", callback_data: `bot_restart_${strategy.id}` }
       );
       await stopExtendedBot(strategy.id);
     }
@@ -1197,7 +1199,12 @@ async function extRunStrategyOnce(strategyId: number): Promise<void> {
     where: eq(strategiesTable.id, strategyId),
   });
 
-  if (!strategy || !strategy.isActive || !strategy.isRunning) {
+  if (!strategy) {
+    logger.warn({ strategyId }, "[ExtendedBot] DB query returned null — skipping tick, bot stays running");
+    return;
+  }
+
+  if (!strategy.isActive || !strategy.isRunning) {
     await stopExtendedBot(strategyId);
     return;
   }

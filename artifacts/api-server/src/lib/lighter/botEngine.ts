@@ -9,7 +9,7 @@ import { getMarketInfo } from "./marketCache";
 import { initSigner, signCreateOrder } from "./lighterSigner";
 import { sendMessageToUser } from "../telegramBot";
 import { registerPriceCallback, unregisterPriceCallback, getWsCachedPrice } from "./lighterWs";
-import { handleAutoRerange, clearRerangeState } from "../autoRerange";
+import { handleAutoRerange, clearRerangeState, sendMainBotMessageWithButton } from "../autoRerange";
 import { getDuplicateTolerance } from "../shared/tolerance";
 
 Decimal.set({ precision: 20, rounding: Decimal.ROUND_HALF_UP });
@@ -729,9 +729,11 @@ async function executeGridCheck(strategy: typeof strategiesTable.$inferSelect) {
         "⏸ Auto-Rerange timeout: tidak ada konfirmasi dalam 20 menit. Bot di-pause.",
         "User tidak merespons konfirmasi rerange. Atur parameter manual dari dashboard."
       );
-      await notifyUser(
-        userId,
-        `⏸ *Bot Di-Pause*\nStrategy: *${strategy.name}*\n\nTidak ada konfirmasi rerange dalam 20 menit.\nAtur parameter manual dari dashboard lalu start kembali.`
+      const pauseNotifCfg = userId !== null ? await getNotificationConfig(userId).catch(() => null) : null;
+      await sendMainBotMessageWithButton(
+        pauseNotifCfg?.notifyChatId,
+        `⏸ *Bot Di-Pause*\nStrategy: *${strategy.name}*\n\nTidak ada konfirmasi rerange dalam 20 menit.\nAtur parameter manual dari dashboard lalu start kembali.`,
+        { text: "▶️ Start Bot", callback_data: `bot_restart_${strategy.id}` }
       );
       await stopBot(strategy.id);
     }
@@ -966,7 +968,12 @@ async function runStrategyOnce(strategyId: number) {
     where: eq(strategiesTable.id, strategyId),
   });
 
-  if (!strategy || !strategy.isActive || !strategy.isRunning) {
+  if (!strategy) {
+    logger.warn({ strategyId }, "[LighterBot] DB query returned null — skipping tick, bot stays running");
+    return;
+  }
+
+  if (!strategy.isActive || !strategy.isRunning) {
     await stopBot(strategyId);
     return;
   }

@@ -36,7 +36,7 @@ import {
   getBotConfig,
   getEtherealCredentials,
 } from "../../routes/configService";
-import { handleAutoRerange, clearRerangeState } from "../autoRerange";
+import { handleAutoRerange, clearRerangeState, sendMainBotMessageWithButton } from "../autoRerange";
 import { getDuplicateTolerance } from "../shared/tolerance";
 
 Decimal.set({ precision: 20, rounding: Decimal.ROUND_HALF_UP });
@@ -562,9 +562,11 @@ async function ethExecuteGridCheck(strategy: typeof strategiesTable.$inferSelect
         "⏸ Auto-Rerange timeout: tidak ada konfirmasi dalam 20 menit. Bot di-pause.",
         "User tidak merespons konfirmasi rerange. Atur parameter manual dari dashboard."
       );
-      await ethNotifyUser(
-        userId,
-        `⏸ *Bot Ethereal Di-Pause*\nStrategy: *${strategy.name}*\n\nTidak ada konfirmasi rerange dalam 20 menit.\nAtur parameter manual dari dashboard lalu start kembali.`
+      const pauseNotifCfg = userId !== null ? await ethGetNotificationConfig(userId).catch(() => null) : null;
+      await sendMainBotMessageWithButton(
+        pauseNotifCfg?.notifyChatId,
+        `⏸ *Bot Ethereal Di-Pause*\nStrategy: *${strategy.name}*\n\nTidak ada konfirmasi rerange dalam 20 menit.\nAtur parameter manual dari dashboard lalu start kembali.`,
+        { text: "▶️ Start Bot", callback_data: `bot_restart_${strategy.id}` }
       );
       await stopEtherealBot(strategy.id);
     }
