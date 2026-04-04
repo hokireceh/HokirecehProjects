@@ -28,36 +28,42 @@ Admin panel sudah solid dengan 4 tab fungsional.
 
 ## Gap yang Ditemukan
 
-### Gap 1 — KRITIS: Monitor hanya tampilkan strategi Lighter
+### Gap 1 — KRITIS: Field `exchange` tidak ada di response Monitor
 
-**Lokasi backend:** `artifacts/api-server/src/routes/admin.ts` → `router.get("/all-strategies")`
+> **Koreksi dari asumsi awal:** Ketiga exchange (Lighter, Extended, Ethereal) pakai tabel yang SAMA: `strategiesTable`. Ada kolom `exchange text default "lighter"` sebagai discriminator.
 
-Endpoint hanya query `strategiesTable` (Lighter). Extended dan Ethereal tidak terlihat.
+**Verifikasi:**
+```
+lib/db/src/schema/strategies.ts → baris 23:
+  exchange: text("exchange").default("lighter").notNull()
 
-| Exchange | Tabel DB | Admin Monitor |
-|---|---|---|
-| Lighter | `strategiesTable` | ✅ Terlihat |
-| Extended | `extendedStrategiesTable` (perlu diverifikasi) | ❌ Tidak ada |
-| Ethereal | `etherealStrategiesTable` (perlu diverifikasi) | ❌ Tidak ada |
+artifacts/api-server/src/routes/extended/bot.ts → filter: eq(strategiesTable.exchange, "extended")
+artifacts/api-server/src/routes/ethereal/bot.ts → filter: eq(strategiesTable.exchange, "ethereal")
+```
+
+**Kondisi aktual backend** (`admin.ts` baris 123–164):
+- Query `strategiesTable.findMany()` tanpa filter exchange → **sudah fetch semua exchange** ✅
+- Tapi response mapping **tidak include field `exchange`** → frontend tidak tahu mana exchange-nya ❌
+
+```ts
+// response saat ini — TIDAK ada exchange:
+return {
+  id: s.id, name: s.name, type: s.type, marketSymbol: s.marketSymbol,
+  isActive: s.isActive, isRunning: s.isRunning, realizedPnl: ...,
+  totalOrders: s.totalOrders, successfulOrders: s.successfulOrders,
+  updatedAt: s.updatedAt.toISOString(), user: ...
+};
+```
 
 **Dampak:**
-- Stat card "Bot Running" di header juga hanya hitungan Lighter
-- Admin tidak bisa monitor bot Extended/Ethereal user
-
-**Fix plan:**
-1. Cek nama tabel Extended + Ethereal di `@workspace/db` schema
-2. Update endpoint `/admin/all-strategies` — join/union ketiga tabel
-3. Tambah field `exchange: "lighter" | "extended" | "ethereal"` di response
-4. Tampilkan badge exchange di setiap baris Monitor tab
-5. Update stat card "Bot Running" agar hitung dari semua exchange
+- Monitor tab tidak bisa bedakan strategi Lighter vs Extended vs Ethereal
+- Stat card "Bot Running" secara data sudah hitung semua exchange (karena query tidak filter) ✅ — tidak ada masalah di sini
 
 ---
 
-### Gap 2 — Minor: Tidak ada label exchange di Monitor rows
+### Gap 2 — Minor: Tidak ada badge exchange di Monitor rows
 
-Bahkan jika hanya Lighter yang ada saat ini, baris strategi tidak menampilkan label exchange. Perlu disiapkan sebelum Extended/Ethereal masuk.
-
-**Fix:** Tambah badge `Lighter` / `Extended` / `Ethereal` di setiap baris strategi di Monitor tab.
+Setiap baris strategi di Monitor tab hanya tampilkan nama, symbol, type, user, PnL, dan status Running/Stopped. Tidak ada indikator exchange.
 
 ---
 
@@ -78,24 +84,116 @@ Kalau userbase besar, daftar user sulit dinavigasi. Perlu search by nama/ID/stat
 
 | # | Gap | Prioritas | Estimasi |
 |---|---|---|---|
-| 1 | Monitor: tambah Extended + Ethereal strategies | **Tinggi** | ~1-2 jam (tergantung schema DB) |
-| 2 | Monitor: badge exchange per baris | **Tinggi** | ~15 menit (ikut fix #1) |
-| 3 | Payments: aksi approve/reject | **Rendah** | Perlu diskusi (mungkin by design) |
+| 1 | Backend: expose field `exchange` di response | **Tinggi** | ~5 menit |
+| 2 | Frontend: tambah badge exchange per baris | **Tinggi** | ~10 menit |
+| 3 | Payments: aksi approve/reject | **Rendah** | Perlu diskusi |
 | 4 | Users: search/filter | **Rendah** | ~30 menit |
 
 ---
 
-## Catatan Implementasi
+## Cara Fix Manual
 
-Sebelum fix Gap 1, perlu verifikasi:
-```bash
-# Cek schema tabel Extended dan Ethereal
-grep -n "Table\|table" lib/db/src/schema.ts | grep -i "extended\|ethereal"
+### Fix 1 — Backend: Tambah field `exchange` di response
+
+**File:** `artifacts/api-server/src/routes/admin.ts`
+
+Cari blok `router.get("/all-strategies"` (~baris 123). Di dalam `.map((s) => ({`, tambah satu field:
+
+```ts
+// SEBELUM:
+return {
+  id: s.id,
+  name: s.name,
+  type: s.type,
+  marketSymbol: s.marketSymbol,
+  isActive: s.isActive,
+  isRunning: s.isRunning,
+  realizedPnl: parseFloat(s.realizedPnl ?? "0"),
+  totalOrders: s.totalOrders,
+  successfulOrders: s.successfulOrders,
+  updatedAt: s.updatedAt.toISOString(),
+  user: user ? { ... } : null,
+};
+
+// SESUDAH — tambah field exchange:
+return {
+  id: s.id,
+  name: s.name,
+  type: s.type,
+  exchange: s.exchange,           // ← tambah ini
+  marketSymbol: s.marketSymbol,
+  isActive: s.isActive,
+  isRunning: s.isRunning,
+  realizedPnl: parseFloat(s.realizedPnl ?? "0"),
+  totalOrders: s.totalOrders,
+  successfulOrders: s.successfulOrders,
+  updatedAt: s.updatedAt.toISOString(),
+  user: user ? { ... } : null,
+};
 ```
 
-Kemungkinan nama tabel:
-- Extended: `extendedStrategiesTable`
-- Ethereal: `etherealStrategiesTable`
+---
 
-Jika tabel terpisah, gunakan union query atau multiple fetch + merge di backend.
-Jika pakai tabel yang sama (`strategiesTable`) dengan kolom `exchange`, cukup filter/group saja.
+### Fix 2 — Frontend: Tambah field `exchange` ke interface + badge di Monitor rows
+
+**File:** `artifacts/HK-Projects/src/pages/Admin.tsx`
+
+**Langkah A — Tambah field ke interface** (~baris 26):
+
+```ts
+// SEBELUM:
+interface AdminStrategy {
+  id: number;
+  name: string;
+  type: string;
+  marketSymbol: string;
+  ...
+}
+
+// SESUDAH:
+interface AdminStrategy {
+  id: number;
+  name: string;
+  type: string;
+  exchange: string;   // ← tambah ini
+  marketSymbol: string;
+  ...
+}
+```
+
+**Langkah B — Tambah helper warna badge** (taruh setelah `const PLAN_LABELS`):
+
+```ts
+const EXCHANGE_BADGE: Record<string, { label: string; className: string }> = {
+  lighter:  { label: "Lighter",  className: "bg-teal-500/15 text-teal-400 border-teal-500/30" },
+  extended: { label: "Extended", className: "bg-violet-500/15 text-violet-400 border-violet-500/30" },
+  ethereal: { label: "Ethereal", className: "bg-purple-500/15 text-purple-400 border-purple-500/30" },
+};
+```
+
+**Langkah C — Tampilkan badge di baris Monitor** (~baris 505–509).
+
+Cari:
+```tsx
+<span className="text-xs uppercase text-primary font-bold">{s.type}</span>
+```
+
+Tambah badge exchange tepat setelah baris itu:
+```tsx
+<span className="text-xs uppercase text-primary font-bold">{s.type}</span>
+{/* tambah badge exchange ↓ */}
+{(() => {
+  const ex = EXCHANGE_BADGE[s.exchange] ?? { label: s.exchange, className: "bg-muted text-muted-foreground" };
+  return (
+    <span className={`text-xs px-1.5 py-0.5 rounded border font-medium ${ex.className}`}>
+      {ex.label}
+    </span>
+  );
+})()}
+```
+
+---
+
+## Changelog
+
+_(kosong — belum ada implementasi)_
