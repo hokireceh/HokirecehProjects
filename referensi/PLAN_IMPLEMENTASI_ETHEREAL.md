@@ -1,8 +1,9 @@
 # Rencana Implementasi Ethereal — Full Blueprint
 
-> Status: RENCANA FINAL — belum ada kode yang ditulis
+> Status: 17/18 STEP SELESAI — hanya Step 18 (Strategies.tsx) yang tersisa
 > Tanggal: April 2026
 > Dasar: Analisis lengkap seluruh kode Lighter + Extended + DB schema + semua halaman frontend
+> Audit terakhir: April 2026 — semua file diverifikasi langsung dari kode aktual
 
 ---
 
@@ -743,27 +744,28 @@ grep -r "exchange" artifacts/api-server/src/db/ --include="*.ts"
 ## 9. Status Setiap Step
 
 > Update kolom ini setiap kali sebuah step selesai dikerjakan.
+> Audit terakhir: April 2026 — berdasarkan pembacaan kode aktual.
 
 | Step | File | Status | Catatan |
 |---|---|---|---|
-| 1 | `etherealSigner.ts` | ⬜ Belum |  |
-| 2 | `etherealApi.ts` | ⬜ Belum |  |
-| 3 | `etherealWs.ts` | ⬜ Belum |  |
-| 4 | `etherealMarkets.ts` | ⬜ Belum |  |
-| 5 | `etherealBotEngine.ts` | ⬜ Belum |  |
-| 6 | `configService.ts` update | ⬜ Belum |  |
-| 7 | `routes/ethereal/` | ⬜ Belum |  |
-| 8 | `routes/index.ts` | ⬜ Belum |  |
-| 9 | `ExchangeLogo.tsx` | ⬜ Belum |  |
-| 10 | `AppLayout.tsx` | ⬜ Belum |  |
-| 11 | `EtherealStrategies.tsx` | ⬜ Belum |  |
-| 12 | `App.tsx` | ⬜ Belum |  |
-| 13 | `Dashboard.tsx` | ⬜ Belum |  |
-| 14 | `Logs.tsx` | ⬜ Belum |  |
-| 15 | `Trades.tsx` | ⬜ Belum |  |
-| 16 | `Settings.tsx` | ⬜ Belum |  |
-| 17 | `AIAdvisor.tsx` | ⬜ Belum |  |
-| 18 | `Strategies.tsx` | ⬜ Belum |  |
-| PRE | Fetch docs + jawab 6 Q + cek deps | ⬜ Belum |  |
-| PRE | Logo Ethereal | ⬜ Belum |  |
-| PRE | Testnet wallet | ⬜ Belum |  |
+| PRE | Fetch docs + jawab 6 Q + cek deps | ✅ Selesai | ethers v6 (`signTypedData`), socket.io-client ada, kolom `exchange` ada di strategiesTable |
+| PRE | Logo Ethereal | ✅ Selesai | `public/images/ethereal-icon.png` tersedia |
+| PRE | Testnet wallet | ⬜ Eksternal | Perlu dilakukan manual oleh user |
+| 1 | `etherealSigner.ts` | ✅ Selesai | 324 baris — EIP-712 signTypedData, generateNonce, getWalletAddress |
+| 2 | `etherealApi.ts` | ✅ Selesai | 481 baris — etherealFetch + retry + 429, placeOrder, getSubaccounts, getBalances, getPositions, listOrders, getFills |
+| 3 | `etherealWs.ts` | ✅ Selesai | 233 baris — Socket.IO price feed, registerPriceCallback, wsPriceCache |
+| 4 | `etherealMarkets.ts` | ✅ Selesai | 222 baris — TTL 2 menit, getProducts, getProductByTicker, fallback data |
+| 5 | `etherealBotEngine.ts` | ✅ Selesai | 1207 baris — DCA + Grid engine, pollPendingTrades via getFills, WS cooldown |
+| 6 | `configService.ts` update | ✅ Selesai | `getEtherealCredentials`, `updateEtherealCredentials`, `deleteEtherealCredentials` + ETH_KEYS terenkripsi |
+| 7 | `routes/ethereal/` | ✅ Selesai | `bot.ts` 570+ baris — start/stop, markets, account, credentials, fetch-subaccount-id, logs, test-connection |
+| 8 | `routes/index.ts` | ✅ Selesai | `/ethereal/strategies` terdaftar |
+| 9 | `ExchangeLogo.tsx` | ✅ Selesai | Type union `"lighter" \| "extended" \| "ethereal"` + `/images/ethereal-icon.png` |
+| 10 | `AppLayout.tsx` | ✅ Selesai | `etherealItems` nav group di sidebar desktop |
+| 11 | `EtherealStrategies.tsx` | ✅ Selesai | 1243 baris — list, start/stop, create/edit modal, account info |
+| 12 | `App.tsx` | ✅ Selesai | Lazy import `EtherealStrategies` + route `/ethereal` |
+| 13 | `Dashboard.tsx` | ✅ Selesai | `EtherealSection` + `useEtherealStrategies` + `useEtherealLogs` + combined logs 3 exchange |
+| 14 | `Logs.tsx` | ✅ Selesai | `ExchangeFilter` + "ethereal" + fetch `/api/ethereal/strategies/logs/recent` + merge 3 sumber |
+| 15 | `Trades.tsx` | ✅ Selesai | Type cast `"lighter" \| "extended" \| "ethereal"` + `getExplorerUrl()` helper dengan URL Ethereal explorer |
+| 16 | `Settings.tsx` | ✅ Selesai | `EtherealConfigSection` — private key, network, auto-fetch subaccount ID, simpan credentials |
+| 17 | `AIAdvisor.tsx` | ✅ Selesai | `DexType` termasuk "ethereal" + tombol Ethereal di DEX selector + fetch `/api/ethereal/strategies/markets` |
+| **18** | **`Strategies.tsx`** | **⬜ Belum** | Tidak ada referensi Ethereal — halaman Lighter-only, belum ada tab/DEX selector untuk Ethereal |
