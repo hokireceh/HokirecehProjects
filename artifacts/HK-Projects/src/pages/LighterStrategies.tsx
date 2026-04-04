@@ -13,9 +13,10 @@ import { useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Play, Square, Trash2, Activity, BarChart2, Zap, LineChart, Pencil, Wallet } from "lucide-react";
+import { Play, Square, Trash2, Activity, BarChart2, Zap, LineChart, Pencil, Wallet, ScrollText } from "lucide-react";
 import { CreateStrategyModal } from "@/components/strategies/CreateStrategyModal";
 import { EditStrategyModal } from "@/components/strategies/EditStrategyModal";
+import { LighterLogDialog } from "@/components/lighter/LighterLogDialog";
 import { PriceDisplay } from "@/components/ui/PriceDisplay";
 import { ExchangeLogo } from "@/components/ui/ExchangeLogo";
 import { useToast } from "@/hooks/use-toast";
@@ -109,6 +110,8 @@ export default function Strategies() {
   const { data: account } = useGetAccountInfo();
   const [chartStrategy, setChartStrategy] = useState<{ id: number; name: string } | null>(null);
   const [editStrategy, setEditStrategy] = useState<any | null>(null);
+  const [logStrategyId, setLogStrategyId] = useState<number | null>(null);
+  const logStrategy = data?.strategies.find((s) => s.id === logStrategyId);
 
   const isConfigured = account?.isConfigured ?? false;
   
@@ -295,6 +298,12 @@ export default function Strategies() {
                         {strategy.dcaConfig.side.toUpperCase()}
                       </div>
                     </div>
+                    {(strategy.dcaConfig as any).orderType && (
+                      <div>
+                        <div className="text-muted-foreground text-xs">Order Type</div>
+                        <div className="font-mono text-xs capitalize">{(strategy.dcaConfig as any).orderType}</div>
+                      </div>
+                    )}
                   </div>
                 )}
                 
@@ -365,6 +374,15 @@ export default function Strategies() {
                 <Button
                   variant="outline"
                   size="icon"
+                  className="shrink-0 hover:bg-teal-500/10 hover:text-teal-400 hover:border-teal-500/30"
+                  title="Lihat Log"
+                  onClick={() => setLogStrategyId(strategy.id)}
+                >
+                  <ScrollText className="w-4 h-4" />
+                </Button>
+                <Button
+                  variant="outline"
+                  size="icon"
                   className="shrink-0 hover:bg-blue-500/10 hover:text-blue-400 hover:border-blue-500/30"
                   title="Edit Strategi"
                   onClick={() => setEditStrategy(strategy)}
@@ -393,6 +411,15 @@ export default function Strategies() {
         strategy={editStrategy}
         onClose={() => setEditStrategy(null)}
       />
+
+      {logStrategy && (
+        <LighterLogDialog
+          strategyId={logStrategy.id}
+          strategyName={logStrategy.name}
+          open={true}
+          onClose={() => setLogStrategyId(null)}
+        />
+      )}
     </div>
   );
 }

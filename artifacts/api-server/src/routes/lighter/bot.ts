@@ -240,9 +240,14 @@ router.get("/pnl-chart", async (req: AuthRequest, res) => {
 
 router.get("/logs", async (req: AuthRequest, res) => {
   const limit = parseInt(String(req.query.limit ?? "100"));
+  const strategyId = req.query.strategyId ? parseInt(String(req.query.strategyId)) : null;
   try {
     const logs = await db.query.botLogsTable.findMany({
-      where: and(eq(botLogsTable.userId, req.userId!), eq(botLogsTable.exchange, "lighter")),
+      where: and(
+        eq(botLogsTable.userId, req.userId!),
+        eq(botLogsTable.exchange, "lighter"),
+        strategyId ? eq(botLogsTable.strategyId, strategyId) : undefined,
+      ),
       orderBy: [desc(botLogsTable.createdAt)],
       limit: Math.min(limit, 500),
     });
