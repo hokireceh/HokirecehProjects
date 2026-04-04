@@ -991,12 +991,7 @@ function EthLogDialog({ strategyId, strategyName, open, onClose }: { strategyId:
 
 function EthAccountWidget({ account }: { account: EthAccount | null }) {
   if (!account?.hasCredentials) {
-    return (
-      <div className="flex items-center gap-2 text-sm text-muted-foreground">
-        <Wallet className="w-4 h-4" />
-        <span>Belum terkonfigurasi</span>
-      </div>
-    );
+    return null;
   }
 
   const usde = account.balances.find(
