@@ -3,7 +3,7 @@ import app from "./app";
 import { logger } from "./lib/logger";
 import { getAllRunningExtendedBots, startExtendedBot, stopExtendedBot } from "./lib/extended/extendedBotEngine";
 import { getAllRunningEtherealBots, startEtherealBot, stopEtherealBot } from "./lib/ethereal/etherealBotEngine";
-import { getAllRunningBots, startBot, stopBot } from "./lib/lighter/botEngine";
+import { getAllRunningBots, startBot, stopBot } from "./lib/lighter/lighterBotEngine";
 import { destroyExtendedWs } from "./lib/extended/extendedWs";
 import { db, strategiesTable } from "@workspace/db";
 import { eq, and } from "drizzle-orm";

@@ -3,7 +3,7 @@ import { db } from "@workspace/db";
 import { strategiesTable } from "@workspace/db";
 import { eq, and } from "drizzle-orm";
 import { getBotConfig, updateBotConfig, getExtendedCredentials } from "./configService";
-import { stopBot } from "../lib/lighter/botEngine";
+import { stopBot } from "../lib/lighter/lighterBotEngine";
 import { getMarketSymbol } from "../lib/lighter/marketCache";
 import { authMiddleware, type AuthRequest } from "../middlewares/auth";
 import { getAccountByL1Address, getNextNonce, sendTx, getBaseUrl } from "../lib/lighter/lighterApi";

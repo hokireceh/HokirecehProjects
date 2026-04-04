@@ -8,7 +8,7 @@ import router from "./routes";
 import { logger } from "./lib/logger";
 import { db } from "@workspace/db";
 import { sql } from "drizzle-orm";
-import { restoreRunningBots, startLogCleanupSchedule, startTradePollSchedule } from "./lib/lighter/botEngine";
+import { restoreRunningBots, startLogCleanupSchedule, startTradePollSchedule } from "./lib/lighter/lighterBotEngine";
 import { restoreRunningExtendedBots, startExtendedTradePollSchedule } from "./lib/extended/extendedBotEngine";
 import { restoreRunningEtherealBots, startEtherealTradePollSchedule } from "./lib/ethereal/etherealBotEngine";
 import { startTelegramBot } from "./lib/telegramBot";

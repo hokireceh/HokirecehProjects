@@ -456,7 +456,7 @@ export function startTelegramBot() {
         logger.warn({ strategyId }, "[TelegramBot] Ethereal rerange approve not yet supported via Telegram");
         return false;
       }
-      const { startBot } = await import("./lighter/botEngine");
+      const { startBot } = await import("./lighter/lighterBotEngine");
       return startBot(strategyId);
     },
     async (strategyId) => {
@@ -472,7 +472,7 @@ export function startTelegramBot() {
         logger.warn({ strategyId }, "[TelegramBot] Ethereal rerange reject not yet supported via Telegram");
         return false;
       }
-      const { stopBot } = await import("./lighter/botEngine");
+      const { stopBot } = await import("./lighter/lighterBotEngine");
       return stopBot(strategyId);
     }
   );
@@ -499,7 +499,7 @@ export function startTelegramBot() {
         const { startEtherealBot } = await import("./ethereal/etherealBotEngine");
         await startEtherealBot(strategyId);
       } else {
-        const { startBot } = await import("./lighter/botEngine");
+        const { startBot } = await import("./lighter/lighterBotEngine");
         await startBot(strategyId);
       }
       await ctx.reply(`▶️ *Bot Dimulai Kembali*\nStrategy: *${strat.name}*`, { parse_mode: "Markdown" });

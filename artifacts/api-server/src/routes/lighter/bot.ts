@@ -7,7 +7,7 @@ import {
   stopBot,
   getNextRunAt,
   getAllRunningBots,
-} from "../../lib/lighter/botEngine";
+} from "../../lib/lighter/lighterBotEngine";
 import { getBotConfig } from "../configService";
 import { getAccountByIndex } from "../../lib/lighter/lighterApi";
 import { authMiddleware, type AuthRequest } from "../../middlewares/auth";
