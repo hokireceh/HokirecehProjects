@@ -130,8 +130,8 @@ Browser → HTTPS → Cloudflare CDN → HTTP :80 → Apache :80
 | 6.6 | WebSocket proxy | ✅ | — | Tidak diperlukan — semua WS outbound dari server ke DEX |
 | 6.7 | HTTP/2 | ✅ | — | Cloudflare sudah HTTP/2 antara browser↔Cloudflare. Origin ke Apache HTTP/1.1 tidak masalah. |
 | 6.8 | Gzip / compression | ✅ | — | Cloudflare compress di edge. `mod_deflate` di Apache tetap boleh aktif sebagai backup. |
-| 6.9 | HSTS | ⚠️ 🔴 | — | Enable HSTS sudah ON di Cloudflare, tapi **Max Age = 0** → HSTS tidak efektif. Ubah Max Age ke minimal 6 months. Preload ON butuh max-age 12 months. |
-| 6.10 | Cloudflare WAF / Bot protection | ⚠️ | 🟡 | Free tier: aktifkan **Bot Fight Mode** + **Security Level: Medium** di Cloudflare dashboard |
+| 6.9 | HSTS | ✅ 🏁 | — | Max-Age 6 months, includeSubDomains On, Preload On — aktif di Cloudflare |
+| 6.10 | Cloudflare WAF / Bot protection | ✅ 🏁 | — | Bot Fight Mode ON, JS Detections ON — aktif di Cloudflare |
 
 ---
 
@@ -223,8 +223,8 @@ Setelah edit, klik **Save** di aaPanel lalu restart Apache dari panel atau:
 | Performa | 7/11 | **9/11** | Chunking dioptimasi, emptyOutDir fix |
 | Desain 2026 | 8/9 | **8/9** | Belum ada toggle dark/light |
 | Teknologi W3C | 6/10 | **9/10** | Meta description, robots.txt, viewport fix |
-| **Apache + Cloudflare** | **0/10 (baru)** | **6/10** | HTTPS/HTTP2/Gzip/X-Forwarded-Proto sudah oke via CF; security headers static files + ProxyPreserveHost perlu ditambah |
-| **Total** | **29/58 (50%)** | **45/58 (78%)** | Setelah revisi dengan konteks Cloudflare |
+| **Apache + Cloudflare** | **0/10 (baru)** | **9/10** | Semua CF settings aktif; hanya ProxyPreserveHost yang belum dikonfirmasi aktif di Apache |
+| **Total** | **29/58 (50%)** | **48/58 (83%)** | Setelah semua implementasi selesai |
 
 ---
 
