@@ -454,7 +454,7 @@ export function startTelegramBot() {
       }
       if (strat?.exchange === "ethereal") {
         logger.warn({ strategyId }, "[TelegramBot] Ethereal rerange approve not yet supported via Telegram");
-        return;
+        return false;
       }
       const { startBot } = await import("./lighter/botEngine");
       return startBot(strategyId);
@@ -470,7 +470,7 @@ export function startTelegramBot() {
       }
       if (strat?.exchange === "ethereal") {
         logger.warn({ strategyId }, "[TelegramBot] Ethereal rerange reject not yet supported via Telegram");
-        return;
+        return false;
       }
       const { stopBot } = await import("./lighter/botEngine");
       return stopBot(strategyId);

@@ -297,6 +297,7 @@ pnpm --filter @workspace/scripts run check-lighter-api           # cek kode vs d
 pnpm --filter @workspace/scripts run check-lighter-api -- --ping # + live test mainnet
 ```
 
-### REFERENSI
-Cek folder referensi/ — semua file sudah tersedia dan bisa langsung kamu jalankan. Jika ada perubahan terbaru, jalankan fetch-docs.js untuk menghasilkan dokumentasi .md resmi dari Lighter, lalu bandingkan hasilnya dengan implementasi yang ada.
-Perhatian: Sistem ini berjalan 24/7 dan digunakan secara live. Jika ada bug, kerugian finansial bisa terjadi — jadi jangan asumsikan, verifikasi dulu dari docs sebelum menyimpulkan apapun.
+### ATURAN WAJIB (jangan dilanggar):
+1. JANGAN sentuh apapun di src/lib/lighter/ — Lighter production 24/7
+2. JANGAN ubah logika signing Extended (Poseidon) atau Ethereal (EIP-712)
+3. JANGAN ubah field yang dikirim ke API backend

@@ -976,7 +976,7 @@ async function extExecuteGridCheck(strategy: typeof strategiesTable.$inferSelect
         "⏸ Auto-Rerange timeout: tidak ada konfirmasi dalam 20 menit. Bot di-pause.",
         "User tidak merespons konfirmasi rerange. Atur parameter manual dari dashboard."
       );
-      const pauseNotifCfg = userId !== null ? await extGetNotificationConfig(userId).catch(() => null) : null;
+      const pauseNotifCfg = userId !== null ? await getBotConfig(userId).catch(() => null) : null;
       await sendMainBotMessageWithButton(
         pauseNotifCfg?.notifyChatId,
         `⏸ *Bot Extended Di-Pause*\nStrategy: *${strategy.name}*\n\nTidak ada konfirmasi rerange dalam 20 menit.\nAtur parameter manual dari dashboard lalu start kembali.`,
