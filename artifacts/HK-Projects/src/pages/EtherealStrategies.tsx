@@ -8,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
-import { Play, Square, Trash2, Activity, BarChart2, Zap, LineChart, Pencil, Plus, Loader2, RefreshCw, Settings2, Wallet, Sparkles, ChevronsUpDown, Check, TrendingUp, TrendingDown, Minus } from "lucide-react";
+import { Play, Square, Trash2, Activity, BarChart2, Zap, LineChart, Pencil, Plus, Loader2, RefreshCw, Settings2, Wallet, Sparkles, ChevronsUpDown, Check, TrendingUp, TrendingDown, Minus, ScrollText } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { ExchangeLogo } from "@/components/ui/ExchangeLogo";
 import { useToast } from "@/hooks/use-toast";
@@ -909,6 +909,7 @@ function EthStrategyCard({
             <div><div className="text-xs text-muted-foreground">Level</div><div className="font-mono">{strategy.gridConfig.gridLevels}</div></div>
             <div><div className="text-xs text-muted-foreground">Per Grid</div><div className="font-mono">${strategy.gridConfig.amountPerGrid}</div></div>
             <div><div className="text-xs text-muted-foreground">Mode</div><div className="font-mono capitalize">{strategy.gridConfig.mode}</div></div>
+            {strategy.gridConfig.orderType && <div><div className="text-xs text-muted-foreground">Order</div><div className="font-mono text-xs capitalize">{strategy.gridConfig.orderType}</div></div>}
             {strategy.gridConfig.stopLoss && <div><div className="text-xs text-muted-foreground">Stop Loss</div><div className="font-mono text-destructive">${strategy.gridConfig.stopLoss}</div></div>}
             {strategy.gridConfig.takeProfit && <div><div className="text-xs text-muted-foreground">Take Profit</div><div className="font-mono text-success">${strategy.gridConfig.takeProfit}</div></div>}
           </div>
@@ -954,8 +955,9 @@ function EthStrategyCard({
           )}
           <span className="ml-1">{strategy.isRunning ? "Stop" : "Start"}</span>
         </Button>
-        <Button variant="ghost" size="sm" onClick={onShowLog} title="Lihat log">
-          <Activity className="w-4 h-4" />
+        <Button variant="ghost" size="sm" onClick={onShowLog} title="Lihat Log"
+          className="hover:bg-purple-500/10 hover:text-purple-400">
+          <ScrollText className="w-4 h-4" />
         </Button>
         <Button variant="ghost" size="sm" onClick={onDelete} disabled={strategy.isRunning || isBusy} className="ml-auto text-destructive hover:text-destructive">
           <Trash2 className="w-4 h-4" />

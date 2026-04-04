@@ -369,17 +369,28 @@ git pull origin main
 
 echo "Checking TypeScript..."
 cd artifacts/api-server
-pnpm tsc --noEmit 2>&1 | grep -v "TS6305" | grep "error TS" && echo "TypeScript error ditemukan, deploy dibatalkan!" && exit 1
+TS_ERRORS=$(pnpm tsc --noEmit 2>&1 | grep -v "TS6305" | grep "error TS" || true)
+if [ -n "$TS_ERRORS" ]; then
+  echo "$TS_ERRORS"
+  echo "❌ TypeScript error ditemukan, deploy dibatalkan!"
+  exit 1
+fi
+echo "✅ TypeScript OK"
 
 echo "Building frontend..."
-cd ../HK-Projects && pnpm build
+cd ../HK-Projects
+pnpm build || { echo "❌ Frontend build gagal, deploy dibatalkan!"; exit 1; }
+echo "✅ Frontend build OK"
 
 echo "Building backend..."
-cd ../api-server && pnpm build
+cd ../api-server
+pnpm build || { echo "❌ Backend build gagal, deploy dibatalkan!"; exit 1; }
+echo "✅ Backend build OK"
 
 echo "Restarting..."
-pm2 restart hokireceh-api --update-env
-echo "Deploy selesai!"
+cd ../HK-Projects
+pm2 restart ecosystem.config.cjs --update-env
+echo "✅ Deploy selesai!"
 EOF
 chmod +x /usr/local/bin/pull-hk
 ```
