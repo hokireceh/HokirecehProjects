@@ -28,8 +28,8 @@
 | 1.1 | HTTPS & SSL valid | ✅ | — | aaPanel + Apache 2.4 + SSL di VPS sudah aktif |
 | 1.2 | Kebijakan Privasi | ❌ | 🟡 | Tidak ada halaman privacy policy |
 | 1.3 | Cookie Consent Banner | ❌ | 🟢 | App tidak pakai cookie analytics, hanya session auth — risiko rendah |
-| 1.4 | Security Headers HTTP | ✅ 🏁 | — | Sudah implementasi via `helmet` di `app.ts` — X-Frame-Options, HSTS, Referrer-Policy sudah aktif |
-| 1.5 | Content Security Policy (CSP) | ✅ 🏁 | — | CSP sudah dikonfigurasi di `helmet()` dengan whitelist Lighter, Extended, Google Fonts |
+| 1.4 | Security Headers HTTP | ⚠️ | 🔴 | `helmet` hanya cover `/api/*`. Static files (HTML/JS/CSS) dilayani Apache langsung — header perlu ditambah di Apache `<Directory>` block |
+| 1.5 | Content Security Policy (CSP) | ⚠️ | 🔴 | CSP di `helmet` tidak efektif untuk `index.html` karena Apache serve langsung. CSP harus ada di Apache `Header set` pada static file directory |
 | 1.6 | Rate Limiting Login | ✅ 🏁 | — | `express-rate-limit` sudah aktif: 10x/15min untuk `/api/auth`, 200x/15min untuk `/api` umum |
 | 1.7 | Data Minimalisasi | ✅ | — | Hanya menyimpan API key + session; tidak ada tracking/analytics pihak ketiga |
 | 1.8 | Proteksi Private Key | ✅ | — | Private key disimpan server-side, tidak dikirim ke client |
@@ -106,63 +106,120 @@
 
 ## 6. Konfigurasi Reverse Proxy — Apache 2.4 + aaPanel
 
-> Bagian ini khusus hasil analisa ulang setelah diketahui stack VPS pakai **aaPanel + Apache 2.4**, bukan Nginx.
+> Analisa berdasarkan VirtualHost config aktual yang digunakan.
+
+### Arsitektur Aktual
+
+```
+Browser → Apache :80 → serve dist/ langsung (static files)
+                  └→ ProxyPass /api → Node.js :8080
+```
+
+**Implikasi kritis:** `helmet` di Express **hanya berlaku untuk `/api/*`**. File `index.html`, semua chunk JS, CSS → dilayani Apache langsung, tanpa security headers apapun.
 
 | # | Item | Status | Prioritas | Catatan |
 |---|------|--------|-----------|---------|
-| 6.1 | `X-Forwarded-Proto` header dari Apache | ⚠️ | 🔴 | Apache harus kirim `RequestHeader set X-Forwarded-Proto "https"` agar HSTS dari `helmet` aktif (`req.secure = true`) |
-| 6.2 | `trust proxy` di Express | ✅ | — | `app.set("trust proxy", 1)` sudah ada — Express baca `X-Forwarded-For` dari Apache dengan benar |
-| 6.3 | Duplicate security headers | ⚠️ | 🔴 | aaPanel kadang inject `X-Frame-Options` / `X-Content-Type-Options` di VirtualHost template — duplikat dengan helmet → browser bisa reject. Perlu dicek di aaPanel panel |
-| 6.4 | HTTP/2 via `mod_http2` | ❌ | 🟡 | Apache 2.4.17+ support HTTP/2 — perlu dicek apakah aktif di aaPanel. Berguna untuk load chunk JS paralel |
-| 6.5 | Gzip / Brotli compression | ⚠️ | 🟡 | aaPanel biasanya include `mod_deflate` — perlu verifikasi aktif untuk static assets (JS/CSS) |
-| 6.6 | WebSocket proxy (`mod_proxy_wstunnel`) | ✅ | — | Tidak diperlukan — semua WS di app ini adalah outbound server→DEX. Browser hanya pakai HTTP polling via React Query |
-| 6.7 | `ProxyPreserveHost On` | ⚠️ | 🟡 | Perlu dipastikan aktif agar Express dapat hostname asli (untuk cookie domain, logging) |
-| 6.8 | Cookie `Secure` flag | ⚠️ | 🔴 | Session cookie perlu `Secure` flag — hanya aktif kalau `req.secure = true` (tergantung 6.1) |
+| 6.1 | Security headers untuk static files (HTML/JS/CSS) | ❌ | 🔴 | Apache serve `dist/` langsung tanpa `Header set` → CSP, X-Frame-Options, dll tidak dikirim ke browser untuk halaman utama |
+| 6.2 | HTTPS / Redirect HTTP→HTTPS | ⚠️ | 🔴 | VirtualHost hanya port 80. Jika ada HTTPS VirtualHost via aaPanel SSL, pastikan port 80 redirect ke 443 |
+| 6.3 | `RequestHeader set X-Forwarded-Proto` | ❌ | 🔴 | Tidak ada di config → Express `req.secure = false` → HSTS tidak dikirim, cookie Secure tidak aktif |
+| 6.4 | `ProxyPreserveHost On` | ❌ | 🟡 | Tidak ada di config → Express tidak dapat hostname asli dari request |
+| 6.5 | `trust proxy` di Express | ✅ | — | Sudah ada di `app.ts` — rate limiter baca IP dari `X-Forwarded-For` dengan benar |
+| 6.6 | WebSocket proxy (`mod_proxy_wstunnel`) | ✅ | — | Tidak diperlukan — semua WS outbound dari server ke DEX |
+| 6.7 | HTTP/2 via `mod_http2` | ❌ | 🟡 | Belum ada `Protocols h2 http/1.1` — perlu HTTPS VirtualHost dulu |
+| 6.8 | Gzip compression static files | ⚠️ | 🟡 | aaPanel biasanya punya `mod_deflate` tapi perlu verifikasi aktif |
 
-### Saran Implementasi 6.1, 6.3, 6.7 — Apache VirtualHost Config (aaPanel)
+---
 
-Di aaPanel, masuk ke **Website → Config** untuk domain kamu, tambahkan di bagian VirtualHost:
+### Konfigurasi yang Disarankan
+
+Ganti VirtualHost kamu dengan versi ini:
 
 ```apache
+# ── Redirect HTTP → HTTPS ─────────────────────────────────────────────────────
+<VirtualHost *:80>
+    ServerName hokireceh.online
+    ServerAlias www.hokireceh.online
+    RewriteEngine On
+    RewriteRule ^(.*)$ https://%{HTTP_HOST}$1 [R=301,L]
+</VirtualHost>
+
+# ── HTTPS (main config) ────────────────────────────────────────────────────────
 <VirtualHost *:443>
-    ServerName yourdomain.com
+    ServerName hokireceh.online
+    ServerAlias www.hokireceh.online
 
-    # Reverse proxy ke Express
+    DocumentRoot /www/wwwroot/HokirecehProjects/artifacts/HK-Projects/dist
+
+    # ── SSL (isi path sesuai aaPanel Let's Encrypt) ────────────────────────────
+    SSLEngine on
+    SSLCertificateFile      /www/server/panel/vhost/cert/hokireceh.online/fullchain.pem
+    SSLCertificateKeyFile   /www/server/panel/vhost/cert/hokireceh.online/privkey.pem
+
+    # ── Security Headers untuk static files ───────────────────────────────────
+    <IfModule mod_headers.c>
+        Header always set X-Frame-Options "SAMEORIGIN"
+        Header always set X-Content-Type-Options "nosniff"
+        Header always set Referrer-Policy "strict-origin-when-cross-origin"
+        Header always set Strict-Transport-Security "max-age=31536000; includeSubDomains" env=HTTPS
+        Header always set Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self' https://mainnet.zklighter.elliot.ai https://testnet.zklighter.elliot.ai https://api.starknet.extended.exchange https://api.starknet.sepolia.extended.exchange; object-src 'none'; frame-ancestors 'none'"
+    </IfModule>
+
+    # ── HTTP/2 ─────────────────────────────────────────────────────────────────
+    Protocols h2 http/1.1
+
+    # ── Gzip compression ───────────────────────────────────────────────────────
+    <IfModule mod_deflate.c>
+        AddOutputFilterByType DEFLATE text/html text/css application/javascript application/json
+    </IfModule>
+
+    # ── Static files SPA routing ───────────────────────────────────────────────
+    <Directory /www/wwwroot/HokirecehProjects/artifacts/HK-Projects/dist>
+        AllowOverride All
+        Require all granted
+        Options -Indexes
+
+        RewriteEngine On
+        RewriteCond %{REQUEST_FILENAME} !-f
+        RewriteCond %{REQUEST_FILENAME} !-d
+        RewriteCond %{REQUEST_URI} !^/api
+        RewriteRule ^ /index.html [L]
+    </Directory>
+
+    # ── Proxy /api ke backend Node.js ──────────────────────────────────────────
+    ProxyRequests Off
     ProxyPreserveHost On
-    ProxyPass / http://127.0.0.1:8080/
-    ProxyPassReverse / http://127.0.0.1:8080/
+    ProxyPass /api http://127.0.0.1:8080/api
+    ProxyPassReverse /api http://127.0.0.1:8080/api
 
-    # Kirim info HTTPS ke Express (krusial untuk helmet HSTS + cookie Secure)
+    # Kirim info HTTPS ke Express (krusial untuk cookie Secure)
     RequestHeader set X-Forwarded-Proto "https"
     RequestHeader set X-Forwarded-Port "443"
 
-    # HAPUS baris ini jika ada (duplikat dengan helmet):
-    # Header set X-Frame-Options "SAMEORIGIN"        ← hapus
-    # Header set X-Content-Type-Options "nosniff"    ← hapus
-    # Header always set Strict-Transport-Security... ← hapus
-
-    # SSL config (biasanya sudah dihandle aaPanel/Let's Encrypt)
-    SSLEngine on
-    ...
+    # ── Browser cache untuk static assets (hash di filename, aman di-cache lama) ─
+    <LocationMatch "\.(js|css|woff2?|ico)$">
+        Header set Cache-Control "public, max-age=31536000, immutable"
+    </LocationMatch>
+    # index.html jangan di-cache (SPA entry point)
+    <LocationMatch "^/$|\.html$">
+        Header set Cache-Control "no-cache, no-store, must-revalidate"
+    </LocationMatch>
 </VirtualHost>
 ```
 
-### Saran Implementasi 6.4 — Enable HTTP/2
+> **Catatan path SSL:** aaPanel Let's Encrypt biasanya simpan cert di `/www/server/panel/vhost/cert/<domain>/`. Sesuaikan path jika berbeda. Kalau aaPanel yang generate HTTPS VirtualHost otomatis, tambahkan directive di atas ke dalam VirtualHost yang sudah ada.
 
-Di aaPanel atau langsung di Apache config:
-```apache
-# /etc/httpd/conf.modules.d/ atau /etc/apache2/mods-enabled/
-LoadModule http2_module modules/mod_http2.so
+---
 
-<VirtualHost *:443>
-    Protocols h2 http/1.1
-    ...
-</VirtualHost>
-```
+### Yang Berubah dari Config Lama
 
-### Catatan Tambahan — Komentar Kode `app.ts`
-
-Komentar di baris `app.set("trust proxy", 1)` masih menyebut "Nginx / Caddy / Replit proxy" — sudah diupdate menjadi Apache-aware.
+| Sebelum | Sesudah | Alasan |
+|---------|---------|--------|
+| Port 80 saja | 80 redirect → 443, main di 443 | Enforce HTTPS |
+| Tidak ada `Header set` | Security headers untuk semua static files | CSP & X-Frame-Options butuh ini |
+| Tidak ada `ProxyPreserveHost` | `ProxyPreserveHost On` | Express dapat hostname asli |
+| Tidak ada `RequestHeader` | `RequestHeader set X-Forwarded-Proto "https"` | Cookie Secure + HSTS aktif |
+| Tidak ada cache control | Cache 1 tahun untuk JS/CSS, no-cache untuk HTML | Performa + correctness |
+| Tidak ada HTTP/2 | `Protocols h2 http/1.1` | Load chunk JS paralel |
 
 ---
 
@@ -170,13 +227,13 @@ Komentar di baris `app.set("trust proxy", 1)` masih menyebut "Nginx / Caddy / Re
 
 | Kategori | Skor Awal | Skor Sekarang | Komentar |
 |----------|-----------|---------------|----------|
-| Privasi & Keamanan | 3/8 | **6/8** | Security headers, CSP, rate limit sudah beres |
+| Privasi & Keamanan | 3/8 | **5/8** | 1.4 & 1.5 dikembalikan ⚠️ — helmet tidak cover static files |
 | Aksesibilitas WCAG | 5/10 | **8/10** | lang, maximum-scale, skip-link, aria-label sudah fix |
 | Performa | 7/11 | **9/11** | Chunking dioptimasi, emptyOutDir fix |
 | Desain 2026 | 8/9 | **8/9** | Belum ada toggle dark/light |
 | Teknologi W3C | 6/10 | **9/10** | Meta description, robots.txt, viewport fix |
-| **Apache Proxy** | **0/8 (baru)** | **2/8** | `trust proxy` & WebSocket sudah oke; 6 item perlu dicek/config di VPS |
-| **Total** | **29/56 (52%)** | **42/56 (75%)** | Dengan scope Apache proxy ditambahkan |
+| **Apache Proxy** | **0/8 (baru)** | **2/8** | `trust proxy` & WebSocket oke; 6 item perlu config di VPS |
+| **Total** | **29/56 (52%)** | **41/56 (73%)** | Setelah revisi temuan Apache static file serving |
 
 ---
 
@@ -184,7 +241,7 @@ Komentar di baris `app.set("trust proxy", 1)` masih menyebut "Nginx / Caddy / Re
 
 ### ✅ Selesai
 1. ~~**Hapus `maximum-scale=1`**~~ — `index.html` ✅
-2. ~~**Security headers di Nginx**~~ — sudah via `helmet` di `app.ts` ✅
+2. ~~**Security headers di API layer**~~ — via `helmet` di `app.ts` (hanya berlaku untuk `/api/*`) ✅
 3. ~~**Rate limiting login di API server**~~ — `express-rate-limit` sudah aktif ✅
 4. ~~**Ganti `lang="en"` → `lang="id"`**~~ ✅
 5. ~~**Tambah `<meta name="description">`**~~ ✅
@@ -195,13 +252,17 @@ Komentar di baris `app.set("trust proxy", 1)` masih menyebut "Nginx / Caddy / Re
 10. ~~**Optimasi chunk Vite**~~ — tambah `vendor-icons`, `vendor-motion` ✅
 
 ### 🔴 Segera — Apache VPS (dikerjakan manual di server)
-11. **Tambah `RequestHeader set X-Forwarded-Proto "https"`** di VirtualHost aaPanel — agar HSTS & cookie Secure aktif
-12. **Cek duplicate security headers** di VirtualHost aaPanel — hapus jika ada `X-Frame-Options` / `X-Content-Type-Options` duplikat
-13. **Pastikan `ProxyPreserveHost On`** aktif di VirtualHost config
+> Gunakan config lengkap di Section 6 sebagai referensi.
+
+11. **Tambah `Header always set` untuk security headers** di `<Directory dist>` block — CSP, X-Frame-Options, X-Content-Type-Options, Referrer-Policy
+12. **Migrate ke HTTPS VirtualHost (:443)** + redirect 80 → 443 — jika belum ada
+13. **Tambah `RequestHeader set X-Forwarded-Proto "https"`** di VirtualHost :443 — agar cookie Secure & HSTS aktif
+14. **Tambah `ProxyPreserveHost On`** sebelum `ProxyPass`
+15. **Tambah cache headers** — `max-age=31536000` untuk JS/CSS, `no-cache` untuk HTML
 
 ### 🟡 Jangka Menengah (Kualitas)
-- **Enable HTTP/2** di aaPanel (`mod_http2` + `Protocols h2 http/1.1`) — performa load chunk JS lebih baik
-- **Verifikasi Gzip aktif** (`mod_deflate`) untuk JS/CSS/HTML di Apache
+- **Enable HTTP/2** (`Protocols h2 http/1.1`) di VirtualHost :443
+- **Verifikasi Gzip aktif** (`mod_deflate`) untuk JS/CSS/HTML
 - **Verifikasi bundle size setelah build** — jalankan `pnpm run build` di VPS, cek ukuran tiap chunk
 - **Color contrast audit** — verifikasi `text-muted-foreground` ratio ≥ 4.5:1
 
