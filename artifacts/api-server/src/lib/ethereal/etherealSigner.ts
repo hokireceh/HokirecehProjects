@@ -270,47 +270,6 @@ export async function signCancelOrder(
   return sig;
 }
 
-// ─── Sign Withdraw ────────────────────────────────────────────────────────────
-
-export async function signWithdraw(
-  privateKey: string,
-  data: WithdrawData,
-  network: EtherealNetwork = "mainnet"
-): Promise<string> {
-  const pk = privateKey.startsWith("0x") ? privateKey : `0x${privateKey}`;
-  const wallet = new ethers.Wallet(pk);
-  const domain = ETHEREAL_DOMAINS[network];
-
-  return wallet.signTypedData(domain as any, WITHDRAW_TYPES, {
-    account:    data.account,
-    subaccount: data.subaccount,
-    token:      data.token,
-    amount:     data.amount,
-    nonce:      data.nonce,
-    signedAt:   data.signedAt,
-  });
-}
-
-// ─── Sign LinkSigner ──────────────────────────────────────────────────────────
-
-export async function signLinkSigner(
-  privateKey: string,
-  data: LinkSignerData,
-  network: EtherealNetwork = "mainnet"
-): Promise<string> {
-  const pk = privateKey.startsWith("0x") ? privateKey : `0x${privateKey}`;
-  const wallet = new ethers.Wallet(pk);
-  const domain = ETHEREAL_DOMAINS[network];
-
-  return wallet.signTypedData(domain as any, LINK_SIGNER_TYPES, {
-    sender:     data.sender,
-    signer:     data.signer,
-    subaccount: data.subaccount,
-    nonce:      data.nonce,
-    signedAt:   data.signedAt,
-  });
-}
-
 // ─── Verify signature (untuk debug/testing) ───────────────────────────────────
 
 export async function verifyTradeOrderSignature(

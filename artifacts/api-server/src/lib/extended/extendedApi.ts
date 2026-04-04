@@ -210,35 +210,6 @@ export async function getMarketStats(
   }
 }
 
-export async function getAllMarketStats(
-  network: ExtendedNetwork = "mainnet"
-): Promise<ExtendedMarketStats[]> {
-  try {
-    // Ambil dari markets endpoint yang sudah termasuk stats
-    const markets = await getMarkets(network);
-    return markets
-      .filter((m) => m.name)
-      .map((m) => ({
-        market: m.name,
-        indexPrice: (m as any).marketStats?.indexPrice ?? "0",
-        markPrice: (m as any).marketStats?.markPrice ?? "0",
-        lastPrice: (m as any).marketStats?.lastPrice ?? "0",
-        lastTradedPrice: (m as any).marketStats?.lastPrice ?? "0",
-        dailyPriceChange: (m as any).marketStats?.dailyPriceChange ?? "0",
-        dailyVolume: (m as any).marketStats?.dailyVolume ?? "0",
-        dailyHigh: (m as any).marketStats?.dailyHigh ?? "0",
-        dailyLow: (m as any).marketStats?.dailyLow ?? "0",
-        openInterest: (m as any).marketStats?.openInterest ?? "0",
-        fundingRate: (m as any).marketStats?.fundingRate,
-        askPrice: (m as any).marketStats?.askPrice,
-        bidPrice: (m as any).marketStats?.bidPrice,
-      }));
-  } catch (err) {
-    logger.error({ err }, "[Extended] Failed to fetch all market stats");
-    return [];
-  }
-}
-
 // ─── Order Book ──────────────────────────────────────────────────────────────
 
 export interface ExtendedOrderBookEntry {

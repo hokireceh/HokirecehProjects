@@ -353,22 +353,3 @@ export const broadcaster = new SmartBroadcaster();
 function sleep(ms: number): Promise<void> {
   return new Promise(r => setTimeout(r, ms));
 }
-
-/**
- * @deprecated Tidak lagi diimpor oleh modul manapun. Admin routes menggunakan
- * `broadcaster.enqueue()` secara langsung. Fungsi ini dipertahankan sementara
- * untuk backward-compat jika ada caller eksternal (misal: script maintenance).
- * Hapus setelah dipastikan tidak ada caller tersisa.
- */
-// ─── Backward-compat: simple broadcast used by old code ──────────────────────
-export async function broadcastToAllUsers(message: string): Promise<{ sent: number; failed: number }> {
-  const job = await broadcaster.enqueue({ message, parseMode: "Markdown", targetFilter: "active" });
-  // Wait for completion (used synchronously from old API)
-  while (job.status === "pending" || job.status === "running") {
-    await sleep(200);
-    const updated = broadcaster.getJob(job.id);
-    if (!updated || updated.status === "completed" || updated.status === "cancelled" || updated.status === "failed") break;
-    Object.assign(job, updated);
-  }
-  return { sent: job.sent, failed: job.failed };
-}
