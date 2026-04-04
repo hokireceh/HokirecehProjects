@@ -28,7 +28,7 @@ Admin panel sudah solid dengan 4 tab fungsional.
 
 ## Gap yang Ditemukan
 
-### Gap 1 — KRITIS: Field `exchange` tidak ada di response Monitor
+### Gap 1 — ✅ SELESAI: Field `exchange` tidak ada di response Monitor
 
 > **Koreksi dari asumsi awal:** Ketiga exchange (Lighter, Extended, Ethereal) pakai tabel yang SAMA: `strategiesTable`. Ada kolom `exchange text default "lighter"` sebagai discriminator.
 
@@ -43,27 +43,23 @@ artifacts/api-server/src/routes/ethereal/bot.ts → filter: eq(strategiesTable.e
 
 **Kondisi aktual backend** (`admin.ts` baris 123–164):
 - Query `strategiesTable.findMany()` tanpa filter exchange → **sudah fetch semua exchange** ✅
-- Tapi response mapping **tidak include field `exchange`** → frontend tidak tahu mana exchange-nya ❌
+- Response mapping sekarang include field `exchange` ✅
 
-```ts
-// response saat ini — TIDAK ada exchange:
-return {
-  id: s.id, name: s.name, type: s.type, marketSymbol: s.marketSymbol,
-  isActive: s.isActive, isRunning: s.isRunning, realizedPnl: ...,
-  totalOrders: s.totalOrders, successfulOrders: s.successfulOrders,
-  updatedAt: s.updatedAt.toISOString(), user: ...
-};
-```
+**Fix:** Tambah `exchange: s.exchange` di response mapping `admin.ts` baris ~141.
 
 **Dampak:**
-- Monitor tab tidak bisa bedakan strategi Lighter vs Extended vs Ethereal
-- Stat card "Bot Running" secara data sudah hitung semua exchange (karena query tidak filter) ✅ — tidak ada masalah di sini
+- Monitor tab sekarang bisa bedakan strategi per exchange ✅
+- Stat card "Bot Running" sudah benar sejak awal (query tanpa filter exchange) ✅
 
 ---
 
-### Gap 2 — Minor: Tidak ada badge exchange di Monitor rows
+### Gap 2 — ✅ SELESAI: Tidak ada badge exchange di Monitor rows
 
-Setiap baris strategi di Monitor tab hanya tampilkan nama, symbol, type, user, PnL, dan status Running/Stopped. Tidak ada indikator exchange.
+Setiap baris strategi di Monitor tab sekarang tampilkan badge exchange berwarna setelah label tipe strategy.
+
+**Fix:**
+- `EXCHANGE_BADGE` helper constant (teal=Lighter, violet=Extended, purple=Ethereal) di `Admin.tsx`
+- Badge dirender inline di tiap baris Monitor tab
 
 ---
 
@@ -82,12 +78,12 @@ Kalau userbase besar, daftar user sulit dinavigasi. Perlu search by nama/ID/stat
 
 ## Prioritas Fix
 
-| # | Gap | Prioritas | Estimasi |
+| # | Gap | Status | Prioritas |
 |---|---|---|---|
-| 1 | Backend: expose field `exchange` di response | **Tinggi** | ~5 menit |
-| 2 | Frontend: tambah badge exchange per baris | **Tinggi** | ~10 menit |
-| 3 | Payments: aksi approve/reject | **Rendah** | Perlu diskusi |
-| 4 | Users: search/filter | **Rendah** | ~30 menit |
+| 1 | Backend: expose field `exchange` di response | ✅ Selesai | Tinggi |
+| 2 | Frontend: badge exchange per baris Monitor | ✅ Selesai | Tinggi |
+| 3 | Payments: aksi approve/reject | ⏸ Ditunda | Rendah — perlu diskusi |
+| 4 | Users: search/filter | ⏸ Ditunda | Rendah |
 
 ---
 
