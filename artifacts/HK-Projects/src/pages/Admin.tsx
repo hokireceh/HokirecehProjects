@@ -27,6 +27,7 @@ interface AdminStrategy {
   id: number;
   name: string;
   type: string;
+  exchange: "lighter" | "extended" | "ethereal";
   marketSymbol: string;
   isActive: boolean;
   isRunning: boolean;
@@ -50,6 +51,12 @@ interface AdminPayment {
 }
 
 const PLAN_LABELS: Record<string, string> = { "30d": "30 Hari", "60d": "60 Hari", "90d": "90 Hari" };
+
+const EXCHANGE_BADGE: Record<string, { label: string; className: string }> = {
+  lighter:  { label: "Lighter",  className: "bg-teal-500/15 text-teal-400 border-teal-500/30" },
+  extended: { label: "Extended", className: "bg-violet-500/15 text-violet-400 border-violet-500/30" },
+  ethereal: { label: "Ethereal", className: "bg-purple-500/15 text-purple-400 border-purple-500/30" },
+};
 
 // ─── Broadcast types ─────────────────────────────────────────────────────────
 interface BroadcastJob {
@@ -507,6 +514,10 @@ export default function Admin() {
                             <span className="font-medium text-sm truncate">{s.name}</span>
                             <span className="text-xs bg-muted px-1.5 py-0.5 rounded font-mono">{s.marketSymbol}</span>
                             <span className="text-xs uppercase text-primary font-bold">{s.type}</span>
+                            {(() => {
+                              const ex = EXCHANGE_BADGE[s.exchange] ?? { label: s.exchange, className: "bg-muted text-muted-foreground border-muted" };
+                              return <span className={`text-xs px-1.5 py-0.5 rounded border font-medium ${ex.className}`}>{ex.label}</span>;
+                            })()}
                           </div>
                           <p className="text-xs text-muted-foreground mt-0.5 ml-4">
                             {s.user ? `${s.user.telegramName || s.user.telegramId}${s.user.telegramUsername ? ` @${s.user.telegramUsername}` : ""}` : "No user"}

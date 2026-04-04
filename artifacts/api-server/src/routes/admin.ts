@@ -135,6 +135,7 @@ router.get("/all-strategies", async (_req, res) => {
           id: s.id,
           name: s.name,
           type: s.type,
+          exchange: s.exchange,
           marketSymbol: s.marketSymbol,
           isActive: s.isActive,
           isRunning: s.isRunning,

@@ -196,4 +196,13 @@ Tambah badge exchange tepat setelah baris itu:
 
 ## Changelog
 
-_(kosong — belum ada implementasi)_
+### Apr 2026 — Gap 1 & Gap 2: Expose exchange field + badge Monitor
+
+| # | Perubahan | File |
+|---|---|---|
+| Fix 1 | Tambah `exchange: s.exchange` di response mapping `/admin/all-strategies` | `admin.ts` baris ~141 |
+| Fix 2a | Tambah field `exchange: "lighter" \| "extended" \| "ethereal"` ke `AdminStrategy` interface | `Admin.tsx` baris ~33 |
+| Fix 2b | Tambah `EXCHANGE_BADGE` helper constant (teal/violet/purple per exchange) | `Admin.tsx` baris ~58 |
+| Fix 2c | Render exchange badge di setiap baris Monitor tab, setelah `{s.type}` | `Admin.tsx` baris ~520 |
+
+**Catatan:** `runningBots` stat card tidak diubah — query backend sudah fetch semua exchange tanpa filter sejak awal, hitungan sudah benar.
