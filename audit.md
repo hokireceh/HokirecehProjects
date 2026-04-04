@@ -1,146 +1,41 @@
-# Audit Web Standar 2026 — Hokireceh Projects
+# Audit HK-Projects — Referensi Aktif
 
-> Tanggal audit: April 2026  
-> Scope: `artifacts/HK-Projects` (React + Vite frontend) + `artifacts/api-server` (Express backend)  
-> Standar referensi: Web Standards 2026 (Privasi, Aksesibilitas WCAG, Performa, Desain, W3C)  
-> **Infrastruktur: aaPanel + Apache 2.4 + Cloudflare DNS/Proxy (Flexible SSL)**
+> Update terakhir: April 2026 | Skor: **63/65 (97%)** — semua item kritis selesai
 
 ---
 
-## Legenda
+## Apa yang Masih Perlu Dikerjakan
 
-| Simbol | Arti |
-|--------|------|
-| ✅ | Sudah memenuhi standar |
-| ⚠️ | Sebagian / perlu perbaikan kecil |
-| ❌ | Belum memenuhi / perlu implementasi |
-| 🔴 | Prioritas tinggi |
-| 🟡 | Prioritas sedang |
-| 🟢 | Prioritas rendah / nice-to-have |
-| 🏁 | **Selesai dikerjakan di sesi ini** |
+| # | Item | Prioritas | Aksi |
+|---|------|-----------|------|
+| A | Verifikasi bundle size | 🟡 | Jalankan `pnpm run build` di VPS, cek ukuran chunk di `dist/assets/` |
+| B | Toggle Light/Dark Mode | 🟢 | `next-themes` sudah terinstal — tinggal expose ke UI |
+| C | Privacy Policy page | 🟢 | Halaman statis, belum ada |
+| D | PWA / Service Worker | 🟢 | Offline support — opsional untuk dashboard |
+| E | Open Graph tags | 🟢 | Hanya perlu jika app jadi publik |
 
 ---
 
-## 1. Kepatuhan & Privasi Data
-
-| # | Item | Status | Prioritas | Catatan |
-|---|------|--------|-----------|---------|
-| 1.1 | HTTPS & SSL valid | ✅ | — | aaPanel + Cloudflare Flexible SSL — HTTPS aktif via Cloudflare |
-| 1.2 | Kebijakan Privasi | ❌ | 🟡 | Tidak ada halaman privacy policy |
-| 1.3 | Cookie Consent Banner | ❌ | 🟢 | App tidak pakai cookie analytics, hanya session auth — risiko rendah |
-| 1.4 | Security Headers HTTP | ✅ 🏁 | — | Apache `<IfModule mod_headers.c>` sudah ditambah: X-Frame-Options, X-Content-Type-Options, Referrer-Policy, CSP |
-| 1.5 | Content Security Policy (CSP) | ✅ 🏁 | — | CSP ditambah di Apache level — berlaku untuk `index.html` dan semua static files |
-| 1.6 | Rate Limiting Login | ✅ 🏁 | — | `express-rate-limit` aktif: 10x/15min untuk `/api/auth`, 200x/15min untuk `/api` |
-| 1.7 | Data Minimalisasi | ✅ | — | Hanya menyimpan API key + session; tidak ada tracking/analytics pihak ketiga |
-| 1.8 | Proteksi Private Key | ✅ | — | Private key disimpan server-side via AES-256-GCM, tidak dikirim ke client |
-
----
-
-## 2. Aksesibilitas Digital (ADA & WCAG 2.1)
-
-| # | Item | Status | Prioritas | Catatan |
-|---|------|--------|-----------|---------|
-| 2.1 | `lang` attribute HTML | ✅ 🏁 | — | Diganti ke `lang="id"` di `index.html` |
-| 2.2 | Viewport `maximum-scale` | ✅ 🏁 | — | `maximum-scale=1` dihapus dari meta viewport |
-| 2.3 | Skip-to-content link | ✅ 🏁 | — | Link "Lewati navigasi" ditambahkan di `AppLayout.tsx`, target `id="main-content"` |
-| 2.4 | ARIA label ikon-only button | ✅ 🏁 | — | `aria-label` + `aria-expanded` ditambahkan ke tombol "Lainnya" dan "Keluar" |
-| 2.5 | Radix UI ARIA built-in | ✅ | — | Accordion, Dialog, Dropdown pakai Radix — ARIA roles sudah lengkap |
-| 2.6 | Keyboard navigation | ✅ | — | Semua interaksi bisa via keyboard (Radix + semantic HTML) |
-| 2.7 | Focus visible | ✅ | — | `--ring: 217 91% 60%` (biru terang) di atas background hitam — sangat visible, tidak perlu perubahan |
-| 2.8 | Color contrast teks | ✅ | — | `--muted-foreground: 240 5% 65%` ≈ rgb(161,161,170) vs background ≈ rgb(8,8,11) → rasio **~8.1:1**, lulus WCAG AAA (7:1) |
-| 2.9 | Alt text gambar | ✅ | — | Tidak ada `<img>` statis; logo menggunakan SVG/lucide dengan label teks di sampingnya |
-| 2.10 | Error state accessible | ✅ | — | Error message muncul inline dengan ikon `AlertCircle` dan teks deskriptif |
-
----
-
-## 3. Performa Teknis & Core Web Vitals
-
-| # | Item | Status | Prioritas | Catatan |
-|---|------|--------|-----------|---------|
-| 3.1 | Code Splitting (lazy load) | ✅ | — | Semua halaman di-lazy dengan `React.lazy()` |
-| 3.2 | Manual Chunks Vite | ✅ 🏁 | — | Ditambah chunk `vendor-icons` (lucide-react) dan `vendor-motion` (framer-motion) |
-| 3.3 | React dedupe | ✅ | — | `resolve.dedupe: ["react", "react-dom"]` mencegah duplikasi |
-| 3.4 | Bundle size | ⚠️ | 🟡 | Chunking sudah dioptimasi (vendor-icons, vendor-motion); perlu `pnpm run build` di VPS untuk verifikasi ukuran aktual |
-| 3.5 | Google Fonts `font-display` | ✅ | — | URL Google Fonts sudah berisi `&display=swap` — tidak ada FOIT |
-| 3.6 | preconnect fonts | ✅ | — | `<link rel="preconnect" href="https://fonts.googleapis.com">` sudah ada |
-| 3.7 | Image optimization | ✅ | — | Tidak ada gambar berat; ikon pakai SVG inline (Lucide) |
-| 3.8 | Service Worker / PWA | ❌ | 🟢 | Tidak ada offline support / installable — opsional untuk dashboard |
-| 3.9 | emptyOutDir | ✅ 🏁 | — | Diubah ke `emptyOutDir: true` — dist bersih setiap build |
-| 3.10 | Mobile-friendly | ✅ | — | Bottom nav + responsive layout via Tailwind |
-| 3.11 | Loading state | ✅ | — | `PageLoader` dengan animasi pulse selama lazy load |
-| 3.12 | Cache headers static assets | ✅ 🏁 | — | Apache: JS/CSS `max-age=31536000 immutable`, HTML `no-cache` |
-
----
-
-## 4. Tren Desain & Antarmuka 2026
-
-| # | Item | Status | Prioritas | Catatan |
-|---|------|--------|-----------|---------|
-| 4.1 | Dark Mode | ✅ | — | App sepenuhnya dark mode by default |
-| 4.2 | Toggle Light/Dark Mode | ❌ | 🟢 | `next-themes` sudah terinstal tapi tidak diekspos ke user |
-| 4.3 | Minimalisme | ✅ | — | Layout bersih, shadcn/ui, tidak ada elemen berlebihan |
-| 4.4 | Animasi & transisi | ✅ | — | `framer-motion` sudah terinstal; transisi sidebar & loader ada |
-| 4.5 | Tipografi konsisten | ✅ | — | Inter font, ukuran konsisten via Tailwind |
-| 4.6 | Responsive Mobile | ✅ | — | Desktop sidebar + mobile bottom nav |
-| 4.7 | AI-integrated feature | ✅ | — | Halaman AI Advisor tersedia |
-| 4.8 | Feedback visual interaksi | ✅ | — | Hover, active, loading state sudah ada di semua komponen |
-| 4.9 | Empty state | ✅ | — | Semua halaman utama punya empty state: "Belum ada riwayat trade" (Trades), "Belum ada log." (Logs), "Belum Ada Strategi Lighter" (Strategies) |
-
----
-
-## 5. Landasan Teknologi (W3C)
-
-| # | Item | Status | Prioritas | Catatan |
-|---|------|--------|-----------|---------|
-| 5.1 | HTML5 DOCTYPE | ✅ | — | `<!DOCTYPE html>` sudah ada |
-| 5.2 | Charset UTF-8 | ✅ | — | `<meta charset="UTF-8" />` |
-| 5.3 | Viewport meta | ✅ 🏁 | — | `maximum-scale=1` sudah dihapus (lihat 2.2) |
-| 5.4 | Favicon | ✅ | — | `/favicon.ico` terdaftar |
-| 5.5 | Meta description | ✅ 🏁 | — | `<meta name="description">` ditambahkan di `index.html` |
-| 5.6 | Open Graph tags | ❌ | 🟢 | Tidak ada OG tags — tidak masalah untuk dashboard private |
-| 5.7 | TypeScript | ✅ | — | Full TypeScript dengan strict config |
-| 5.8 | Semantic HTML | ✅ | — | `<header>` ada di semua halaman (Trades, Logs, Strategies, Settings, dll); `<section>` di Dashboard; `<aside>/<nav>/<main>` di AppLayout. `<footer>` tidak diperlukan untuk dashboard. |
-| 5.9 | Modern ES modules | ✅ | — | `type="module"` di script tag |
-| 5.10 | robots.txt / sitemap | ✅ 🏁 | — | `public/robots.txt` dengan `Disallow: /` (dashboard private) |
-
----
-
-## 6. Konfigurasi Server — Apache 2.4 + aaPanel + Cloudflare
+## Infrastruktur — Referensi Cepat
 
 ### Arsitektur
-
 ```
-Browser → HTTPS → Cloudflare CDN → HTTP :80 → Apache :80
-                                              ├── serve dist/ (static files langsung)
-                                              └── ProxyPass /api → Node.js :8080
+Browser → HTTPS → Cloudflare (Flexible SSL) → HTTP :80 → Apache :80
+                                                ├── dist/ (static files)
+                                                └── ProxyPass /api → Node.js :8080
 ```
 
-**Catatan penting untuk audit berikutnya:**
-- Port 80 di origin adalah **benar** untuk Cloudflare Flexible SSL
-- `helmet` di Express hanya berlaku untuk `/api/*` — security headers untuk static files harus di Apache
-- Cloudflare tidak inject CSP/X-Frame-Options secara otomatis — tetap butuh di Apache
+**Aturan wajib ingat:**
+- Port 80 di origin **benar** untuk Cloudflare Flexible SSL — jangan diubah ke HTTPS
+- `helmet` di Express hanya berlaku `/api/*` — security headers static files harus di Apache
+- Cloudflare tidak inject CSP/X-Frame-Options — tetap harus ada di Apache
 
-| # | Item | Status | Prioritas | Catatan |
-|---|------|--------|-----------|---------|
-| 6.1 | Security headers untuk static files | ✅ 🏁 | — | `<IfModule mod_headers.c>` ditambah di Apache: CSP, X-Frame-Options, X-Content-Type-Options, Referrer-Policy |
-| 6.2 | HTTPS enforcement | ✅ 🏁 | — | Cloudflare: Always Use HTTPS = On |
-| 6.3 | `X-Forwarded-Proto` ke Express | ✅ | — | Cloudflare otomatis kirim — Apache pass-through ke Express |
-| 6.4 | `ProxyPreserveHost On` | ✅ 🏁 | — | Ditambahkan di Apache VirtualHost config |
-| 6.5 | `trust proxy` di Express | ✅ | — | `app.set("trust proxy", 1)` sudah ada di `app.ts` |
-| 6.6 | WebSocket proxy | ✅ | — | Tidak diperlukan — semua WS outbound dari server ke DEX |
-| 6.7 | HTTP/2 | ✅ | — | Cloudflare HTTP/2 antara browser↔CF. Origin HTTP/1.1 tidak masalah. |
-| 6.8 | Gzip / compression | ✅ | — | Cloudflare compress di edge |
-| 6.9 | HSTS | ✅ 🏁 | — | Cloudflare: Max-Age 6 months, includeSubDomains On, Preload On |
-| 6.10 | Bot protection | ✅ 🏁 | — | Cloudflare: Bot Fight Mode ON, JS Detections ON |
-| 6.11 | Cache headers static assets | ✅ 🏁 | — | Apache `<LocationMatch>`: JS/CSS `max-age=31536000 immutable`, HTML `no-cache` |
-
-### Apache VirtualHost Config Final (hokireceh.online)
+### Apache VirtualHost Config (hokireceh.online)
 
 ```apache
 <VirtualHost *:80>
     ServerName hokireceh.online
     ServerAlias www.hokireceh.online
-
     DocumentRoot /www/wwwroot/HokirecehProjects/artifacts/HK-Projects/dist
 
     <IfModule mod_headers.c>
@@ -159,7 +54,6 @@ Browser → HTTPS → Cloudflare CDN → HTTP :80 → Apache :80
         AllowOverride All
         Require all granted
         Options -Indexes
-
         RewriteEngine On
         RewriteCond %{REQUEST_FILENAME} !-f
         RewriteCond %{REQUEST_FILENAME} !-d
@@ -174,118 +68,31 @@ Browser → HTTPS → Cloudflare CDN → HTTP :80 → Apache :80
 </VirtualHost>
 ```
 
-### Cloudflare Settings Final
+### Cloudflare Settings
 
-| Lokasi | Setting | Status |
-|--------|---------|--------|
-| SSL/TLS → Overview | SSL mode | Flexible ✅ |
-| SSL/TLS → Edge Certificates | Always Use HTTPS | On ✅ |
-| SSL/TLS → Edge Certificates | HSTS | Max-Age 6 months, includeSubDomains, Preload ✅ |
-| Security → Bots | Bot Fight Mode | On, JS Detections On ✅ |
-
----
-
-## 7. Bug & UX Issues Ditemukan
-
-### Rekap Bug
-
-| # | Severity | File | Deskripsi | Status |
-|---|----------|------|-----------|--------|
-| 7.1 | 🔴 Kritis | `telegramBot.ts` | Ethereal approve/reject rerange memanggil Lighter `startBot` | ✅ 🏁 Difix |
-| 7.2 | 🟡 Medium | `*BotEngine.ts` (×3) | Notif pause tanpa tombol restart | ✅ 🏁 Difix |
-| 7.3 | 🔴 Kritis | `index.ts` | Graceful shutdown reset `isRunning=false` → recovery tidak jalan setelah pm2 restart | ✅ 🏁 Sudah fix (sesi sebelumnya: `skipDbUpdate=true`) |
-| 7.4 | 🟡 Medium | `*BotEngine.ts` (×2) | `strategy === null` → `stopBot()` permanent alih-alih skip tick | ✅ 🏁 Difix |
-| 7.5 | 🟡 Medium | `index.ts` | Tidak ada `uncaughtException`/`unhandledRejection` handler → crash sulit di-trace | ✅ 🏁 Difix |
+| Setting | Nilai |
+|---------|-------|
+| SSL mode | Flexible |
+| Always Use HTTPS | On |
+| HSTS | Max-Age 6 months, includeSubDomains, Preload |
+| Bot Fight Mode | On, JS Detections On |
 
 ---
 
-### Detail Fix Sesi Ini
+## Aturan HARD — Jangan Pernah Dilanggar
 
-**7.1 🔴 🏁 — telegramBot.ts: Ethereal rerange approve/reject**
-
-Guard eksplisit ditambahkan di kedua callback (startFn & stopFn) pada `registerRerangeHandlers`. Ethereal tidak fall-through ke Lighter `startBot`/`stopBot`. Log `logger.warn` dikirim agar tercatat di PM2 log jika terjadi.
-
-**7.2 🟡 🏁 — Notif pause dengan tombol [▶️ Start Bot]**
-
-- `sendMainBotMessageWithButton(chatId, text, button)` ditambahkan sebagai export di `autoRerange.ts` — menggunakan `_globalTelegram` (main bot) sehingga callback bisa ditangani.
-- Ketiga engine (`botEngine.ts`, `extendedBotEngine.ts`, `etherealBotEngine.ts`) mengganti `notifyUser()` di pause timeout dengan `sendMainBotMessageWithButton()` dan button `bot_restart_<strategyId>`.
-- Handler `bot.action(/^bot_restart_(\d+)$/, ...)` ditambahkan di `telegramBot.ts` — dispatch by exchange (Lighter/Extended/Ethereal).
-
-**7.3 🔴 🏁 — Graceful shutdown + startup recovery**
-
-Dikerjakan sesi sebelumnya. `gracefulShutdown()` di `index.ts` sudah pakai `stopBot(id, true)` / `stopExtendedBot(id, true)` / `stopEtherealBot(id, true)` (`skipDbUpdate=true`) → `isRunning` tetap `true` di DB → recovery berjalan setelah `pm2 restart`. Delay 5 detik sudah cukup karena DB connection dibuka saat module import.
-
-**7.4 🟡 🏁 — Transient DB null → skip tick, bukan stopBot**
-
-`runStrategyOnce` (Lighter) dan `extRunStrategyOnce` (Extended) dipisah kondisinya:
-- `!strategy` → `logger.warn` + `return` (bot tetap berjalan)
-- `!isActive || !isRunning` → `stopBot` (user intentionally stop — benar)
-
-Ethereal sudah benar dari awal (hanya `return`, tidak memanggil `stopEtherealBot`).
-
-**7.5 🟡 🏁 — Global crash handler**
-
-`process.on('uncaughtException', ...)` dan `process.on('unhandledRejection', ...)` ditambahkan di `index.ts`. Error dilog via `logger.error` (masuk PM2 log) sebelum `process.exit(1)`, memudahkan debug "bot mati sendiri".
+- **Jangan sentuh `src/lib/lighter/`** — production 24/7
+- **Jangan ubah signing logic Extended (Poseidon) atau Ethereal (EIP-712)**
+- **Jangan ubah field yang dikirim ke API backend exchange manapun**
+- Lighter pakai `marketIndex` (integer) | Extended pakai `marketSymbol` (string) | Ethereal pakai `ticker` / `productUuid`
 
 ---
 
-## Ringkasan Skor Akhir
+## Catatan Arsitektur Bot
 
-| Kategori | Skor Awal | Skor Akhir | Komentar |
-|----------|-----------|------------|----------|
-| Privasi & Keamanan | 3/8 | **8/8** | Semua selesai termasuk Apache security headers |
-| Aksesibilitas WCAG | 5/10 | **10/10** | Semua lulus — focus ring visible, contrast 8.1:1 (AAA), empty states ada di semua halaman |
-| Performa | 7/11 | **10/12** | Chunking, emptyOutDir, cache headers done; bundle size perlu verifikasi dengan build di VPS |
-| Desain 2026 | 8/9 | **9/9** | Empty state ✅ — hanya toggle dark/light yang belum (nice-to-have) |
-| Teknologi W3C | 6/10 | **10/10** | Meta desc, robots.txt, viewport, semantic HTML (`<header>` semua halaman) semua ✅ |
-| **Apache + Cloudflare** | **0/11 (baru)** | **11/11** | Semua item selesai ✅ |
-| **Bug Backend** | **0/5 (baru)** | **5/5** | 7.1–7.5 semua selesai ✅ |
-| **Total** | **29/58 (50%)** | **63/65 (97%)** | Satu-satunya ⚠️: bundle size (perlu build di VPS) + ❌ nice-to-have (OG tags, PWA, dark toggle) |
-
----
-
-## Roadmap — Status Final
-
-### ✅ Selesai (sesi ini)
-
-**Kode (di-commit ke repo):**
-1. ~~`maximum-scale=1` dihapus~~ — `index.html` ✅
-2. ~~`lang="en"` → `lang="id"`~~ — `index.html` ✅
-3. ~~`<meta name="description">`~~ — `index.html` ✅
-4. ~~`emptyOutDir: true`~~ — `vite.config.ts` ✅
-5. ~~Chunk `vendor-icons` + `vendor-motion`~~ — `vite.config.ts` ✅
-6. ~~Skip-to-content link~~ — `AppLayout.tsx` ✅
-7. ~~`aria-label` + `aria-expanded` tombol "Lainnya" & "Keluar"~~ — `AppLayout.tsx` ✅
-8. ~~`robots.txt` dengan `Disallow: /`~~ — `public/robots.txt` ✅
-9. ~~`express-rate-limit` login~~ — `app.ts` ✅
-10. ~~Komentar `trust proxy` diupdate ke Apache-aware~~ — `app.ts` ✅
-11. ~~Bug 7.1: Guard Ethereal di `registerRerangeHandlers`~~ — `telegramBot.ts` ✅
-12. ~~Bug 7.2: Notif pause dengan tombol [▶️ Start Bot] + handler `bot_restart_<id>`~~ — `autoRerange.ts`, `*BotEngine.ts` (×3), `telegramBot.ts` ✅
-13. ~~Bug 7.3: Startup recovery + graceful shutdown `skipDbUpdate=true`~~ — `index.ts` ✅
-14. ~~Bug 7.4: `!strategy → return` (bukan stopBot) di tick function~~ — `botEngine.ts`, `extendedBotEngine.ts` ✅
-15. ~~Bug 7.5: Global crash handler `uncaughtException`/`unhandledRejection`~~ — `index.ts` ✅
-
-**Server VPS (dikerjakan manual di aaPanel):**
-11. ~~Security headers di Apache (`mod_headers`)~~ — CSP, X-Frame-Options, X-Content-Type-Options, Referrer-Policy ✅
-12. ~~`ProxyPreserveHost On`~~ — VirtualHost config ✅
-13. ~~Cache headers~~ — JS/CSS `max-age=31536000`, HTML `no-cache` ✅
-
-**Cloudflare Dashboard:**
-14. ~~Always Use HTTPS: On~~ ✅
-15. ~~HSTS: 6 months, includeSubDomains, Preload~~ ✅
-16. ~~Bot Fight Mode: On~~ ✅
-
-### ⚠️ Satu-satunya yang belum bisa dikonfirmasi
-- **Verifikasi bundle size** — jalankan `pnpm run build` di VPS, periksa ukuran tiap chunk di `dist/assets/`
-
-### 🟢 Nice-to-have
-- **Toggle Light/Dark Mode** — `next-themes` sudah terinstal, tinggal expose ke UI
-- **Privacy Policy page** — halaman statis
-- **PWA / Service Worker** — offline support
-- **Open Graph tags** — jika app jadi publik
-
----
-
-*Audit ini berdasarkan inspeksi kode statis + verifikasi konfigurasi server aktual.*  
-*Untuk audit performa runtime: gunakan Lighthouse / PageSpeed Insights setelah deploy.*  
-*Untuk audit berikutnya: cek item ⚠️ di seksi 2 dan 3 terlebih dahulu.*
+- **Startup recovery**: `index.ts` — auto-restart bot `isRunning=true` setelah server restart (5s delay)
+- **Graceful shutdown**: `stopBot(id, skipDbUpdate=true)` → `isRunning` tetap `true` di DB → recovery bekerja setelah `pm2 restart`
+- **Telegram bot**: 2 jalur notif — main bot (`BOT_TOKEN`) untuk rerange + tombol interaktif; notification bot (`notifyBotToken`) untuk notif pasif
+- **Rerange handler**: `telegramBot.ts` → `registerRerangeHandlers` — dispatch by exchange (Lighter/Extended/Ethereal guard)
+- **Pause restart button**: callback `bot_restart_<strategyId>` dikirim via `_globalTelegram` (main bot) → handler di `telegramBot.ts`
+- **Tick function guard**: `!strategy` → warn + return (bot tetap hidup) | `!isActive||!isRunning` → stopBot (intentional stop)
