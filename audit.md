@@ -130,7 +130,7 @@ Browser → HTTPS → Cloudflare CDN → HTTP :80 → Apache :80
 | 6.6 | WebSocket proxy | ✅ | — | Tidak diperlukan — semua WS outbound dari server ke DEX |
 | 6.7 | HTTP/2 | ✅ | — | Cloudflare sudah HTTP/2 antara browser↔Cloudflare. Origin ke Apache HTTP/1.1 tidak masalah. |
 | 6.8 | Gzip / compression | ✅ | — | Cloudflare compress di edge. `mod_deflate` di Apache tetap boleh aktif sebagai backup. |
-| 6.9 | HSTS | ⚠️ | 🟡 | Aktifkan di Cloudflare: SSL/TLS → Edge Certificates → HSTS. Lebih efektif dari Apache level. |
+| 6.9 | HSTS | ⚠️ 🔴 | — | Enable HSTS sudah ON di Cloudflare, tapi **Max Age = 0** → HSTS tidak efektif. Ubah Max Age ke minimal 6 months. Preload ON butuh max-age 12 months. |
 | 6.10 | Cloudflare WAF / Bot protection | ⚠️ | 🟡 | Free tier: aktifkan **Bot Fight Mode** + **Security Level: Medium** di Cloudflare dashboard |
 
 ---
