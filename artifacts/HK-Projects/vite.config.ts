@@ -43,7 +43,7 @@ export default defineConfig({
   root: path.resolve(import.meta.dirname),
   build: {
     outDir: path.resolve(import.meta.dirname, "dist"),
-    emptyOutDir: false,
+    emptyOutDir: true,
     rollupOptions: {
       output: {
         manualChunks: (id) => {
@@ -62,6 +62,14 @@ export default defineConfig({
           // Charting — heavy, only needed on chart pages
           if (id.includes("node_modules/recharts") || id.includes("node_modules/d3-")) {
             return "vendor-charts";
+          }
+          // Icons — used across many pages
+          if (id.includes("node_modules/lucide-react")) {
+            return "vendor-icons";
+          }
+          // Animation
+          if (id.includes("node_modules/framer-motion")) {
+            return "vendor-motion";
           }
           // Decimal.js + other utilities
           if (id.includes("node_modules/decimal.js") || id.includes("node_modules/date-fns")) {
