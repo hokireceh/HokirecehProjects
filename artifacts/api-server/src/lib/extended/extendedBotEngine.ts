@@ -1,6 +1,6 @@
 import { db } from "@workspace/db";
 import { strategiesTable, tradesTable, botLogsTable } from "@workspace/db";
-import { eq, sql, and, isNotNull, ne } from "drizzle-orm";
+import { eq, sql, and, isNotNull, ne, gte, lte } from "drizzle-orm";
 import Decimal from "decimal.js";
 import { logger } from "../logger";
 import { sendMessageToUser } from "../telegramBot";
@@ -1150,6 +1150,21 @@ async function extExecuteGridCheck(strategy: typeof strategiesTable.$inferSelect
     `Grid Extended: crossing ${Math.abs(levelsMoved)} level ${direction} → ${side.toUpperCase()} ×${orderCount}`,
     `Level: ${lastLevel} → ${currentLevel} | Harga: $${currentPrice.toFixed(2)} | Size each: ${size.toFixed(6)} | Step: ${gridStepSize}`
   );
+
+  const targetPrice = currentPrice.toNumber();
+  const existingPending = await db.query.tradesTable.findFirst({
+    where: and(
+      eq(tradesTable.strategyId, strategy.id),
+      eq(tradesTable.status, "pending"),
+      eq(tradesTable.side, side),
+      gte(tradesTable.price, String(targetPrice * 0.999)),
+      lte(tradesTable.price, String(targetPrice * 1.001)),
+    ),
+  });
+  if (existingPending) {
+    logger.info({ strategyId: strategy.id, side, targetPrice }, "Skip: pending order sudah ada di level ini");
+    return;
+  }
 
   if (!hasCredentials) {
     // Paper trading — simulasi satu order per level yang di-cross

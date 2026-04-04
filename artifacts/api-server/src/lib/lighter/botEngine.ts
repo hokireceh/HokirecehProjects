@@ -1,6 +1,6 @@
 import { db } from "@workspace/db";
 import { strategiesTable, tradesTable, botLogsTable, usersTable } from "@workspace/db";
-import { eq, desc, lt, sql, and, isNotNull, ne } from "drizzle-orm";
+import { eq, desc, lt, sql, and, isNotNull, ne, gte, lte } from "drizzle-orm";
 import Decimal from "decimal.js";
 import { logger } from "../logger";
 import { getBotConfig, getNotificationConfig } from "../../routes/configService";
@@ -891,6 +891,21 @@ async function executeGridCheck(strategy: typeof strategiesTable.$inferSelect) {
     `Grid crossed ${Math.abs(levelsMoved)} level(s) ${direction} → ${side.toUpperCase()} ×${orderCount}`,
     `Level: ${lastLevel} → ${currentLevel} | Price: $${currentPrice.toFixed(2)} | Size each: ${size.toFixed(6)} | Amount each: $${amountPerGrid.toFixed(2)}`
   );
+
+  const targetPrice = currentPrice.toNumber();
+  const existingPending = await db.query.tradesTable.findFirst({
+    where: and(
+      eq(tradesTable.strategyId, strategy.id),
+      eq(tradesTable.status, "pending"),
+      eq(tradesTable.side, side),
+      gte(tradesTable.price, String(targetPrice * 0.999)),
+      lte(tradesTable.price, String(targetPrice * 1.001)),
+    ),
+  });
+  if (existingPending) {
+    logger.info({ strategyId: strategy.id, side, targetPrice }, "Skip: pending order sudah ada di level ini");
+    return;
+  }
 
   if (!hasCredentials) {
     // Paper trading — simulate one order per level crossed

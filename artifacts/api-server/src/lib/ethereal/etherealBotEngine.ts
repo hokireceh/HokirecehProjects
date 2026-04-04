@@ -1,6 +1,6 @@
 import { db } from "@workspace/db";
 import { strategiesTable, tradesTable, botLogsTable } from "@workspace/db";
-import { eq, sql, and, isNotNull, ne } from "drizzle-orm";
+import { eq, sql, and, isNotNull, ne, gte, lte } from "drizzle-orm";
 import Decimal from "decimal.js";
 import { logger } from "../logger";
 import { sendMessageToUser } from "../telegramBot";
@@ -726,6 +726,21 @@ async function ethExecuteGridCheck(strategy: typeof strategiesTable.$inferSelect
   // Ethereal: tidak ada batch endpoint — sequential
   const maxOrders = Math.min(orderCount, 3); // Max 3 per tick untuk rate limit safety
   for (let i = 0; i < maxOrders; i++) {
+    const targetPrice = currentPrice.toNumber();
+    const existingPending = await db.query.tradesTable.findFirst({
+      where: and(
+        eq(tradesTable.strategyId, strategy.id),
+        eq(tradesTable.status, "pending"),
+        eq(tradesTable.side, orderSide),
+        gte(tradesTable.price, String(targetPrice * 0.999)),
+        lte(tradesTable.price, String(targetPrice * 1.001)),
+      ),
+    });
+    if (existingPending) {
+      logger.info({ strategyId: strategy.id, side: orderSide, targetPrice }, "Skip: pending order sudah ada di level ini");
+      continue;
+    }
+
     if (hasCredentials && creds) {
       await ethExecuteLiveOrder({
         userId, strategy, creds, productInfo, side: orderSide, size, currentPrice,
