@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { db } from "@workspace/db";
-import { strategiesTable } from "@workspace/db";
+import { strategiesTable, DcaConfig, GridConfig } from "@workspace/db";
 import { eq, and } from "drizzle-orm";
 import { getBotConfig, updateBotConfig, getExtendedCredentials } from "./configService";
 import { stopBot } from "../lib/lighter/lighterBotEngine";
@@ -145,8 +145,8 @@ router.post("/strategies", async (req: AuthRequest, res) => {
       name: string;
       type: "dca" | "grid";
       marketIndex: number;
-      dcaConfig?: object;
-      gridConfig?: object;
+      dcaConfig?: DcaConfig;
+      gridConfig?: GridConfig;
     };
 
     const config = await getBotConfig(req.userId!);
@@ -188,8 +188,8 @@ router.put("/strategies/:id", async (req: AuthRequest, res) => {
     const body = req.body as {
       name?: string;
       isActive?: boolean;
-      dcaConfig?: object;
-      gridConfig?: object;
+      dcaConfig?: DcaConfig;
+      gridConfig?: GridConfig;
     };
 
     const existing = await db.query.strategiesTable.findFirst({

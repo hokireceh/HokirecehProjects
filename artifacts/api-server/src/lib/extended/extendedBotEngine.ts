@@ -1,5 +1,5 @@
 import { db } from "@workspace/db";
-import { strategiesTable, tradesTable, botLogsTable } from "@workspace/db";
+import { strategiesTable, tradesTable, botLogsTable, DcaConfig, GridConfig } from "@workspace/db";
 import { eq, sql, and, isNotNull, ne, gte, lte } from "drizzle-orm";
 import Decimal from "decimal.js";
 import { logger } from "../logger";
@@ -1260,10 +1260,10 @@ export async function startExtendedBot(strategyId: number): Promise<boolean> {
     let validationError: string | null = null;
 
     if (strategy.type === "grid") {
-      const amount = (strategy.gridConfig as any)?.amountPerGrid ?? 0;
+      const amount = strategy.gridConfig?.amountPerGrid ?? 0;
       if (amount <= 0) validationError = "amountPerGrid harus lebih dari 0.";
     } else if (strategy.type === "dca") {
-      const amount = (strategy.dcaConfig as any)?.amountPerOrder ?? 0;
+      const amount = strategy.dcaConfig?.amountPerOrder ?? 0;
       if (amount <= 0) validationError = "amountPerOrder harus lebih dari 0.";
     }
 
@@ -1321,9 +1321,9 @@ export async function startExtendedBot(strategyId: number): Promise<boolean> {
 
       let amount = 0;
       if (strategy.type === "grid") {
-        amount = (strategy.gridConfig as any)?.amountPerGrid ?? 0;
+        amount = strategy.gridConfig?.amountPerGrid ?? 0;
       } else if (strategy.type === "dca") {
-        amount = (strategy.dcaConfig as any)?.amountPerOrder ?? 0;
+        amount = strategy.dcaConfig?.amountPerOrder ?? 0;
       }
 
       if (minOrderSize > 0 && amount < minOrderSize) {

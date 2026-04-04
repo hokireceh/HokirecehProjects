@@ -14,7 +14,7 @@
  */
 
 import { db } from "@workspace/db";
-import { strategiesTable, usersTable } from "@workspace/db";
+import { strategiesTable, usersTable, GridConfig } from "@workspace/db";
 import { eq, sql, isNull, and } from "drizzle-orm";
 import Decimal from "decimal.js";
 import { analyzeMarketForStrategy, type MarketContext } from "./groqAI";
@@ -256,9 +256,9 @@ export async function applyApprovedRerangeParams(
   });
   if (!strategy) return;
 
-  const oldConfig = strategy.gridConfig as any ?? {};
+  const oldConfig = strategy.gridConfig ?? {};
 
-  const newGridConfig = {
+  const newGridConfig: GridConfig = {
     ...oldConfig,
     lowerPrice: params.newLowerPrice,
     upperPrice: params.newUpperPrice,
@@ -266,9 +266,9 @@ export async function applyApprovedRerangeParams(
     amountPerGrid: params.newAmountPerGrid,
     stopLoss: params.newStopLoss,
     takeProfit: params.newTakeProfit,
-    ...(params.newOrderType ? { orderType: params.newOrderType } : {}),
+    ...(params.newOrderType ? { orderType: params.newOrderType as GridConfig["orderType"] } : {}),
     ...(params.newLimitPriceOffset != null ? { limitPriceOffset: params.newLimitPriceOffset } : {}),
-    ...(params.newMode ? { mode: params.newMode } : {}),
+    ...(params.newMode ? { mode: params.newMode as GridConfig["mode"] } : {}),
   };
 
   const today = getTodayString();

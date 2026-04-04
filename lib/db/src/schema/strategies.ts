@@ -2,6 +2,27 @@ import { pgTable, text, integer, boolean, timestamp, jsonb, numeric } from "driz
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 
+export type DcaConfig = {
+  amountPerOrder: number;
+  intervalMinutes: number;
+  side: "buy" | "sell";
+  orderType: "market" | "limit" | "post_only";
+  maxOrders?: number;
+  limitPriceOffset?: number;
+};
+
+export type GridConfig = {
+  amountPerGrid: number;
+  upperPrice: number;
+  lowerPrice: number;
+  gridLevels: number;
+  mode?: "neutral" | "long" | "short";
+  stopLoss?: number | null;
+  takeProfit?: number | null;
+  orderType?: "market" | "limit" | "post_only";
+  limitPriceOffset?: number;
+};
+
 export const strategiesTable = pgTable("strategies", {
   id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
   userId: integer("user_id"),
@@ -11,8 +32,8 @@ export const strategiesTable = pgTable("strategies", {
   marketSymbol: text("market_symbol").notNull(),
   isActive: boolean("is_active").default(false).notNull(),
   isRunning: boolean("is_running").default(false).notNull(),
-  dcaConfig: jsonb("dca_config"),
-  gridConfig: jsonb("grid_config"),
+  dcaConfig: jsonb("dca_config").$type<DcaConfig>(),
+  gridConfig: jsonb("grid_config").$type<GridConfig>(),
   totalOrders: integer("total_orders").default(0).notNull(),
   successfulOrders: integer("successful_orders").default(0).notNull(),
   totalBought: numeric("total_bought", { precision: 20, scale: 8 }).default("0").notNull(),

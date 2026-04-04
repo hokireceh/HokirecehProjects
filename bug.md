@@ -171,7 +171,7 @@ Berikut `as any` yang sudah dikonfirmasi memang diperlukan dan tidak berbahaya:
 
 | ID | Status | Priority |
 |----|--------|----------|
-| BUG-001 | ⏳ Belum | HIGH |
+| BUG-001 | ✅ Fixed (2026-04-04) | HIGH |
 | BUG-002 | ⏳ Belum | MEDIUM |
 | BUG-003 | ⏳ Belum | MEDIUM |
 | TODO-001 | ⏳ Belum | LOW |
