@@ -238,6 +238,143 @@ router.get("/", async (req: AuthRequest, res) => {
   }
 });
 
+// ─── CREDENTIALS ─────────────────────────────────────────────────────────────
+
+router.get("/credentials", async (req: AuthRequest, res) => {
+  try {
+    const creds = await getEtherealCredentials(req.userId!);
+    res.json({
+      hasPrivateKey: creds.hasPrivateKey,
+      hasSubaccountId: creds.hasSubaccountId,
+      hasCredentials: creds.hasCredentials,
+      walletAddress: creds.walletAddress ?? null,
+      subaccountId: creds.subaccountId ?? null,
+      subaccountName: creds.subaccountName ?? null,
+      etherealNetwork: creds.etherealNetwork,
+      signerAddress: creds.signerAddress ?? null,
+      signerExpiresAt: creds.signerExpiresAt?.toISOString() ?? null,
+      isSignerExpiringSoon: creds.isSignerExpiringSoon,
+    });
+  } catch (err) {
+    req.log.error({ err }, "[EtherealBot] Failed to fetch credentials");
+    res.status(500).json({ error: "Gagal mengambil credentials" });
+  }
+});
+
+// Fetch subaccount ID otomatis dari Ethereal API menggunakan wallet address yang tersimpan
+router.get("/fetch-subaccount-id", async (req: AuthRequest, res) => {
+  try {
+    const creds = await getEtherealCredentials(req.userId!);
+    const network = (creds.etherealNetwork ?? "mainnet") as "mainnet" | "testnet";
+
+    let walletAddress = creds.walletAddress ?? null;
+    if (!walletAddress && creds.privateKey) {
+      walletAddress = getWalletAddress(creds.privateKey);
+    }
+
+    if (!walletAddress) {
+      return res.status(400).json({
+        error: "EVM Private Key atau Wallet Address belum diset. Simpan Private Key terlebih dahulu.",
+      });
+    }
+
+    const subaccounts = await getSubaccounts(walletAddress, network);
+    if (!subaccounts.length) {
+      return res.status(404).json({
+        error: `Tidak ada subaccount ditemukan untuk alamat ${walletAddress}. Pastikan wallet sudah terdaftar di Ethereal.`,
+      });
+    }
+
+    const first = subaccounts[0];
+    res.json({
+      subaccountId: first.id,
+      subaccountName: first.name ?? null,
+      walletAddress,
+      total: subaccounts.length,
+    });
+  } catch (err) {
+    req.log.error({ err }, "[EtherealBot] Failed to fetch subaccount ID");
+    res.status(500).json({ error: "Gagal mengambil Subaccount ID dari Ethereal API" });
+  }
+});
+
+router.put("/credentials", async (req: AuthRequest, res) => {
+  const {
+    privateKey,
+    walletAddress,
+    subaccountId,
+    subaccountName,
+    etherealNetwork,
+    signerKey,
+    signerAddress,
+  } = req.body;
+
+  try {
+    // Auto-derive walletAddress dari privateKey jika tidak diberikan
+    let resolvedWalletAddress = walletAddress;
+    if (privateKey && !resolvedWalletAddress) {
+      try {
+        resolvedWalletAddress = getWalletAddress(privateKey);
+      } catch {
+        return res.status(400).json({ error: "Private key tidak valid — pastikan format hex 32 bytes" });
+      }
+    }
+
+    await updateEtherealCredentials(req.userId!, {
+      ...(privateKey !== undefined && { privateKey }),
+      ...(resolvedWalletAddress !== undefined && { walletAddress: resolvedWalletAddress }),
+      ...(subaccountId !== undefined && { subaccountId }),
+      ...(subaccountName !== undefined && { subaccountName }),
+      ...(etherealNetwork !== undefined && { etherealNetwork }),
+      ...(signerKey !== undefined && { signerKey }),
+      ...(signerAddress !== undefined && { signerAddress }),
+    });
+
+    // Jika credentials baru disimpan, otomatis update walletAddress dari private key
+    const updated = await getEtherealCredentials(req.userId!);
+
+    // Auto-fetch subaccountId dari Ethereal API jika belum ada
+    if (!updated.subaccountId && updated.walletAddress) {
+      try {
+        const network = updated.etherealNetwork ?? "mainnet";
+        const subaccounts = await getSubaccounts(updated.walletAddress, network);
+        const primary = subaccounts[0];
+        if (primary?.id) {
+          await updateEtherealCredentials(req.userId!, {
+            subaccountId: primary.id,
+            ...(primary.name && { subaccountName: primary.name }),
+          });
+          updated.subaccountId = primary.id;
+          updated.subaccountName = primary.name ?? null;
+        }
+      } catch (e) {
+        req.log.warn({ err: e }, "[EtherealBot] Auto-fetch subaccount gagal, user bisa isi manual");
+      }
+    }
+
+    res.json({
+      ok: true,
+      hasCredentials: updated.hasCredentials,
+      walletAddress: updated.walletAddress ?? null,
+      subaccountId: updated.subaccountId ?? null,
+      etherealNetwork: updated.etherealNetwork,
+    });
+  } catch (err) {
+    req.log.error({ err }, "[EtherealBot] Failed to update credentials");
+    res.status(500).json({ error: "Gagal menyimpan credentials" });
+  }
+});
+
+router.delete("/credentials", async (req: AuthRequest, res) => {
+  try {
+    await deleteEtherealCredentials(req.userId!);
+    res.json({ ok: true, message: "Credentials Ethereal berhasil dihapus" });
+  } catch (err) {
+    req.log.error({ err }, "[EtherealBot] Failed to delete credentials");
+    res.status(500).json({ error: "Gagal menghapus credentials" });
+  }
+});
+
 // ─── GET SINGLE STRATEGY ──────────────────────────────────────────────────────
 
 router.get("/:strategyId", async (req: AuthRequest, res) => {
@@ -427,143 +564,6 @@ router.get("/logs/strategy/:strategyId", async (req: AuthRequest, res) => {
   } catch (err) {
     req.log.error({ err }, "[EtherealBot] Failed to fetch strategy logs");
     res.status(500).json({ error: "Gagal mengambil log strategy" });
-  }
-});
-
-// ─── CREDENTIALS ─────────────────────────────────────────────────────────────
-
-router.get("/credentials", async (req: AuthRequest, res) => {
-  try {
-    const creds = await getEtherealCredentials(req.userId!);
-    res.json({
-      hasPrivateKey: creds.hasPrivateKey,
-      hasSubaccountId: creds.hasSubaccountId,
-      hasCredentials: creds.hasCredentials,
-      walletAddress: creds.walletAddress ?? null,
-      subaccountId: creds.subaccountId ?? null,
-      subaccountName: creds.subaccountName ?? null,
-      etherealNetwork: creds.etherealNetwork,
-      signerAddress: creds.signerAddress ?? null,
-      signerExpiresAt: creds.signerExpiresAt?.toISOString() ?? null,
-      isSignerExpiringSoon: creds.isSignerExpiringSoon,
-    });
-  } catch (err) {
-    req.log.error({ err }, "[EtherealBot] Failed to fetch credentials");
-    res.status(500).json({ error: "Gagal mengambil credentials" });
-  }
-});
-
-// Fetch subaccount ID otomatis dari Ethereal API menggunakan wallet address yang tersimpan
-router.get("/fetch-subaccount-id", async (req: AuthRequest, res) => {
-  try {
-    const creds = await getEtherealCredentials(req.userId!);
-    const network = (creds.etherealNetwork ?? "mainnet") as "mainnet" | "testnet";
-
-    let walletAddress = creds.walletAddress ?? null;
-    if (!walletAddress && creds.privateKey) {
-      walletAddress = getWalletAddress(creds.privateKey);
-    }
-
-    if (!walletAddress) {
-      return res.status(400).json({
-        error: "EVM Private Key atau Wallet Address belum diset. Simpan Private Key terlebih dahulu.",
-      });
-    }
-
-    const subaccounts = await getSubaccounts(walletAddress, network);
-    if (!subaccounts.length) {
-      return res.status(404).json({
-        error: `Tidak ada subaccount ditemukan untuk alamat ${walletAddress}. Pastikan wallet sudah terdaftar di Ethereal.`,
-      });
-    }
-
-    const first = subaccounts[0];
-    res.json({
-      subaccountId: first.id,
-      subaccountName: first.name ?? null,
-      walletAddress,
-      total: subaccounts.length,
-    });
-  } catch (err) {
-    req.log.error({ err }, "[EtherealBot] Failed to fetch subaccount ID");
-    res.status(500).json({ error: "Gagal mengambil Subaccount ID dari Ethereal API" });
-  }
-});
-
-router.put("/credentials", async (req: AuthRequest, res) => {
-  const {
-    privateKey,
-    walletAddress,
-    subaccountId,
-    subaccountName,
-    etherealNetwork,
-    signerKey,
-    signerAddress,
-  } = req.body;
-
-  try {
-    // Auto-derive walletAddress dari privateKey jika tidak diberikan
-    let resolvedWalletAddress = walletAddress;
-    if (privateKey && !resolvedWalletAddress) {
-      try {
-        resolvedWalletAddress = getWalletAddress(privateKey);
-      } catch {
-        return res.status(400).json({ error: "Private key tidak valid — pastikan format hex 32 bytes" });
-      }
-    }
-
-    await updateEtherealCredentials(req.userId!, {
-      ...(privateKey !== undefined && { privateKey }),
-      ...(resolvedWalletAddress !== undefined && { walletAddress: resolvedWalletAddress }),
-      ...(subaccountId !== undefined && { subaccountId }),
-      ...(subaccountName !== undefined && { subaccountName }),
-      ...(etherealNetwork !== undefined && { etherealNetwork }),
-      ...(signerKey !== undefined && { signerKey }),
-      ...(signerAddress !== undefined && { signerAddress }),
-    });
-
-    // Jika credentials baru disimpan, otomatis update walletAddress dari private key
-    const updated = await getEtherealCredentials(req.userId!);
-
-    // Auto-fetch subaccountId dari Ethereal API jika belum ada
-    if (!updated.subaccountId && updated.walletAddress) {
-      try {
-        const network = updated.etherealNetwork ?? "mainnet";
-        const subaccounts = await getSubaccounts(updated.walletAddress, network);
-        const primary = subaccounts[0];
-        if (primary?.id) {
-          await updateEtherealCredentials(req.userId!, {
-            subaccountId: primary.id,
-            ...(primary.name && { subaccountName: primary.name }),
-          });
-          updated.subaccountId = primary.id;
-          updated.subaccountName = primary.name ?? null;
-        }
-      } catch (e) {
-        req.log.warn({ err: e }, "[EtherealBot] Auto-fetch subaccount gagal, user bisa isi manual");
-      }
-    }
-
-    res.json({
-      ok: true,
-      hasCredentials: updated.hasCredentials,
-      walletAddress: updated.walletAddress ?? null,
-      subaccountId: updated.subaccountId ?? null,
-      etherealNetwork: updated.etherealNetwork,
-    });
-  } catch (err) {
-    req.log.error({ err }, "[EtherealBot] Failed to update credentials");
-    res.status(500).json({ error: "Gagal menyimpan credentials" });
-  }
-});
-
-router.delete("/credentials", async (req: AuthRequest, res) => {
-  try {
-    await deleteEtherealCredentials(req.userId!);
-    res.json({ ok: true, message: "Credentials Ethereal berhasil dihapus" });
-  } catch (err) {
-    req.log.error({ err }, "[EtherealBot] Failed to delete credentials");
-    res.status(500).json({ error: "Gagal menghapus credentials" });
   }
 });
 
