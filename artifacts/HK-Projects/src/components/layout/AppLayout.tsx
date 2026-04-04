@@ -321,47 +321,47 @@ export function AppLayout({ children }: { children: ReactNode }) {
             <div className="h-px bg-border/60" />
 
             {/* DEX status — Lighter, Extended, Ethereal */}
-            <div className="grid grid-cols-3 divide-x divide-border/60">
+            <div className="divide-y divide-border/60">
               {/* Lighter */}
-              <div className="p-2">
-                <div className="flex items-center gap-1 mb-1.5">
+              <div className="px-3 py-2 flex items-center justify-between">
+                <div className="flex items-center gap-1.5">
                   <ExchangeLogo exchange="lighter" size={10} />
-                  <span className="text-[9px] font-bold uppercase tracking-[0.08em] text-emerald-400/80">Lighter</span>
+                  <span className="text-[10px] font-bold uppercase tracking-[0.1em] text-emerald-400/80">Lighter</span>
+                  <span className="text-[10px] text-muted-foreground">{config?.network || '—'}</span>
                 </div>
-                <div className="text-[9px] text-muted-foreground mb-0.5">{config?.network || '—'}</div>
                 <div className="flex items-center gap-1">
                   <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${isConfigured ? 'bg-emerald-400 animate-pulse' : 'bg-yellow-400'}`} />
-                  <span className={`text-[9px] font-medium ${isConfigured ? 'text-emerald-400' : 'text-yellow-400'}`}>
+                  <span className={`text-[10px] font-medium ${isConfigured ? 'text-emerald-400' : 'text-yellow-400'}`}>
                     {isConfigured ? "Ready" : "Setup"}
                   </span>
                 </div>
               </div>
 
               {/* Extended */}
-              <div className="p-2">
-                <div className="flex items-center gap-1 mb-1.5">
+              <div className="px-3 py-2 flex items-center justify-between">
+                <div className="flex items-center gap-1.5">
                   <ExchangeLogo exchange="extended" size={10} />
-                  <span className="text-[9px] font-bold uppercase tracking-[0.08em] text-violet-400/80">Ext</span>
+                  <span className="text-[10px] font-bold uppercase tracking-[0.1em] text-violet-400/80">Extended</span>
+                  <span className="text-[10px] text-muted-foreground">{extNetwork}</span>
                 </div>
-                <div className="text-[9px] text-muted-foreground mb-0.5">{extNetwork}</div>
                 <div className="flex items-center gap-1">
                   <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${isExtActive ? 'bg-violet-400 animate-pulse' : isExtConfigured && !isExtEnabled ? 'bg-orange-400' : 'bg-zinc-500'}`} />
-                  <span className={`text-[9px] font-medium ${isExtActive ? 'text-violet-400' : isExtConfigured && !isExtEnabled ? 'text-orange-400' : 'text-zinc-500'}`}>
-                    {isExtActive ? "Aktif" : isExtConfigured && !isExtEnabled ? "Off" : "Setup"}
+                  <span className={`text-[10px] font-medium ${isExtActive ? 'text-violet-400' : isExtConfigured && !isExtEnabled ? 'text-orange-400' : 'text-zinc-500'}`}>
+                    {isExtActive ? "Aktif" : isExtConfigured && !isExtEnabled ? "Nonaktif" : "Setup"}
                   </span>
                 </div>
               </div>
 
               {/* Ethereal */}
-              <div className="p-2">
-                <div className="flex items-center gap-1 mb-1.5">
+              <div className="px-3 py-2 flex items-center justify-between">
+                <div className="flex items-center gap-1.5">
                   <ExchangeLogo exchange="ethereal" size={10} />
-                  <span className="text-[9px] font-bold uppercase tracking-[0.08em] text-purple-400/80">Eth</span>
+                  <span className="text-[10px] font-bold uppercase tracking-[0.1em] text-purple-400/80">Ethereal</span>
+                  <span className="text-[10px] text-muted-foreground">{ethNetwork}</span>
                 </div>
-                <div className="text-[9px] text-muted-foreground mb-0.5">{ethNetwork}</div>
                 <div className="flex items-center gap-1">
                   <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${isEthConfigured ? 'bg-purple-400 animate-pulse' : 'bg-zinc-500'}`} />
-                  <span className={`text-[9px] font-medium ${isEthConfigured ? 'text-purple-400' : 'text-zinc-500'}`}>
+                  <span className={`text-[10px] font-medium ${isEthConfigured ? 'text-purple-400' : 'text-zinc-500'}`}>
                     {isEthConfigured ? "Aktif" : "Setup"}
                   </span>
                 </div>
