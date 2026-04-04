@@ -1,11 +1,12 @@
 import { setGlobalDispatcher, ProxyAgent } from "undici";
 import app from "./app";
 import { logger } from "./lib/logger";
-import { getAllRunningExtendedBots, stopExtendedBot } from "./lib/extended/extendedBotEngine";
-import { getAllRunningEtherealBots, stopEtherealBot } from "./lib/ethereal/etherealBotEngine";
-import { getAllRunningBots, stopBot } from "./lib/lighter/botEngine";
+import { getAllRunningExtendedBots, startExtendedBot, stopExtendedBot } from "./lib/extended/extendedBotEngine";
+import { getAllRunningEtherealBots, startEtherealBot, stopEtherealBot } from "./lib/ethereal/etherealBotEngine";
+import { getAllRunningBots, startBot, stopBot } from "./lib/lighter/botEngine";
 import { destroyExtendedWs } from "./lib/extended/extendedWs";
-import { db } from "@workspace/db";
+import { db, strategiesTable } from "@workspace/db";
+import { eq, and } from "drizzle-orm";
 
 const proxyUrl = process.env["HTTPS_PROXY"] || process.env["HTTP_PROXY"] || process.env["https_proxy"] || process.env["http_proxy"];
 if (proxyUrl) {
@@ -36,6 +37,58 @@ const server = app.listen(port, (err) => {
   }
 
   logger.info({ port }, "Server listening");
+
+  // ── Startup Recovery ──────────────────────────────────────────────────────
+  // Setiap kali server restart (PM2 restart, VPS reboot, deploy ulang),
+  // bot yang sebelumnya aktif (isRunning=true di DB) mati karena state in-memory
+  // hilang. Fungsi ini otomatis menghidupkan kembali semua bot tersebut.
+  // Delay 5 detik supaya DB + polling schedules sudah siap duluan.
+  setTimeout(async () => {
+    try {
+      const activeBots = await db.query.strategiesTable.findMany({
+        where: and(
+          eq(strategiesTable.isRunning, true),
+          eq(strategiesTable.isActive, true),
+        ),
+        columns: { id: true, exchange: true, name: true },
+      });
+
+      if (!activeBots.length) return;
+
+      logger.info(
+        { count: activeBots.length },
+        "[Recovery] Memulai ulang bot yang aktif sebelum restart server..."
+      );
+
+      for (const bot of activeBots) {
+        try {
+          if (bot.exchange === "lighter") {
+            await startBot(bot.id);
+          } else if (bot.exchange === "extended") {
+            await startExtendedBot(bot.id);
+          } else if (bot.exchange === "ethereal") {
+            await startEtherealBot(bot.id);
+          }
+          logger.info(
+            { strategyId: bot.id, exchange: bot.exchange, name: bot.name },
+            "[Recovery] ✓ Bot berhasil dihidupkan kembali"
+          );
+        } catch (err) {
+          logger.error(
+            { err, strategyId: bot.id, exchange: bot.exchange, name: bot.name },
+            "[Recovery] ✗ Gagal menghidupkan bot — user perlu start manual dari dashboard"
+          );
+        }
+        // Jeda 1 detik antar bot supaya tidak flooding API Exchange sekaligus
+        await new Promise(r => setTimeout(r, 1000));
+      }
+
+      logger.info("[Recovery] Selesai — semua bot aktif dipulihkan");
+    } catch (err) {
+      logger.error({ err }, "[Recovery] Error saat startup recovery bots");
+    }
+  }, 5000);
+  // ─────────────────────────────────────────────────────────────────────────
 });
 
 // ─── Graceful Shutdown ────────────────────────────────────────────────────────
