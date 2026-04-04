@@ -111,21 +111,21 @@ async function gracefulShutdown(signal: string): Promise<void> {
     const lighterBots = getAllRunningBots();
     if (lighterBots.length > 0) {
       logger.info({ count: lighterBots.length }, "[Shutdown] Stopping Lighter bots");
-      await Promise.allSettled(lighterBots.map((b) => stopBot(b.strategyId)));
+      await Promise.allSettled(lighterBots.map((b) => stopBot(b.strategyId, true)));
     }
 
     // 3. Stop all Extended bots
     const extendedBots = getAllRunningExtendedBots();
     if (extendedBots.length > 0) {
       logger.info({ count: extendedBots.length }, "[Shutdown] Stopping Extended bots");
-      await Promise.allSettled(extendedBots.map((b) => stopExtendedBot(b.strategyId)));
+      await Promise.allSettled(extendedBots.map((b) => stopExtendedBot(b.strategyId, true)));
     }
 
     // 4. Stop all Ethereal bots
     const etherealBots = getAllRunningEtherealBots();
     if (etherealBots.length > 0) {
       logger.info({ count: etherealBots.length }, "[Shutdown] Stopping Ethereal bots");
-      await Promise.allSettled(etherealBots.map((b) => stopEtherealBot(b.strategyId)));
+      await Promise.allSettled(etherealBots.map((b) => stopEtherealBot(b.strategyId, true)));
     }
 
     // 5. Close Extended WebSocket connections

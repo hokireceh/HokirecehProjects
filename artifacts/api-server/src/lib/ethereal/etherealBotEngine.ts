@@ -928,7 +928,7 @@ export async function startEtherealBot(strategyId: number): Promise<boolean> {
 
 // ─── STOP BOT ─────────────────────────────────────────────────────────────────
 
-export async function stopEtherealBot(strategyId: number): Promise<boolean> {
+export async function stopEtherealBot(strategyId: number, skipDbUpdate = false): Promise<boolean> {
   const bot = etherealRunningBots.get(strategyId);
   if (bot) {
     clearInterval(bot.timer);
@@ -960,6 +960,7 @@ export async function stopEtherealBot(strategyId: number): Promise<boolean> {
   }
 
   await db.update(strategiesTable)
+    if (!skipDbUpdate) await db.update(strategiesTable)
     .set({ isRunning: false, updatedAt: new Date(), nextRunAt: null })
     .where(eq(strategiesTable.id, strategyId));
 

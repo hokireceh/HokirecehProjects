@@ -1105,7 +1105,7 @@ export async function startBot(strategyId: number): Promise<boolean> {
   return true;
 }
 
-export async function stopBot(strategyId: number): Promise<boolean> {
+export async function stopBot(strategyId: number, skipDbUpdate = false): Promise<boolean> {
   const bot = runningBots.get(strategyId);
   if (bot) {
     clearInterval(bot.timer);
@@ -1130,6 +1130,7 @@ export async function stopBot(strategyId: number): Promise<boolean> {
   }
 
   await db.update(strategiesTable)
+    if (!skipDbUpdate) await db.update(strategiesTable)
     .set({ isRunning: false, updatedAt: new Date(), nextRunAt: null })
     .where(eq(strategiesTable.id, strategyId));
 
