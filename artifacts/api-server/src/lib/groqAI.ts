@@ -214,7 +214,7 @@ Valid JSON only:
 }`;
 
 export interface MarketContext {
-  exchange: "lighter" | "extended" | "ethereal";
+  exchange: "lighter" | "extended" | "ethereal" | "ethereal";
   symbol: string;
   type: "perp" | "spot";
   lastPrice: number;
