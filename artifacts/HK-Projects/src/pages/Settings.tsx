@@ -10,7 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import { Settings as SettingsIcon, Save, KeyRound, ShieldAlert, Search, CheckCircle2, Bell, Bot, Send, Loader2, Eye, EyeOff, AlertTriangle, Zap, Code2 } from "lucide-react";
+import { Settings as SettingsIcon, Save, KeyRound, ShieldAlert, Search, CheckCircle2, Bell, Bot, Send, Loader2, Eye, EyeOff, AlertTriangle, Zap, Code2, RefreshCw } from "lucide-react";
 import { ExchangeLogo } from "@/components/ui/ExchangeLogo";
 import { useToast } from "@/hooks/use-toast";
 
@@ -293,6 +293,7 @@ const EtherealConfigSection = forwardRef<{ save: () => Promise<void> }>(function
   const { toast } = useToast();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [fetchingSubId, setFetchingSubId] = useState(false);
   const [creds, setCreds] = useState<{ hasCredentials: boolean; walletAddress?: string; subaccountId?: string; etherealNetwork?: string }>({ hasCredentials: false });
   const [privateKey, setPrivateKey] = useState("");
   const [subaccountId, setSubaccountId] = useState("");
@@ -337,6 +338,26 @@ const EtherealConfigSection = forwardRef<{ save: () => Promise<void> }>(function
       toast({ title: "Gagal menyimpan kredensial Ethereal", variant: "destructive" });
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleFetchSubaccountId = async () => {
+    setFetchingSubId(true);
+    try {
+      const res = await fetch("/api/ethereal/strategies/fetch-subaccount-id", {
+        credentials: "include",
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Gagal mengambil Subaccount ID");
+      setSubaccountId(data.subaccountId);
+      toast({
+        title: "Subaccount ID berhasil diambil",
+        description: `ID: ${data.subaccountId}${data.total > 1 ? ` (${data.total} subaccount ditemukan, digunakan yang pertama)` : ""}`,
+      });
+    } catch (err: any) {
+      toast({ title: err.message ?? "Gagal mengambil Subaccount ID", variant: "destructive" });
+    } finally {
+      setFetchingSubId(false);
     }
   };
 
@@ -415,19 +436,34 @@ const EtherealConfigSection = forwardRef<{ save: () => Promise<void> }>(function
               <Label className="flex items-center gap-1.5">
                 <Bot className="w-3.5 h-3.5 text-muted-foreground" /> Subaccount ID
               </Label>
-              <Input
-                type="text"
-                placeholder={creds.subaccountId ? "••• tersimpan — isi untuk mengganti •••" : "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"}
-                value={subaccountId}
-                onChange={e => setSubaccountId(e.target.value)}
-                className="bg-background font-mono text-sm"
-              />
+              <div className="flex gap-2">
+                <Input
+                  type="text"
+                  placeholder={creds.subaccountId ? "••• tersimpan — isi untuk mengganti •••" : "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"}
+                  value={subaccountId}
+                  onChange={e => setSubaccountId(e.target.value)}
+                  className="bg-background font-mono text-sm flex-1"
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={handleFetchSubaccountId}
+                  disabled={fetchingSubId}
+                  title="Ambil Subaccount ID otomatis dari Ethereal API menggunakan Private Key yang tersimpan"
+                  className="shrink-0 gap-1.5 text-xs"
+                >
+                  {fetchingSubId
+                    ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    : <RefreshCw className="w-3.5 h-3.5" />}
+                  Ambil Otomatis
+                </Button>
+              </div>
               <p className="text-xs text-muted-foreground leading-relaxed">
-                Tidak tersedia di UI. Dapatkan lewat API:<br />
+                Klik <strong>Ambil Otomatis</strong> setelah Private Key tersimpan — atau dapatkan manual lewat:<br />
                 <code className="bg-muted px-1 py-0.5 rounded text-[11px] break-all select-all">
                   curl "https://api.ethereal.trade/v1/subaccount?sender=0xWALLET_KAMU"
-                </code><br />
-                Copy nilai <code className="bg-muted px-1 py-0.5 rounded text-[11px]">data[0].id</code> (UUID) dari respons JSON-nya.
+                </code>
               </p>
             </div>
 

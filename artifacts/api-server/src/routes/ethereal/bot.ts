@@ -453,6 +453,43 @@ router.get("/credentials", async (req: AuthRequest, res) => {
   }
 });
 
+// Fetch subaccount ID otomatis dari Ethereal API menggunakan wallet address yang tersimpan
+router.get("/fetch-subaccount-id", async (req: AuthRequest, res) => {
+  try {
+    const creds = await getEtherealCredentials(req.userId!);
+    const network = (creds.etherealNetwork ?? "mainnet") as "mainnet" | "testnet";
+
+    let walletAddress = creds.walletAddress ?? null;
+    if (!walletAddress && creds.privateKey) {
+      walletAddress = getWalletAddress(creds.privateKey);
+    }
+
+    if (!walletAddress) {
+      return res.status(400).json({
+        error: "EVM Private Key atau Wallet Address belum diset. Simpan Private Key terlebih dahulu.",
+      });
+    }
+
+    const subaccounts = await getSubaccounts(walletAddress, network);
+    if (!subaccounts.length) {
+      return res.status(404).json({
+        error: `Tidak ada subaccount ditemukan untuk alamat ${walletAddress}. Pastikan wallet sudah terdaftar di Ethereal.`,
+      });
+    }
+
+    const first = subaccounts[0];
+    res.json({
+      subaccountId: first.id,
+      subaccountName: first.name ?? null,
+      walletAddress,
+      total: subaccounts.length,
+    });
+  } catch (err) {
+    req.log.error({ err }, "[EtherealBot] Failed to fetch subaccount ID");
+    res.status(500).json({ error: "Gagal mengambil Subaccount ID dari Ethereal API" });
+  }
+});
+
 router.put("/credentials", async (req: AuthRequest, res) => {
   const {
     privateKey,
