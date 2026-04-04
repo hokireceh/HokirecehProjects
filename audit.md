@@ -2,7 +2,8 @@
 
 > Tanggal audit: April 2026  
 > Scope: `artifacts/HK-Projects` (React + Vite frontend) + `artifacts/api-server` (Express backend)  
-> Standar referensi: Web Standards 2026 (Privasi, Aksesibilitas WCAG, Performa, Desain, W3C)
+> Standar referensi: Web Standards 2026 (Privasi, Aksesibilitas WCAG, Performa, Desain, W3C)  
+> **Infrastruktur: aaPanel + Apache 2.4 sebagai reverse proxy (bukan Nginx)**
 
 ---
 
@@ -24,7 +25,7 @@
 
 | # | Item | Status | Prioritas | Catatan |
 |---|------|--------|-----------|---------|
-| 1.1 | HTTPS & SSL valid | ✅ | — | Nginx + SSL di VPS sudah aktif |
+| 1.1 | HTTPS & SSL valid | ✅ | — | aaPanel + Apache 2.4 + SSL di VPS sudah aktif |
 | 1.2 | Kebijakan Privasi | ❌ | 🟡 | Tidak ada halaman privacy policy |
 | 1.3 | Cookie Consent Banner | ❌ | 🟢 | App tidak pakai cookie analytics, hanya session auth — risiko rendah |
 | 1.4 | Security Headers HTTP | ✅ 🏁 | — | Sudah implementasi via `helmet` di `app.ts` — X-Frame-Options, HSTS, Referrer-Policy sudah aktif |
@@ -103,6 +104,68 @@
 
 ---
 
+## 6. Konfigurasi Reverse Proxy — Apache 2.4 + aaPanel
+
+> Bagian ini khusus hasil analisa ulang setelah diketahui stack VPS pakai **aaPanel + Apache 2.4**, bukan Nginx.
+
+| # | Item | Status | Prioritas | Catatan |
+|---|------|--------|-----------|---------|
+| 6.1 | `X-Forwarded-Proto` header dari Apache | ⚠️ | 🔴 | Apache harus kirim `RequestHeader set X-Forwarded-Proto "https"` agar HSTS dari `helmet` aktif (`req.secure = true`) |
+| 6.2 | `trust proxy` di Express | ✅ | — | `app.set("trust proxy", 1)` sudah ada — Express baca `X-Forwarded-For` dari Apache dengan benar |
+| 6.3 | Duplicate security headers | ⚠️ | 🔴 | aaPanel kadang inject `X-Frame-Options` / `X-Content-Type-Options` di VirtualHost template — duplikat dengan helmet → browser bisa reject. Perlu dicek di aaPanel panel |
+| 6.4 | HTTP/2 via `mod_http2` | ❌ | 🟡 | Apache 2.4.17+ support HTTP/2 — perlu dicek apakah aktif di aaPanel. Berguna untuk load chunk JS paralel |
+| 6.5 | Gzip / Brotli compression | ⚠️ | 🟡 | aaPanel biasanya include `mod_deflate` — perlu verifikasi aktif untuk static assets (JS/CSS) |
+| 6.6 | WebSocket proxy (`mod_proxy_wstunnel`) | ✅ | — | Tidak diperlukan — semua WS di app ini adalah outbound server→DEX. Browser hanya pakai HTTP polling via React Query |
+| 6.7 | `ProxyPreserveHost On` | ⚠️ | 🟡 | Perlu dipastikan aktif agar Express dapat hostname asli (untuk cookie domain, logging) |
+| 6.8 | Cookie `Secure` flag | ⚠️ | 🔴 | Session cookie perlu `Secure` flag — hanya aktif kalau `req.secure = true` (tergantung 6.1) |
+
+### Saran Implementasi 6.1, 6.3, 6.7 — Apache VirtualHost Config (aaPanel)
+
+Di aaPanel, masuk ke **Website → Config** untuk domain kamu, tambahkan di bagian VirtualHost:
+
+```apache
+<VirtualHost *:443>
+    ServerName yourdomain.com
+
+    # Reverse proxy ke Express
+    ProxyPreserveHost On
+    ProxyPass / http://127.0.0.1:8080/
+    ProxyPassReverse / http://127.0.0.1:8080/
+
+    # Kirim info HTTPS ke Express (krusial untuk helmet HSTS + cookie Secure)
+    RequestHeader set X-Forwarded-Proto "https"
+    RequestHeader set X-Forwarded-Port "443"
+
+    # HAPUS baris ini jika ada (duplikat dengan helmet):
+    # Header set X-Frame-Options "SAMEORIGIN"        ← hapus
+    # Header set X-Content-Type-Options "nosniff"    ← hapus
+    # Header always set Strict-Transport-Security... ← hapus
+
+    # SSL config (biasanya sudah dihandle aaPanel/Let's Encrypt)
+    SSLEngine on
+    ...
+</VirtualHost>
+```
+
+### Saran Implementasi 6.4 — Enable HTTP/2
+
+Di aaPanel atau langsung di Apache config:
+```apache
+# /etc/httpd/conf.modules.d/ atau /etc/apache2/mods-enabled/
+LoadModule http2_module modules/mod_http2.so
+
+<VirtualHost *:443>
+    Protocols h2 http/1.1
+    ...
+</VirtualHost>
+```
+
+### Catatan Tambahan — Komentar Kode `app.ts`
+
+Komentar di baris `app.set("trust proxy", 1)` masih menyebut "Nginx / Caddy / Replit proxy" — sudah diupdate menjadi Apache-aware.
+
+---
+
 ## Ringkasan Skor
 
 | Kategori | Skor Awal | Skor Sekarang | Komentar |
@@ -112,7 +175,8 @@
 | Performa | 7/11 | **9/11** | Chunking dioptimasi, emptyOutDir fix |
 | Desain 2026 | 8/9 | **8/9** | Belum ada toggle dark/light |
 | Teknologi W3C | 6/10 | **9/10** | Meta description, robots.txt, viewport fix |
-| **Total** | **29/48 (60%)** | **40/48 (83%)** | |
+| **Apache Proxy** | **0/8 (baru)** | **2/8** | `trust proxy` & WebSocket sudah oke; 6 item perlu dicek/config di VPS |
+| **Total** | **29/56 (52%)** | **42/56 (75%)** | Dengan scope Apache proxy ditambahkan |
 
 ---
 
@@ -130,7 +194,14 @@
 9. ~~**emptyOutDir: true**~~ ✅
 10. ~~**Optimasi chunk Vite**~~ — tambah `vendor-icons`, `vendor-motion` ✅
 
+### 🔴 Segera — Apache VPS (dikerjakan manual di server)
+11. **Tambah `RequestHeader set X-Forwarded-Proto "https"`** di VirtualHost aaPanel — agar HSTS & cookie Secure aktif
+12. **Cek duplicate security headers** di VirtualHost aaPanel — hapus jika ada `X-Frame-Options` / `X-Content-Type-Options` duplikat
+13. **Pastikan `ProxyPreserveHost On`** aktif di VirtualHost config
+
 ### 🟡 Jangka Menengah (Kualitas)
+- **Enable HTTP/2** di aaPanel (`mod_http2` + `Protocols h2 http/1.1`) — performa load chunk JS lebih baik
+- **Verifikasi Gzip aktif** (`mod_deflate`) untuk JS/CSS/HTML di Apache
 - **Verifikasi bundle size setelah build** — jalankan `pnpm run build` di VPS, cek ukuran tiap chunk
 - **Color contrast audit** — verifikasi `text-muted-foreground` ratio ≥ 4.5:1
 

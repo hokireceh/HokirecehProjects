@@ -18,9 +18,11 @@ const EXTENDED_ENABLED = process.env["EXTENDED_ENABLED"] === "true";
 const app: Express = express();
 
 // ─── Reverse Proxy Trust ──────────────────────────────────────────────────────
-// Required when running behind Nginx / Caddy / Replit proxy.
+// Required when running behind Apache 2.4 (aaPanel) / Nginx / Caddy / Replit proxy.
 // Without this, express-rate-limit cannot read the real client IP from
 // X-Forwarded-For and throws ERR_ERL_UNEXPECTED_X_FORWARDED_FOR.
+// Apache: pastikan VirtualHost config punya "RequestHeader set X-Forwarded-Proto https"
+// agar req.secure = true → HSTS dan cookie Secure flag aktif dengan benar.
 app.set("trust proxy", 1);
 
 // ─── Security Headers ─────────────────────────────────────────────────────────
