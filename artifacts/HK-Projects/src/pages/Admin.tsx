@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { AlertCircle, Users, Plus, RefreshCw, Trash2, Calendar, Shield, Monitor, CreditCard, Megaphone, TrendingUp, Send, XCircle, Clock, CheckCircle2, Ban, History, Bold, Italic, Underline, Strikethrough, Code, Link, Eye, EyeOff } from "lucide-react";
+import { AlertCircle, Users, Plus, RefreshCw, Trash2, Calendar, Shield, Monitor, CreditCard, Megaphone, TrendingUp, Send, XCircle, Clock, CheckCircle2, Ban, History, Bold, Italic, Underline, Strikethrough, Code, Link, Eye, EyeOff, Search } from "lucide-react";
 import { formatWIBDate } from "@/lib/utils";
 
 interface AdminUser {
@@ -101,6 +101,9 @@ export default function Admin() {
   const [payments, setPayments] = useState<AdminPayment[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+
+  const [userSearch, setUserSearch] = useState("");
+  const [userStatusFilter, setUserStatusFilter] = useState<"all" | "aktif" | "nonaktif">("all");
 
   const [newTelegramId, setNewTelegramId] = useState("");
   const [newTelegramName, setNewTelegramName] = useState("");
@@ -349,6 +352,19 @@ export default function Admin() {
   const expiredUsers = users.filter((u) => u.isExpired).length;
   const runningBots = strategies.filter((s) => s.isRunning).length;
 
+  const filteredUsers = users.filter((u) => {
+    const q = userSearch.toLowerCase();
+    const matchSearch = !q ||
+      (u.telegramName?.toLowerCase().includes(q) ?? false) ||
+      (u.telegramUsername?.toLowerCase().includes(q) ?? false) ||
+      u.telegramId.includes(q);
+    const matchStatus =
+      userStatusFilter === "all" ||
+      (userStatusFilter === "aktif" && u.isActive && !u.isExpired) ||
+      (userStatusFilter === "nonaktif" && (!u.isActive || u.isExpired));
+    return matchSearch && matchStatus;
+  });
+
   return (
     <div className="min-h-screen bg-background p-4 md:p-6">
       <div className="max-w-5xl mx-auto space-y-6">
@@ -429,15 +445,41 @@ export default function Admin() {
             </Card>
 
             <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-base"><Users className="h-4 w-4" /> Daftar User ({users.length})</CardTitle>
+              <CardHeader className="space-y-3">
+                <CardTitle className="flex items-center gap-2 text-base">
+                  <Users className="h-4 w-4" /> Daftar User
+                  <span className="font-normal text-muted-foreground">
+                    ({filteredUsers.length}{filteredUsers.length !== users.length ? ` / ${users.length}` : ""})
+                  </span>
+                </CardTitle>
+                <div className="flex gap-2">
+                  <div className="relative flex-1">
+                    <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
+                    <Input
+                      placeholder="Cari nama, @username, atau ID..."
+                      value={userSearch}
+                      onChange={(e) => setUserSearch(e.target.value)}
+                      className="pl-8 h-8 text-sm"
+                    />
+                  </div>
+                  <Select value={userStatusFilter} onValueChange={(v) => setUserStatusFilter(v as "all" | "aktif" | "nonaktif")}>
+                    <SelectTrigger className="w-32 h-8 text-sm"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Semua</SelectItem>
+                      <SelectItem value="aktif">Aktif</SelectItem>
+                      <SelectItem value="nonaktif">Nonaktif</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
               </CardHeader>
               <CardContent>
                 {users.length === 0 ? (
                   <p className="text-center text-muted-foreground py-8">Belum ada user</p>
+                ) : filteredUsers.length === 0 ? (
+                  <p className="text-center text-muted-foreground py-8">Tidak ada user yang cocok</p>
                 ) : (
                   <div className="space-y-3">
-                    {users.map((u) => (
+                    {filteredUsers.map((u) => (
                       <div key={u.id} className="border rounded-lg p-3 space-y-2">
                         <div className="flex flex-wrap items-start justify-between gap-2">
                           <div>

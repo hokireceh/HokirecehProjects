@@ -63,16 +63,23 @@ Setiap baris strategi di Monitor tab sekarang tampilkan badge exchange berwarna 
 
 ---
 
-### Gap 3 — Minor: Payments tab hanya view, tidak ada aksi
+### Gap 3 — ⏸ SKIP: Payments tab hanya view, tidak ada aksi
 
 Pending payments ditampilkan tapi tidak ada tombol "Approve" atau "Reject" manual.
-Ini mungkin by design (Saweria webhook yang handle otomatis), tapi perlu dikonfirmasi.
+**Keputusan:** By design — Saweria webhook handle otomatis. Tab tetap view-only.
 
 ---
 
-### Gap 4 — Nice-to-have: Tidak ada search/filter di Users tab
+### Gap 4 — ✅ SELESAI: Tidak ada search/filter di Users tab
 
-Kalau userbase besar, daftar user sulit dinavigasi. Perlu search by nama/ID/status.
+Search bar + filter dropdown sudah ditambah di atas "Daftar User".
+
+**Fix:**
+- State `userSearch` (teks bebas) + `userStatusFilter` (`"all"` / `"aktif"` / `"nonaktif"`)
+- `filteredUsers` derived — filter by nama, @username, atau Telegram ID; plus status
+- CardTitle menampilkan count filtered (contoh: `5 / 12` saat filter aktif)
+- Empty state khusus "Tidak ada user yang cocok" saat hasil filter kosong
+- Seluruh filter di frontend, tidak ada perubahan backend
 
 ---
 
