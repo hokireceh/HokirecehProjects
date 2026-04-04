@@ -422,8 +422,12 @@ const EtherealConfigSection = forwardRef<{ save: () => Promise<void> }>(function
                 onChange={e => setSubaccountId(e.target.value)}
                 className="bg-background font-mono text-sm"
               />
-              <p className="text-xs text-muted-foreground">
-                UUID subaccount dari <a href="https://app.ethereal.trade" target="_blank" rel="noopener noreferrer" className="underline text-purple-400">app.ethereal.trade</a> → Settings → API Keys.
+              <p className="text-xs text-muted-foreground leading-relaxed">
+                Tidak tersedia di UI. Dapatkan lewat API:<br />
+                <code className="bg-muted px-1 py-0.5 rounded text-[11px] break-all select-all">
+                  curl "https://api.ethereal.trade/v1/subaccount?sender=0xWALLET_KAMU"
+                </code><br />
+                Copy nilai <code className="bg-muted px-1 py-0.5 rounded text-[11px]">data[0].id</code> (UUID) dari respons JSON-nya.
               </p>
             </div>
 
