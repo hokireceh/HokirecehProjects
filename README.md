@@ -310,7 +310,6 @@ Di aaPanel → **Website → domain → Config**, replace VirtualHost dengan con
 
     DocumentRoot /www/wwwroot/HokirecehProjects/artifacts/HK-Projects/dist
 
-    # Security headers untuk static files (HTML/JS/CSS)
     <IfModule mod_headers.c>
         Header always set X-Frame-Options "SAMEORIGIN"
         Header always set X-Content-Type-Options "nosniff"
@@ -319,7 +318,6 @@ Di aaPanel → **Website → domain → Config**, replace VirtualHost dengan con
         Header set Cache-Control "no-cache, no-store, must-revalidate"
     </IfModule>
 
-    # Cache panjang untuk aset dengan hash di nama file (aman di-cache 1 tahun)
     <LocationMatch "\.(js|css|woff2?|ico|png|svg)$">
         Header set Cache-Control "public, max-age=31536000, immutable"
     </LocationMatch>
@@ -329,7 +327,6 @@ Di aaPanel → **Website → domain → Config**, replace VirtualHost dengan con
         Require all granted
         Options -Indexes
 
-        # SPA routing
         RewriteEngine On
         RewriteCond %{REQUEST_FILENAME} !-f
         RewriteCond %{REQUEST_FILENAME} !-d
@@ -337,7 +334,6 @@ Di aaPanel → **Website → domain → Config**, replace VirtualHost dengan con
         RewriteRule ^ /index.html [L]
     </Directory>
 
-    # Proxy /api ke backend PM2
     ProxyRequests Off
     ProxyPreserveHost On
     ProxyPass /api http://127.0.0.1:8080/api
