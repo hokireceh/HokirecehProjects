@@ -18,10 +18,10 @@ Lighter sudah ada di Ethereal. Gap yang tersisa hanya bersifat kosmetik/minor.
 |---|---|---|---|
 | Sub-komponen card | ✅ `LighterStrategyCard` | ✅ `EthStrategyCard` | ✅ Sudah ada |
 | Callback props | ✅ onToggle, onDelete, onShowLog, onEdit, onShowChart, isBusy | ✅ onToggle, onDelete, onShowLog, isBusy | ⚠️ Kurang onEdit, onShowChart (belum ada fitur tsb) |
-| Log Dialog | ✅ `LighterLogDialog` (ScrollText icon, teal hover) | ✅ `EthLogDialog` (Activity icon, no hover color) | ⚠️ Icon & hover beda |
+| Log Dialog | ✅ `LighterLogDialog` (ScrollText icon, teal hover) | ✅ `EthLogDialog` (ScrollText icon, purple hover) | ✅ Sudah difix |
 | Badge DEX di header | ✅ "Lighter" | ✅ "Ethereal" | ✅ Sudah ada |
 | orderType di DCA card | ✅ Tampil di card | ✅ Tampil di card (line 903) | ✅ Sudah ada |
-| orderType di Grid card | ✅ Tampil di card | ❌ Belum tampil (mode saja) | ❌ Gap |
+| orderType di Grid card | ✅ Tampil di card | ✅ Tampil di card (conditional) | ✅ Sudah difix |
 | stopLoss/takeProfit di Grid card | ✅ | ✅ (line 912-913) | ✅ Sudah ada |
 | Delete confirm dialog | ✅ | ✅ (lebih lengkap) | ✅ Sudah ada |
 | logDialogId state | ✅ `number \| null` | ✅ `number \| null` | ✅ Sudah ada |
@@ -121,4 +121,16 @@ Total perubahan: **Kecil** — hanya 3 fix di `EthStrategyCard`:
 
 ## 6. Changelog
 
-*(diisi setelah implementasi)*
+### Apr 2026 — Implementasi Gap 1 & Gap 2
+
+**Commit:** `5e2820a6` — "Add order type display and update log button style"
+
+| Gap | Perubahan | File |
+|---|---|---|
+| Gap 1 | Ganti icon `Activity` → `ScrollText`, tambah `hover:bg-purple-500/10 hover:text-purple-400` di log button | `EtherealStrategies.tsx` baris ~960-963 |
+| Gap 1 | Import `ScrollText` ditambah ke lucide-react imports | `EtherealStrategies.tsx` baris 14 |
+| Gap 2 | Tambah field `orderType` (conditional) di Grid config display | `EtherealStrategies.tsx` baris ~915 |
+
+**Keputusan styling:** Button tetap `variant="ghost"` (Opsi B — minimal change), tidak diubah ke `outline`. Alasan: konsistensi internal Ethereal — semua button footer card (Toggle, Log, Delete) pakai `ghost`.
+
+**Gap 3** (`as any` cast) — tidak diimplementasi, ditunda karena opsional dan tidak ada risiko runtime.
