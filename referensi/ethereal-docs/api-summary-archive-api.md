@@ -3,7 +3,7 @@
 > Label   : Archive API
 > Versi   : 0.1.0
 > Base URL: https://archive.ethereal.trade/
-> Dibuat  : 2026-04-03T17:37:35.189Z
+> Dibuat  : 2026-04-04T20:58:46.943Z
 
 Ethereal HTTP API for archived data, providing historical balance, volume, and PnL data.
 

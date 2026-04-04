@@ -3,7 +3,7 @@
 > Label   : Trading API (mainnet)
 > Versi   : 0.1.0
 > Base URL: https://api.ethereal.trade/
-> Dibuat  : 2026-04-03T17:37:33.224Z
+> Dibuat  : 2026-04-04T20:58:44.979Z
 
 Ethereal HTTP API for real-time trading, order management, and market data access.
 
