@@ -142,6 +142,11 @@ export function connect(network: EtherealNetwork = "mainnet"): void {
     resubscribeAll();
   });
 
+  // DEBUG SEMENTARA — log semua raw event dari server
+  s.onAny((event: string, data: unknown) => {
+    logger.info({ event, data }, "[Ethereal WS] Raw event received");
+  });
+
   // Event name yang dikonfirmasi dari docs: "MarketPrice"
   s.on("MarketPrice", (data: unknown) => {
     handleMarketPrice(data);
