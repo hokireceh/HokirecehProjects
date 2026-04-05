@@ -700,6 +700,50 @@ Log Ethereal tidak digabung ke `combinedLogs` di Dashboard, sehingga Ethereal ti
 
 ---
 
+## [BUG-ADMIN-001] Input Password Login Admin Tidak Ada Toggle Show/Hide
+
+**Status:** ⏳ Belum difix  
+**Severity:** LOW (UX)  
+**File:** `artifacts/HK-Projects/src/pages/Admin.tsx` atau `Login.tsx`
+
+**Gejala:**  
+Field "Admin Password" tidak memiliki ikon mata untuk show/hide password. Settings Lighter dan Extended sudah memiliki toggle ini — halaman admin login tidak konsisten.
+
+---
+
+## [BUG-ADMIN-002] Tab Monitor Tidak Sinkron dengan Data Asli
+
+**Status:** ⏳ Belum difix  
+**Severity:** HIGH  
+**File:** `artifacts/HK-Projects/src/pages/Admin.tsx`
+
+**Gejala:**  
+Bot Ethereal yang sedang BERJALAN tampil sebagai "Stopped" di tab Monitor. PnL dan orders menunjukkan 0/0. Data tidak real-time atau tidak di-fetch dari sumber yang benar.
+
+---
+
+## [IMPROVE-ADMIN-001] Tab Monitor Perlu Kontrol Darurat Stop/Start Bot
+
+**Status:** ⏳ Belum diimplementasi  
+**Severity:** MEDIUM (fitur baru)  
+**File:** `artifacts/HK-Projects/src/pages/Admin.tsx`
+
+**Usulan:**  
+Admin harus bisa Stop/Start semua bot dari tab Monitor untuk keadaan darurat. Saat ini tab Monitor hanya menampilkan status — tidak ada kontrol bot dari admin panel.
+
+---
+
+## [IMPROVE-ADMIN-002] Tab Broadcast Belum Ditest
+
+**Status:** ⏳ Perlu ditest  
+**Severity:** LOW  
+**File:** `artifacts/HK-Projects/src/pages/Admin.tsx`
+
+**Catatan:**  
+Perlu ditest apakah fitur kirim pesan Telegram ke semua user berfungsi dengan benar.
+
+---
+
 ## [IMPROVE-001] Pesan Pause Telegram Tidak Terhapus Saat Bot Start Kembali
 
 **Status:** ⏳ Belum diimplementasi  
@@ -758,5 +802,9 @@ Pin pesan pause otomatis saat dikirim, unpin saat bot start kembali.
 | BUG-ETH-009 | ⏳ Belum difix | MEDIUM |
 | BUG-ETH-010 | ✅ Fixed (2026-04-05) | HIGH |
 | BUG-AI-001 | ⏳ Belum difix | MEDIUM |
+| BUG-ADMIN-001 | ⏳ Belum difix | LOW |
+| BUG-ADMIN-002 | ⏳ Belum difix | HIGH |
+| IMPROVE-ADMIN-001 | ⏳ Belum diimplementasi | MEDIUM |
+| IMPROVE-ADMIN-002 | ⏳ Perlu ditest | LOW |
 | IMPROVE-001 | ⏳ Belum diimplementasi | LOW |
 | IMPROVE-002 | ⏳ Belum diimplementasi | LOW |
