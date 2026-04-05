@@ -599,8 +599,8 @@ export default function Admin() {
                             </p>
                           </div>
                           <div className="flex items-center gap-2 text-xs">
-                            <span className={s.realizedPnl >= 0 ? "text-green-600" : "text-red-500"}>
-                              PnL: {s.realizedPnl >= 0 ? "+" : ""}{s.realizedPnl.toFixed(4)}
+                            <span className={s.realizedPnl > 0 ? "text-green-600" : s.realizedPnl < 0 ? "text-red-500" : "text-muted-foreground"}>
+                              PnL: {s.realizedPnl > 0 ? "+" : ""}{s.realizedPnl.toFixed(4)}
                             </span>
                             <span className="text-muted-foreground">{s.successfulOrders}/{s.totalOrders} orders</span>
                             <Badge variant={s.isRunning ? "default" : "secondary"} className="text-xs">
