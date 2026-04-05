@@ -170,6 +170,22 @@ function useEtherealLogs(limit = 8) {
   return { data, loading };
 }
 
+function useEtherealMarkets() {
+  const [data, setData] = useState<Record<string, string>>({});
+  useEffect(() => {
+    fetch("/api/ethereal/strategies/markets", { credentials: "include" })
+      .then(r => r.ok ? r.json() : [])
+      .then((list: { id: string; ticker: string; displayTicker: string }[]) => {
+        if (!Array.isArray(list)) return;
+        const map: Record<string, string> = {};
+        list.forEach(m => { map[m.id] = m.displayTicker || m.ticker; });
+        setData(map);
+      })
+      .catch(() => setData({}));
+  }, []);
+  return data;
+}
+
 // ── Ethereal Section ──────────────────────────────────────────────────────────
 
 function EtherealSection({
@@ -177,16 +193,18 @@ function EtherealSection({
   loadingStrategies,
   account,
   loadingAccount,
+  marketsMap,
 }: {
   strategies: { id: number; name: string; type: string; marketSymbol: string; isRunning: boolean }[] | null;
   loadingStrategies: boolean;
   account: EtherealAccountData | null;
   loadingAccount: boolean;
+  marketsMap: Record<string, string>;
 }) {
   const ethRunning = strategies?.filter(s => s.isRunning) ?? [];
   const ethTotal = strategies?.length ?? 0;
   const notConfigured = !loadingAccount && account !== null && !account.hasCredentials;
-  const positions = account?.positions ?? [];
+  const positions = (account?.positions ?? []).filter(p => parseFloat(p.size || "0") > 0);
   const totalEquity = (account?.balances ?? []).reduce((sum, b) => sum + parseFloat(b.amount || "0"), 0);
   const totalPnl = positions.reduce((sum, p) => sum + parseFloat(p.unrealizedPnl || "0"), 0);
 
@@ -335,7 +353,9 @@ function EtherealSection({
                             {sideLabel}
                           </div>
                           <div>
-                            <div className="font-bold text-foreground font-mono">{pos.productId}</div>
+                            <div className="font-bold text-foreground font-mono">
+                              {marketsMap[pos.productId] ?? pos.productId.slice(0, 8)}
+                            </div>
                             <div className="text-xs text-muted-foreground font-mono">Size: {pos.size}</div>
                           </div>
                         </div>
@@ -550,6 +570,7 @@ export default function Dashboard() {
   const { data: ethStrategies, loading: loadingEthStrategies } = useEtherealStrategies();
   const { data: ethAccount, loading: loadingEthAccount } = useEtherealAccount();
   const { data: ethLogs, loading: loadingEthLogs } = useEtherealLogs(8);
+  const ethMarketsMap = useEtherealMarkets();
 
   const activeStrategies = strategiesData?.strategies?.filter(s => s.isActive) || [];
   const runningStrategies = strategiesData?.strategies?.filter(s => s.isRunning) || [];
@@ -752,6 +773,7 @@ export default function Dashboard() {
           loadingStrategies={loadingEthStrategies}
           account={ethAccount}
           loadingAccount={loadingEthAccount}
+          marketsMap={ethMarketsMap}
         />
       </section>
 
