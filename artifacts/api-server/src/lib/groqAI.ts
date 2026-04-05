@@ -205,7 +205,17 @@ Valid JSON only:
 {
   "strategy": "dca"|"grid",
   "dca_params": {...}|null,
-  "grid_params": {...}|null,
+  "grid_params": {
+    "lowerPrice": number,
+    "upperPrice": number,
+    "gridLevels": number,
+    "amountPerGrid": number,
+    "mode": "neutral"|"long"|"short",
+    "orderType": "limit"|"post_only",
+    "limitPriceOffset": number,
+    "stopLoss": number|null,
+    "takeProfit": number|null
+  }|null,
   "reasoning": string,
   "marketCondition": "bullish"|"bearish"|"sideways"|"volatile",
   "riskLevel": "low"|"medium"|"high",
@@ -411,8 +421,8 @@ export async function analyzeMarketForStrategy(
       limitPriceOffset: parsed.dca_params.limitPriceOffset ?? 0.2,
     } : null,
     grid_params: hasGrid ? {
-      lowerPrice: parsed.grid_params.lowerPrice ?? market.lastPrice * 0.95,
-      upperPrice: parsed.grid_params.upperPrice ?? market.lastPrice * 1.05,
+      lowerPrice: parsed.grid_params.lowerPrice || market.lastPrice * 0.95,
+      upperPrice: parsed.grid_params.upperPrice || market.lastPrice * 1.05,
       gridLevels: parsed.grid_params.gridLevels ?? 10,
       amountPerGrid: clampAmount(parsed.grid_params.amountPerGrid, 100),
       mode: parsed.grid_params.mode ?? "neutral",
