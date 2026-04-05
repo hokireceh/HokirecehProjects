@@ -750,6 +750,8 @@ function EthEditModal({
 }) {
   const { toast } = useToast();
   const [busy, setBusy] = useState(false);
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiResult, setAiResult] = useState<AIResult | null>(null);
 
   const [form, setForm] = useState({
     name: "",
@@ -769,6 +771,7 @@ function EthEditModal({
 
   useEffect(() => {
     if (!strategy) return;
+    setAiResult(null);
     if (strategy.type === "dca" && strategy.dcaConfig) {
       const c = strategy.dcaConfig;
       setForm({
@@ -808,6 +811,82 @@ function EthEditModal({
 
   const setField = (k: string, v: any) => setForm((f) => ({ ...f, [k]: v }));
   const showLimitOffset = form.orderType === "limit" || form.orderType === "post_only";
+
+  const handleAIAnalyze = async () => {
+    if (!strategy) return;
+    setAiLoading(true);
+    setAiResult(null);
+    try {
+      const res = await fetch("/api/ai/analyze", {
+        method: "POST",
+        credentials: "include",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ strategyType: strategy.type, marketSymbol: strategy.marketSymbol, exchange: "ethereal" }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Gagal mengambil rekomendasi AI");
+
+      if (strategy.type === "dca") {
+        const p = data?.dca_params;
+        if (!p) throw new Error("AI tidak mengembalikan parameter DCA");
+        if (p.amountPerOrder != null) setField("amountPerOrder", p.amountPerOrder);
+        if (p.intervalMinutes != null) setField("intervalMinutes", p.intervalMinutes);
+        if (p.side) setField("side", p.side);
+        if (p.orderType) setField("orderType", p.orderType);
+        if (p.limitPriceOffset != null) setField("limitPriceOffset", p.limitPriceOffset);
+      } else {
+        const p = data?.grid_params;
+        if (!p) throw new Error("AI tidak mengembalikan parameter Grid");
+        if (p.lowerPrice != null) setField("lowerPrice", String(p.lowerPrice));
+        if (p.upperPrice != null) setField("upperPrice", String(p.upperPrice));
+        if (p.gridLevels != null) setField("gridLevels", p.gridLevels);
+        if (p.amountPerGrid != null) setField("amountPerGrid", p.amountPerGrid);
+        if (p.mode) setField("mode", p.mode);
+        if (p.orderType) setField("orderType", p.orderType);
+        if (p.limitPriceOffset != null) setField("limitPriceOffset", p.limitPriceOffset);
+
+        const aiLower = p.lowerPrice ? Number(p.lowerPrice) : 0;
+        const aiUpper = p.upperPrice ? Number(p.upperPrice) : 0;
+
+        if (p.stopLoss != null && aiLower > 0) {
+          const sl = Number(p.stopLoss);
+          if (sl < aiLower && sl >= aiLower * 0.5) {
+            setField("stopLoss", String(sl));
+          } else {
+            setField("stopLoss", "");
+          }
+        } else {
+          setField("stopLoss", "");
+        }
+        if (p.takeProfit != null && aiUpper > 0) {
+          const tp = Number(p.takeProfit);
+          if (tp > aiUpper && tp <= aiUpper * 2) {
+            setField("takeProfit", String(tp));
+          } else {
+            setField("takeProfit", "");
+          }
+        } else {
+          setField("takeProfit", "");
+        }
+      }
+
+      if (data.reasoning) {
+        setAiResult({
+          reasoning: data.reasoning,
+          marketCondition: data.marketCondition,
+          riskLevel: data.riskLevel,
+          confidence: data.confidence,
+          modelUsed: data.modelUsed,
+          modelTier: data.modelTier,
+        });
+      }
+      toast({ title: "Analisis AI Selesai", description: `Parameter diperbarui menggunakan ${data.modelTier}` });
+    } catch (err: any) {
+      toast({ title: "Analisis AI Gagal", description: err.message, variant: "destructive" });
+    } finally {
+      setAiLoading(false);
+    }
+  };
 
   const handleSubmit = async () => {
     if (!strategy) return;
@@ -901,6 +980,19 @@ function EthEditModal({
             <span className="ml-2 text-muted-foreground">Tipe:</span>
             <span className="uppercase font-bold text-purple-400 text-xs tracking-wider">{strategy.type}</span>
           </div>
+
+          <Button
+            type="button"
+            variant="outline"
+            className="w-full gap-2 border-violet-500/40 text-violet-300 hover:bg-violet-500/10 hover:text-violet-200 hover:border-violet-500/50"
+            onClick={handleAIAnalyze}
+            disabled={aiLoading || busy}
+          >
+            {aiLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
+            {aiLoading ? "Menganalisis pasar..." : "Analisis Ulang AI & Perbarui Parameter Grid"}
+          </Button>
+
+          {aiResult && <AIInsightCard result={aiResult} />}
 
           {strategy.type === "dca" && (
             <>
