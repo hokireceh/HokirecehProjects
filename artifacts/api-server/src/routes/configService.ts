@@ -182,6 +182,12 @@ export async function updateExtendedCredentials(userId: number, updates: {
   await Promise.all(promises);
 }
 
+export async function deleteExtendedCredentials(userId: number) {
+  await Promise.all(
+    Object.values(EXT_KEYS).map((key) => deleteConfigValue(userId, key))
+  );
+}
+
 // ─── Ethereal DEX credentials ─────────────────────────────────────────────────
 
 export async function getEtherealCredentials(userId: number) {
@@ -290,6 +296,15 @@ export async function deleteEtherealCredentials(userId: number) {
   await Promise.all(
     Object.values(ETH_KEYS).map((key) => deleteConfigValue(userId, key))
   );
+}
+
+export async function deleteLighterCredentials(userId: number) {
+  await Promise.all([
+    deleteConfigValue(userId, CONFIG_KEYS.PRIVATE_KEY),
+    deleteConfigValue(userId, CONFIG_KEYS.API_KEY_INDEX),
+    deleteConfigValue(userId, CONFIG_KEYS.ACCOUNT_INDEX),
+    deleteConfigValue(userId, CONFIG_KEYS.L1_ADDRESS),
+  ]);
 }
 
 export async function updateBotConfig(userId: number, updates: {

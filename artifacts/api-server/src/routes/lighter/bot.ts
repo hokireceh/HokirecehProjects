@@ -8,7 +8,7 @@ import {
   getNextRunAt,
   getAllRunningBots,
 } from "../../lib/lighter/lighterBotEngine";
-import { getBotConfig } from "../configService";
+import { getBotConfig, deleteLighterCredentials } from "../configService";
 import { getAccountByIndex } from "../../lib/lighter/lighterApi";
 import { authMiddleware, type AuthRequest } from "../../middlewares/auth";
 
@@ -268,6 +268,18 @@ router.get("/logs", async (req: AuthRequest, res) => {
   } catch (err) {
     req.log.error({ err }, "Failed to get bot logs");
     res.status(500).json({ error: "Failed to get logs" });
+  }
+});
+
+// ─── DELETE CREDENTIALS ───────────────────────────────────────────────────────
+
+router.delete("/credentials", async (req: AuthRequest, res) => {
+  try {
+    await deleteLighterCredentials(req.userId!);
+    res.json({ ok: true, message: "Credentials Lighter berhasil dihapus" });
+  } catch (err) {
+    req.log.error({ err }, "[LighterBot] Failed to delete credentials");
+    res.status(500).json({ error: "Gagal menghapus credentials Lighter" });
   }
 });
 

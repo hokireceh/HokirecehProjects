@@ -10,7 +10,7 @@ import {
   getAllRunningExtendedBots,
 } from "../../lib/extended/extendedBotEngine";
 import { authMiddleware, type AuthRequest } from "../../middlewares/auth";
-import { getExtendedCredentials, updateExtendedCredentials } from "../configService";
+import { getExtendedCredentials, updateExtendedCredentials, deleteExtendedCredentials } from "../configService";
 import { getExtendedMarkets } from "../../lib/extended/extendedMarkets";
 import { getBalance, getPositions, getAccountDetails, type ExtendedNetwork } from "../../lib/extended/extendedApi";
 import { derivePublicKey } from "../../lib/extended/extendedSigner";
@@ -748,6 +748,18 @@ router.get("/:strategyId", async (req: AuthRequest, res) => {
   } catch (err) {
     req.log.error({ err, strategyId }, "[ExtendedBot] Failed to get extended strategy detail");
     res.status(500).json({ error: "Gagal mengambil detail strategy Extended" });
+  }
+});
+
+// ─── DELETE CREDENTIALS ───────────────────────────────────────────────────────
+
+router.delete("/credentials", async (req: AuthRequest, res) => {
+  try {
+    await deleteExtendedCredentials(req.userId!);
+    res.json({ ok: true, message: "Credentials Extended berhasil dihapus" });
+  } catch (err) {
+    req.log.error({ err }, "[ExtendedBot] Failed to delete credentials");
+    res.status(500).json({ error: "Gagal menghapus credentials Extended" });
   }
 });
 

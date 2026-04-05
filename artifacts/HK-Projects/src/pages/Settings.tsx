@@ -10,7 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import { Settings as SettingsIcon, Save, KeyRound, ShieldAlert, Search, CheckCircle2, Bell, Bot, Send, Loader2, Eye, EyeOff, AlertTriangle, Zap, Code2 } from "lucide-react";
+import { Settings as SettingsIcon, Save, KeyRound, ShieldAlert, Search, CheckCircle2, Bell, Bot, Send, Loader2, Eye, EyeOff, AlertTriangle, Zap, Code2, Trash2 } from "lucide-react";
 import { ExchangeLogo } from "@/components/ui/ExchangeLogo";
 import { useToast } from "@/hooks/use-toast";
 
@@ -51,6 +51,8 @@ const ExtendedConfigSection = forwardRef<{ save: () => Promise<void> }>(function
   const { toast } = useToast();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [resetting, setResetting] = useState(false);
+  const [showResetConfirm, setShowResetConfirm] = useState(false);
   const [cfg, setCfg] = useState<{ hasApiKey: boolean; hasPrivateKey: boolean; hasAccountId: boolean; accountId: string | null; extendedNetwork: "mainnet" | "testnet" }>({
     hasApiKey: false, hasPrivateKey: false, hasAccountId: false, accountId: null, extendedNetwork: "mainnet",
   });
@@ -136,6 +138,28 @@ const ExtendedConfigSection = forwardRef<{ save: () => Promise<void> }>(function
       toast({ title: "Kesalahan", description: err.message, variant: "destructive" });
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleReset = async () => {
+    setResetting(true);
+    try {
+      const res = await fetch("/api/extended/strategies/credentials", {
+        method: "DELETE",
+        credentials: "include",
+      });
+      if (!res.ok) throw new Error("Gagal mereset");
+      setCfg({ hasApiKey: false, hasPrivateKey: false, hasAccountId: false, accountId: null, extendedNetwork: "mainnet" });
+      setApiKey("");
+      setPrivateKey("");
+      setAccountId("");
+      setExtendedNetwork("mainnet");
+      toast({ title: "Credentials Extended berhasil direset" });
+    } catch {
+      toast({ title: "Gagal mereset credentials Extended", variant: "destructive" });
+    } finally {
+      setResetting(false);
+      setShowResetConfirm(false);
     }
   };
 
@@ -282,7 +306,44 @@ const ExtendedConfigSection = forwardRef<{ save: () => Promise<void> }>(function
 
           </>
         )}
+        {!loading && (
+          <div className="flex justify-start pt-2">
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={() => setShowResetConfirm(true)}
+              disabled={resetting || (!cfg.hasApiKey && !cfg.hasPrivateKey && !cfg.hasAccountId)}
+              className="text-destructive hover:text-destructive gap-2 text-sm"
+            >
+              {resetting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
+              Reset Extended
+            </Button>
+          </div>
+        )}
       </CardContent>
+
+      <AlertDialog open={showResetConfirm} onOpenChange={setShowResetConfirm}>
+        <AlertDialogContent className="bg-card border-border">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2 text-destructive">
+              <Trash2 className="w-5 h-5" />
+              Reset Credentials Extended?
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              API Key, Stark Private Key, dan Account ID Extended akan dihapus permanen dari server. Semua bot Extended yang berjalan akan berhenti.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Batal</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleReset}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Ya, Hapus
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Card>
   );
 });
@@ -293,6 +354,8 @@ const EtherealConfigSection = forwardRef<{ save: () => Promise<void> }>(function
   const { toast } = useToast();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [resetting, setResetting] = useState(false);
+  const [showResetConfirm, setShowResetConfirm] = useState(false);
   const [creds, setCreds] = useState<{ hasCredentials: boolean; walletAddress?: string; subaccountId?: string; etherealNetwork?: string }>({ hasCredentials: false });
   const [privateKey, setPrivateKey] = useState("");
   const [subaccountId, setSubaccountId] = useState("");
@@ -338,6 +401,27 @@ const EtherealConfigSection = forwardRef<{ save: () => Promise<void> }>(function
       toast({ title: "Gagal menyimpan kredensial Ethereal", variant: "destructive" });
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleReset = async () => {
+    setResetting(true);
+    try {
+      const res = await fetch("/api/ethereal/strategies/credentials", {
+        method: "DELETE",
+        credentials: "include",
+      });
+      if (!res.ok) throw new Error("Gagal mereset");
+      setCreds({ hasCredentials: false });
+      setPrivateKey("");
+      setSubaccountId("");
+      setNetwork("mainnet");
+      toast({ title: "Credentials Ethereal berhasil direset" });
+    } catch {
+      toast({ title: "Gagal mereset credentials Ethereal", variant: "destructive" });
+    } finally {
+      setResetting(false);
+      setShowResetConfirm(false);
     }
   };
 
@@ -428,7 +512,17 @@ const EtherealConfigSection = forwardRef<{ save: () => Promise<void> }>(function
               </p>
             </div>
 
-            <div className="flex justify-end">
+            <div className="flex items-center justify-between">
+              <Button
+                type="button"
+                variant="ghost"
+                onClick={() => setShowResetConfirm(true)}
+                disabled={resetting || !creds.hasCredentials}
+                className="text-destructive hover:text-destructive gap-2 text-sm"
+              >
+                {resetting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
+                Reset Ethereal
+              </Button>
               <Button
                 type="button"
                 onClick={handleSave}
@@ -442,6 +536,29 @@ const EtherealConfigSection = forwardRef<{ save: () => Promise<void> }>(function
           </>
         )}
       </CardContent>
+
+      <AlertDialog open={showResetConfirm} onOpenChange={setShowResetConfirm}>
+        <AlertDialogContent className="bg-card border-border">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2 text-destructive">
+              <Trash2 className="w-5 h-5" />
+              Reset Credentials Ethereal?
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              Private Key, Wallet Address, dan Subaccount ID Ethereal akan dihapus permanen dari server. Semua bot Ethereal yang berjalan akan berhenti.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Batal</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleReset}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Ya, Hapus
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Card>
   );
 });
@@ -458,6 +575,8 @@ export default function Settings() {
   const extendedRef = useRef<{ save: () => Promise<void> } | null>(null);
   const etherealRef = useRef<{ save: () => Promise<void> } | null>(null);
   const [showNetworkWarning, setShowNetworkWarning] = useState(false);
+  const [showLighterResetConfirm, setShowLighterResetConfirm] = useState(false);
+  const [resettingLighter, setResettingLighter] = useState(false);
 
   const runningBots = (strategiesData?.strategies ?? []).filter((s) => s.isRunning);
 
@@ -590,6 +709,28 @@ export default function Settings() {
     }
   };
 
+  const handleLighterReset = async () => {
+    setResettingLighter(true);
+    try {
+      const res = await fetch("/api/bot/credentials", {
+        method: "DELETE",
+        credentials: "include",
+      });
+      if (!res.ok) throw new Error("Gagal mereset");
+      form.setValue("privateKey", "");
+      form.setValue("accountIndex", null);
+      form.setValue("apiKeyIndex", null);
+      form.setValue("l1Address", "");
+      setDetectedBalance(null);
+      toast({ title: "Credentials Lighter berhasil direset" });
+    } catch {
+      toast({ title: "Gagal mereset credentials Lighter", variant: "destructive" });
+    } finally {
+      setResettingLighter(false);
+      setShowLighterResetConfirm(false);
+    }
+  };
+
   return (
     <div className="space-y-8 max-w-3xl animate-in fade-in duration-500">
       <header>
@@ -719,6 +860,19 @@ export default function Settings() {
                   <p className="text-xs text-muted-foreground">Jaga kerahasiaannya. Diperlukan untuk menandatangani order di Lighter.</p>
                 </div>
               </div>
+
+              <div className="flex justify-start pt-2">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  onClick={() => setShowLighterResetConfirm(true)}
+                  disabled={resettingLighter || !config?.hasPrivateKey}
+                  className="text-destructive hover:text-destructive gap-2 text-sm"
+                >
+                  {resettingLighter ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
+                  Reset Lighter
+                </Button>
+              </div>
             </CardContent>
           </Card>
 
@@ -822,6 +976,29 @@ export default function Settings() {
         </form>
         </>
       )}
+
+      <AlertDialog open={showLighterResetConfirm} onOpenChange={setShowLighterResetConfirm}>
+        <AlertDialogContent className="bg-card border-border">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2 text-destructive">
+              <Trash2 className="w-5 h-5" />
+              Reset Credentials Lighter?
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              Private Key, Account Index, API Key Index, dan L1 Address Lighter akan dihapus permanen dari server. Semua bot Lighter yang berjalan akan berhenti.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Batal</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleLighterReset}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Ya, Hapus
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <AlertDialog open={showNetworkWarning} onOpenChange={(open) => !open && cancelNetworkChange()}>
         <AlertDialogContent className="bg-card border-border">
