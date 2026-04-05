@@ -17,7 +17,7 @@ import { derivePublicKey } from "../../lib/extended/extendedSigner";
 import { placeExtendedOrder } from "../../lib/extended/extendedApi";
 
 const router = Router();
-router.use(authMiddleware as any);
+router.use(authMiddleware);
 
 // ─── START BOT ────────────────────────────────────────────────────────────────
 

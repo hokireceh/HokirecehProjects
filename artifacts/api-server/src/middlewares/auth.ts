@@ -1,4 +1,4 @@
-import type { Request, Response, NextFunction } from "express";
+import type { Request, Response, NextFunction, RequestHandler } from "express";
 import { db } from "@workspace/db";
 import { usersTable } from "@workspace/db";
 import { eq, and, gt } from "drizzle-orm";
@@ -10,7 +10,7 @@ export interface AuthRequest extends Request {
   userTelegramId?: string;
 }
 
-function resolvePassword(req: AuthRequest): string | null {
+function resolvePassword(req: Request): string | null {
   const authHeader = req.headers.authorization;
   if (authHeader?.startsWith("Bearer ")) {
     const t = authHeader.slice(7).trim();
@@ -21,14 +21,15 @@ function resolvePassword(req: AuthRequest): string | null {
   return null;
 }
 
-export async function authMiddleware(req: AuthRequest, res: Response, next: NextFunction) {
+export const authMiddleware: RequestHandler = async (req, res, next) => {
+  const authReq = req as AuthRequest;
   const password = resolvePassword(req);
   if (!password) return res.status(401).json({ error: "Unauthorized" });
 
   const adminPassword = process.env.ADMIN_PASSWORD;
   if (adminPassword && password === adminPassword) {
-    req.userId = 0;
-    req.userTelegramId = "admin";
+    authReq.userId = 0;
+    authReq.userTelegramId = "admin";
     return next();
   }
 
@@ -45,15 +46,15 @@ export async function authMiddleware(req: AuthRequest, res: Response, next: Next
       return res.status(401).json({ error: "Password tidak valid atau langganan sudah habis" });
     }
 
-    req.userId = matchedUser.id;
-    req.userTelegramId = matchedUser.telegramId;
+    authReq.userId = matchedUser.id;
+    authReq.userTelegramId = matchedUser.telegramId;
     next();
   } catch (err) {
     return res.status(500).json({ error: "Auth error" });
   }
-}
+};
 
-export function adminMiddleware(req: Request, res: Response, next: NextFunction) {
+export const adminMiddleware: RequestHandler = (req, res, next) => {
   const adminPassword = process.env.ADMIN_PASSWORD;
   if (!adminPassword) return res.status(503).json({ error: "Admin not configured" });
 
@@ -62,4 +63,4 @@ export function adminMiddleware(req: Request, res: Response, next: NextFunction)
     return res.status(401).json({ error: "Admin access required" });
   }
   next();
-}
+};

@@ -11,7 +11,7 @@ import { generateApiKey, initSigner, signChangePubKey, isSignerAvailable } from 
 import { sendMessageToUser } from "../lib/telegramBot";
 
 const router = Router();
-router.use(authMiddleware as any);
+router.use(authMiddleware);
 
 router.get("/", async (req: AuthRequest, res) => {
   try {

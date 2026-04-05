@@ -5,7 +5,7 @@ import { desc, eq, and } from "drizzle-orm";
 import { authMiddleware, type AuthRequest } from "../middlewares/auth";
 
 const router = Router();
-router.use(authMiddleware as any);
+router.use(authMiddleware);
 
 router.get("/", async (req: AuthRequest, res) => {
   const strategyId = req.query.strategyId ? parseInt(String(req.query.strategyId)) : undefined;

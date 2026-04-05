@@ -22,7 +22,7 @@ router.use("/bot", botRouter);
 router.use("/trades", tradesRouter);
 router.use("/history", historyRouter);
 router.use("/ai", aiRouter);
-router.use("/admin", adminMiddleware as any, adminRouter);
+router.use("/admin", adminMiddleware, adminRouter);
 
 // Extended DEX routes — additive only, tidak mengubah route Lighter
 router.use("/extended/strategies", extendedBotRouter);

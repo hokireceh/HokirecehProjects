@@ -10,7 +10,7 @@ import type { ExtendedNetwork } from "../lib/extended/extendedApi";
 import type { EtherealNetwork } from "../lib/ethereal/etherealApi";
 
 const router = Router();
-router.use(authMiddleware as any);
+router.use(authMiddleware);
 
 router.post("/analyze", async (req: AuthRequest, res) => {
   const { strategyType, marketIndex, marketSymbol, exchange } = req.body as {

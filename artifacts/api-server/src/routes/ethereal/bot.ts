@@ -27,7 +27,7 @@ import type { EtherealNetwork } from "../../lib/ethereal/etherealApi";
 import { getWalletAddress } from "../../lib/ethereal/etherealSigner";
 
 const router = Router();
-router.use(authMiddleware as any);
+router.use(authMiddleware);
 
 // ─── START BOT ────────────────────────────────────────────────────────────────
 

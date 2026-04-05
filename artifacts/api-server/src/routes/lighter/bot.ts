@@ -13,7 +13,7 @@ import { getAccountByIndex } from "../../lib/lighter/lighterApi";
 import { authMiddleware, type AuthRequest } from "../../middlewares/auth";
 
 const router = Router();
-router.use(authMiddleware as any);
+router.use(authMiddleware);
 
 router.post("/start/:strategyId", async (req: AuthRequest, res) => {
   const strategyId = parseInt(String(req.params.strategyId));

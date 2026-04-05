@@ -10,7 +10,7 @@ import {
 } from "../../lib/lighter/lighterApi";
 
 const router = Router();
-router.use(authMiddleware as any);
+router.use(authMiddleware);
 
 router.get("/tx", async (req: AuthRequest, res) => {
   const by = String(req.query.by ?? "");
