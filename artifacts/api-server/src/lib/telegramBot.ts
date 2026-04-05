@@ -295,6 +295,27 @@ function startPaymentPolling(
 
 let globalBotTelegram: Telegraf<BotContext>["telegram"] | null = null;
 
+// ─── Pause Message Store ──────────────────────────────────────────────────────
+// Exchange-agnostic: kunci = strategyId, value = { chatId, messageId }
+// Diisi saat pesan pause dikirim (via proxy), dibersihkan saat bot resume.
+const pauseMessageStore = new Map<number, { chatId: string; messageId: number }>();
+
+export async function clearPauseNotification(strategyId: number): Promise<void> {
+  const info = pauseMessageStore.get(strategyId);
+  if (!info || !globalBotTelegram) return;
+  const { chatId, messageId } = info;
+  pauseMessageStore.delete(strategyId);
+  // IMPROVE-001: Edit → konfirmasi aktif, fallback delete jika gagal
+  try {
+    await globalBotTelegram.editMessageText(chatId, messageId, undefined,
+      "▶️ *Bot sudah aktif kembali*", { parse_mode: "Markdown" });
+  } catch (_) {
+    try { await (globalBotTelegram as any).deleteMessage(chatId, messageId); } catch (_) {}
+  }
+  // IMPROVE-002: Unpin — silent jika gagal
+  try { await (globalBotTelegram as any).unpinChatMessage(chatId, messageId); } catch (_) {}
+}
+
 export async function sendMessageToUser(
   chatId: string,
   text: string,
@@ -334,7 +355,29 @@ export function startTelegramBot() {
 
   // Daftarkan referensi telegram ke autoRerange module agar bisa kirim
   // pesan konfirmasi inline-keyboard via main bot (bukan notify bot per-user).
-  setGlobalBotTelegramForRerange(bot.telegram);
+  // Proxy mengintersep sendMessage → tangkap messageId pesan pause + auto-pin.
+  const pauseProxy = {
+    sendMessage: async (chatId: string, text: string, extra?: any): Promise<any> => {
+      const result = await bot.telegram.sendMessage(chatId as any, text, extra);
+      if (result?.message_id) {
+        const rows: any[][] = extra?.reply_markup?.inline_keyboard ?? [];
+        outer: for (const row of rows) {
+          for (const btn of row) {
+            const m = String(btn?.callback_data ?? "").match(/^bot_restart_(\d+)$/);
+            if (m) {
+              const sid = Number(m[1]);
+              pauseMessageStore.set(sid, { chatId: String(chatId), messageId: result.message_id });
+              // IMPROVE-002: Auto-pin — silent jika bot tidak punya izin pin
+              bot.telegram.pinChatMessage(chatId as any, result.message_id).catch(() => {});
+              break outer;
+            }
+          }
+        }
+      }
+      return result;
+    },
+  };
+  setGlobalBotTelegramForRerange(pauseProxy);
 
   // Daftarkan ke SmartBroadcaster agar broadcast bisa menggunakan token yang sama
   broadcaster.setTelegram(bot.telegram);
