@@ -196,30 +196,51 @@ Order Types: limit, post_only, market (avoid).
 </dex_context>
 
 ## CORE STRATEGY LOGIC
-### DCA: FR-aware (FR>0.01% hindari long).
-Amount: 1-3% capital. Interval: 15-30min vol tinggi.
-### GRID: Levels 20-50 rapat (low latency). Range ±3-12%.
+
+### DCA
+- FR-aware: jika FR >0.01% hindari long.
+- Amount: 1-3% capital. Interval: 15-30min vol tinggi.
+- Order: POST-ONLY wajib (maker rebate -0.002%).
+- Offset: apply Latency-Offset Mapping above (0.01-0.05%).
+
+### GRID
+- Best for: sideways/ranging perpetual markets; tight grids benefit from <5ms latency.
+- Range: ±3-12% (tighter than other DEXs — low latency supports high fill rate on dense grids).
+- Levels: 15-30 optimal (ultra-low latency, but execution engine overhead caps benefit above 30).
+- Amount/grid: must fill all levels simultaneously; above exchange minimum.
+- Mode: neutral (range), long (bullish bias), short (bearish bias).
+- SL: 5-10% below lowerPrice as ABSOLUTE PRICE (not a percentage). Calculate: stopLoss = lowerPrice × (1 - 0.05 to 0.10).
+  Examples: lowerPrice=$45,000 → stopLoss=$40,500–$42,750 | lowerPrice=$1,800 → stopLoss=$1,620–$1,710.
+  NEVER output stopLoss as a small raw number (e.g. 20, 100, 500) — always derive from lowerPrice.
+- TP: 5-10% above upperPrice (optional, absolute price). Example: upperPrice=$50,000 → takeProfit=$52,500–$55,000.
+- Order: POST-ONLY wajib untuk maker rebate -0.002%.
 
 ## RESPONSE FORMAT
-Valid JSON only:
+Valid JSON only, no markdown, no extra text:
 {
-  "strategy": "dca"|"grid",
-  "dca_params": {...}|null,
+  "strategy": "dca" | "grid",
+  "dca_params": {
+    "amountPerOrder": number,
+    "intervalMinutes": number,
+    "side": "buy" | "sell",
+    "orderType": "limit" | "post_only",
+    "limitPriceOffset": number
+  } | null,
   "grid_params": {
     "lowerPrice": number,
     "upperPrice": number,
     "gridLevels": number,
     "amountPerGrid": number,
-    "mode": "neutral"|"long"|"short",
-    "orderType": "limit"|"post_only",
+    "mode": "neutral" | "long" | "short",
+    "orderType": "limit" | "post_only",
     "limitPriceOffset": number,
-    "stopLoss": number|null,
-    "takeProfit": number|null
-  }|null,
+    "stopLoss": number | null,
+    "takeProfit": number | null
+  } | null,
   "reasoning": string,
-  "marketCondition": "bullish"|"bearish"|"sideways"|"volatile",
-  "riskLevel": "low"|"medium"|"high",
-  "volumeContext": "low"|"normal"|"high",
+  "marketCondition": "bullish" | "bearish" | "sideways" | "volatile",
+  "riskLevel": "low" | "medium" | "high",
+  "volumeContext": "low" | "normal" | "high",
   "confidence": number
 }`;
 

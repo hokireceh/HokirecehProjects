@@ -601,7 +601,7 @@ Lighter dan Extended sudah memformat label dengan benar.
 
 ## [BUG-AI-001] AI Mengisi Stop Loss Tidak Masuk Akal untuk Ethereal Grid
 
-**Status:** ⏳ Belum difix  
+**Status:** ✅ Fixed (2026-04-05)  
 **Severity:** MEDIUM — Nilai SL yang salah dapat menyebabkan bot berhenti terlalu dini atau tidak pernah terpicu  
 **File:** `artifacts/api-server/src/lib/groqAI.ts`
 
@@ -609,14 +609,17 @@ Lighter dan Extended sudah memformat label dengan benar.
 AI mengisi `stopLoss = 20` untuk pasangan BTC-USD saat user klik "Isi Otomatis Parameter (AI)" di form strategi Ethereal Grid. Padahal harga BTC berada di kisaran $35.000–$65.000 — nilai `20` tidak memiliki makna sebagai stop loss price yang valid dan akan menyebabkan bot langsung terpicu SL saat start (harga pasar jauh di atas SL).
 
 **Root cause (dikonfirmasi):**  
-`ETHEREAL_SYSTEM_PROMPT` tidak memberikan instruksi eksplisit tentang cara menghitung `stopLoss`. Lighter dan Extended prompt sudah ada instruksi detail seperti `"SL: 5–10% below range"` beserta contoh kalkulasi angka absolut, tapi Ethereal hanya punya instruksi singkat — AI tidak tahu harus menghitung SL sebagai persentase di bawah `lowerPrice`, sehingga menghasilkan nilai literal sembarangan (mis. `20`).
+`ETHEREAL_SYSTEM_PROMPT` tidak memberikan instruksi eksplisit tentang cara menghitung `stopLoss`. Lighter dan Extended prompt sudah ada instruksi detail seperti `"SL: 5–10% below range"` beserta contoh kalkulasi angka absolut, tapi Ethereal hanya punya satu baris GRID — AI tidak tahu harus menghitung SL sebagai persentase di bawah `lowerPrice`, sehingga menghasilkan nilai literal sembarangan (mis. `20`). Selain itu response format Ethereal menggunakan shorthand `{...}|null` yang menyebabkan model lower-tier (scout/instant) sering output JSON tidak lengkap.
 
-**Fix yang diperlukan (hanya `groqAI.ts`):**  
-Tambah instruksi Stop Loss eksplisit di `ETHEREAL_SYSTEM_PROMPT` sama seperti pola Lighter/Extended:
-```
-"SL: 5-10% below lowerPrice (required for aggressive grids)"
-```
-Dengan contoh kalkulasi angka absolut agar AI menghasilkan nilai yang valid relatif terhadap harga pasar saat ini.
+**Fix yang diapply (hanya `groqAI.ts`):**
+
+| Komponen | Sebelum | Sesudah |
+|---|---|---|
+| Instruksi GRID | Satu baris: `Levels 20-50 rapat. Range ±3-12%.` | Multi-bullet: range, levels, mode, SL, TP, order — format konsisten dengan Lighter/Extended |
+| Instruksi SL | Tidak ada | `SL = lowerPrice × (1 - 0.05~0.10)` + 2 contoh angka absolut + larangan eksplisit output angka kecil |
+| Instruksi DCA | Satu baris ringkas | Multi-bullet terstruktur |
+| Response format | Shorthand `"dca_params": {...}\|null` | Full schema field-by-field identik dengan Lighter/Extended |
+| Grid levels | 20-50 | 15-30 optimal (sesuai analisis overhead execution engine) |
 
 ---
 
@@ -802,6 +805,30 @@ Pin pesan pause otomatis saat dikirim, unpin saat bot start kembali.
 
 ---
 
+## [IMPROVE-ETH-001] Grid Ethereal Optimal 15-30 Levels, Bukan 20-50
+
+**Status:** ⏳ Perlu divalidasi (prompt sudah diupdate, belum diverifikasi via live trading)  
+**Severity:** LOW (optimasi performa, bukan bug fungsional)  
+**File:** `artifacts/api-server/src/lib/groqAI.ts`
+
+**Latar belakang:**  
+`ETHEREAL_SYSTEM_PROMPT` sebelumnya merekomendasikan AI untuk mengisi `gridLevels` di rentang 20-50. Berdasarkan analisis data Dune/TokenTerminal (2026-04) dan karakteristik execution engine Hyperliquid tech yang digunakan Ethereal:
+
+- Arbitrum mencatat 1.5–2.3 juta txns/hari (sangat padat)
+- Grid 20-50 levels menyebabkan overhead tinggi di execution engine dan potensi nonce collision/RPC rate limit
+- Latency <5ms memang mendukung grid rapat, tapi keuntungan diminishing returns di atas 30 levels karena overhead per-order tetap konstan
+- Referensi: data HyperEVM volume $38-56M/hari, Hyperliquid $44-138M/hari (April 2026)
+
+**Optimum yang direkomendasikan:** 15-30 levels (bukan 20-50). Range ±3-12% dengan 15-30 levels sudah memberikan fill rate tinggi sambil menjaga overhead rendah.
+
+**Yang sudah dilakukan:**  
+Prompt di `ETHEREAL_SYSTEM_PROMPT` sudah diupdate dari `"Levels 20-50"` menjadi `"Levels: 15-30 optimal"` bersamaan dengan fix BUG-AI-001 (2026-04-05).
+
+**Yang perlu divalidasi:**  
+Monitor live trading Ethereal Grid 24-48 jam setelah fix BUG-AI-001 — pastikan AI konsisten mengisi `gridLevels` di rentang 15-30, dan bandingkan fill rate vs sebelumnya.
+
+---
+
 ## Status Fix
 
 | ID | Status | Priority |
@@ -830,10 +857,11 @@ Pin pesan pause otomatis saat dikirim, unpin saat bot start kembali.
 | BUG-ETH-008 | ✅ Fixed (2026-04-05) | MEDIUM |
 | BUG-ETH-009 | ✅ Fixed (2026-04-05) | MEDIUM |
 | BUG-ETH-010 | ✅ Fixed (2026-04-05) | HIGH |
-| BUG-AI-001 | ⏳ Belum difix | MEDIUM |
+| BUG-AI-001 | ✅ Fixed (2026-04-05) | MEDIUM |
 | BUG-ADMIN-001 | ⏳ Belum difix | LOW |
 | BUG-ADMIN-002 | ✅ Fixed (2026-04-05) | HIGH |
 | IMPROVE-ADMIN-001 | ⏳ Belum diimplementasi | MEDIUM |
 | IMPROVE-ADMIN-002 | ⏳ Perlu ditest | LOW |
 | IMPROVE-001 | ⏳ Belum diimplementasi | LOW |
 | IMPROVE-002 | ⏳ Belum diimplementasi | LOW |
+| IMPROVE-ETH-001 | ⏳ Perlu divalidasi (prompt sudah diupdate) | LOW |
