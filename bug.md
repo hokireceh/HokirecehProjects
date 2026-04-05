@@ -574,6 +574,31 @@ Log setelah restart — tidak ada "Harga market tidak tersedia", `[AutoRerange]`
 
 ---
 
+## [BUG-ETH-006] Tombol Edit Tidak Ada di Card Strategi Ethereal
+
+**Status:** ⏳ Belum difix  
+**Severity:** MEDIUM  
+**File:** `artifacts/HK-Projects/src/pages/EtherealStrategies.tsx`
+
+**Gejala:**  
+Card strategi Ethereal tidak memiliki tombol Edit. Lighter dan Extended keduanya memiliki tombol edit strategi, sehingga Ethereal tidak konsisten dengan kedua exchange lainnya.
+
+---
+
+## [BUG-ETH-007] Format Label Tidak Konsisten di Card Ethereal
+
+**Status:** ⏳ Belum difix  
+**Severity:** LOW  
+**File:** `artifacts/HK-Projects/src/pages/EtherealStrategies.tsx`
+
+**Gejala:**  
+- Order type tampil `"Post_only"` (underscore) — seharusnya `"Post-Only"` atau `"Post Only"`
+- Mode tampil `"Neutral"` (kapital awal) — perlu dicek konsistensinya dengan tampilan Lighter/Extended
+
+Lighter dan Extended sudah memformat label dengan benar.
+
+---
+
 ## [BUG-AI-001] AI Mengisi Stop Loss Tidak Masuk Akal untuk Ethereal Grid
 
 **Status:** ⏳ Belum difix  
@@ -623,4 +648,6 @@ Tambah field spec `stopLoss` yang eksplisit ke `ETHEREAL_SYSTEM_PROMPT` — sama
 | DESIGN-004 | ✅ Fixed (2026-04-05) | LOW |
 | DESIGN-005 | ✅ Fixed (2026-04-05) | LOW |
 | BUG-WS-001 | ✅ Fixed (2026-04-05) | KRITIS |
+| BUG-ETH-006 | ⏳ Belum difix | MEDIUM |
+| BUG-ETH-007 | ⏳ Belum difix | LOW |
 | BUG-AI-001 | ⏳ Belum difix | MEDIUM |
