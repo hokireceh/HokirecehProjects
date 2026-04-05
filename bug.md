@@ -608,20 +608,15 @@ Lighter dan Extended sudah memformat label dengan benar.
 **Gejala:**  
 AI mengisi `stopLoss = 20` untuk pasangan BTC-USD saat user klik "Isi Otomatis Parameter (AI)" di form strategi Ethereal Grid. Padahal harga BTC berada di kisaran $35.000–$65.000 — nilai `20` tidak memiliki makna sebagai stop loss price yang valid dan akan menyebabkan bot langsung terpicu SL saat start (harga pasar jauh di atas SL).
 
-**Kemungkinan penyebab:**
-
-**1 — `ETHEREAL_SYSTEM_PROMPT` tidak mendefinisikan cara kalkulasi `stopLoss`**  
-Prompt Lighter dan Extended sudah memiliki instruksi eksplisit seperti `"stopLoss: 5–10% below lowerPrice"` beserta contoh kalkulasi. Ethereal hanya punya instruksi singkat tanpa detail kalkulasi — AI tidak tahu harus menghitung SL sebagai persentase di bawah `lowerPrice`, sehingga menghasilkan nilai sembarangan (mis. `20` sebagai angka literal dari contoh atau default).
-
-**2 — Tidak ada validasi/clamp di sisi frontend atau backend**  
-Nilai `stopLoss` yang dikembalikan AI langsung di-set ke form tanpa pengecekan apakah nilainya masuk akal relatif terhadap `lowerPrice` atau harga pasar saat ini.
-
-**Yang seharusnya terjadi:**  
-- `ETHEREAL_SYSTEM_PROMPT` harus mendefinisikan `stopLoss` secara eksplisit: `"stopLoss: angka absolut, 5–10% di bawah lowerPrice. Contoh: jika lowerPrice = 35000, stopLoss = 35000 * 0.93 = 32550"` — konsisten dengan format Lighter/Extended.
-- Opsional: tambah validasi di `analyzeMarketForStrategy` — jika `stopLoss` dikembalikan AI lebih rendah dari 1% `lowerPrice` atau lebih tinggi dari `lowerPrice`, fallback ke `lowerPrice * 0.93`.
+**Root cause (dikonfirmasi):**  
+`ETHEREAL_SYSTEM_PROMPT` tidak memberikan instruksi eksplisit tentang cara menghitung `stopLoss`. Lighter dan Extended prompt sudah ada instruksi detail seperti `"SL: 5–10% below range"` beserta contoh kalkulasi angka absolut, tapi Ethereal hanya punya instruksi singkat — AI tidak tahu harus menghitung SL sebagai persentase di bawah `lowerPrice`, sehingga menghasilkan nilai literal sembarangan (mis. `20`).
 
 **Fix yang diperlukan (hanya `groqAI.ts`):**  
-Tambah field spec `stopLoss` yang eksplisit ke `ETHEREAL_SYSTEM_PROMPT` — sama persis dengan pola yang sudah ada di Lighter/Extended prompt.
+Tambah instruksi Stop Loss eksplisit di `ETHEREAL_SYSTEM_PROMPT` sama seperti pola Lighter/Extended:
+```
+"SL: 5-10% below lowerPrice (required for aggressive grids)"
+```
+Dengan contoh kalkulasi angka absolut agar AI menghasilkan nilai yang valid relatif terhadap harga pasar saat ini.
 
 ---
 
