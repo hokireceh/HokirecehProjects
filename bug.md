@@ -230,6 +230,23 @@ await db.update(tradesTable).set({ status: "failed", ... })
 
 ---
 
+## [BUG-ETH-003] AI Auto-fill Tidak Mengisi Harga Bawah dan Harga Atas di Form Strategi Ethereal
+
+**Status:** ⏳ Belum difix
+**Severity:** MEDIUM — Field harga tetap 0, user harus isi manual setelah AI fill
+**File:** `artifacts/HK-Projects/src/pages/EtherealStrategies.tsx`
+
+**Gejala:**
+Setelah klik "Isi Otomatis Parameter (AI)", field **Harga Bawah** dan **Harga Atas** tetap bernilai `0`. Field lain (Level Grid, Jumlah per Grid, Mode Grid, Tipe Order, Limit Price Offset) terisi dengan benar dari respons AI.
+
+**Kemungkinan penyebab:**
+Nama field yang dikembalikan AI (`lowerPrice`/`upperPrice` atau variannya) tidak cocok dengan field yang dibaca oleh handler auto-fill di komponen. Atau respons AI menggunakan key yang berbeda dari yang di-destructure di state setter.
+
+**Referensi:**
+Screenshot terlampir — analisis AI berhasil muncul (10/10, risiko rendah), tapi kedua field harga kosong (nilai 0).
+
+---
+
 ## [NAV-001] Mobile Navigasi — Ethereal Tidak Ada di Menu "Lainnya"
 
 **Status:** ✅ Fixed (2026-04-05)  
@@ -262,3 +279,4 @@ Icon `Zap` sudah di-import. Tidak ada perubahan lain yang diperlukan.
 | NAV-001 | ✅ Fixed (2026-04-05) | LOW |
 | BUG-ETH-001 | ✅ Fixed (2026-04-05) | KRITIS |
 | BUG-ETH-002 | ✅ Fixed (2026-04-05) | KRITIS |
+| BUG-ETH-003 | ⏳ Belum difix | MEDIUM |
