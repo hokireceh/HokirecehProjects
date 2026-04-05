@@ -620,6 +620,34 @@ Dengan contoh kalkulasi angka absolut agar AI menghasilkan nilai yang valid rela
 
 ---
 
+## [BUG-ETH-008] Log Ethereal Tidak Muncul di Halaman Log Sistem
+
+**Status:** ⏳ Belum difix  
+**Severity:** MEDIUM  
+**File:** `artifacts/HK-Projects/src/pages/Logs.tsx`
+
+**Gejala:**  
+Tab "Ethereal" tersedia di filter Log Sistem, tapi log bot Ethereal tidak muncul — halaman menampilkan "Belum ada log" padahal bot Ethereal sedang aktif berjalan.
+
+**Kemungkinan penyebab:**  
+Endpoint log Ethereal tidak di-fetch, atau response-nya tidak di-merge ke `allLogs` bersama log Lighter dan Extended.
+
+---
+
+## [BUG-ETH-009] Aktivitas Terbaru di Dashboard Kosong untuk Ethereal
+
+**Status:** ⏳ Belum difix  
+**Severity:** MEDIUM  
+**File:** `artifacts/HK-Projects/src/pages/Dashboard.tsx`
+
+**Gejala:**  
+Widget "Aktivitas Terbaru" menampilkan "Belum ada aktivitas bot" padahal bot Ethereal sedang berjalan aktif. Log Lighter dan Extended muncul di dashboard, log Ethereal tidak.
+
+**Kemungkinan penyebab:**  
+Log Ethereal tidak digabung ke `combinedLogs` di Dashboard, sehingga Ethereal tidak terrepresentasi di widget aktivitas.
+
+---
+
 ## Status Fix
 
 | ID | Status | Priority |
@@ -645,4 +673,6 @@ Dengan contoh kalkulasi angka absolut agar AI menghasilkan nilai yang valid rela
 | BUG-WS-001 | ✅ Fixed (2026-04-05) | KRITIS |
 | BUG-ETH-006 | ⏳ Belum difix | MEDIUM |
 | BUG-ETH-007 | ⏳ Belum difix | LOW |
+| BUG-ETH-008 | ⏳ Belum difix | MEDIUM |
+| BUG-ETH-009 | ⏳ Belum difix | MEDIUM |
 | BUG-AI-001 | ⏳ Belum difix | MEDIUM |
