@@ -7,6 +7,9 @@ module.exports = {
     cwd: "/www/wwwroot/HokirecehProjects",
     interpreter: "node",
     interpreter_args: "--enable-source-maps",
+    kill_timeout: 10000,
+    wait_ready: false,
+    listen_timeout: 10000,
     env: {
       PORT: 8080,
       NODE_ENV: "production",
@@ -24,6 +27,7 @@ module.exports = {
       GROQ_API_KEY_4: process.env.GROQ_API_KEY_4 || "",
       GROQ_API_KEY_5: process.env.GROQ_API_KEY_5 || "",
       EXTENDED_ENABLED: process.env.EXTENDED_ENABLED || "false",
+      VITE_TELEGRAM_BOT_USERNAME: process.env.VITE_TELEGRAM_BOT_USERNAME || "",
     }
   }]
 };

@@ -4,7 +4,7 @@ expertMode = true
 
 [nix]
 channel = "stable-25_05"
-packages = ["wget", "speedtest-cli", "nano", "undollar"]
+packages = ["wget", "speedtest-cli", "nano", "undollar", "tree"]
 
 [workflows]
 
