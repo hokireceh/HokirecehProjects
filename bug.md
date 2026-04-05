@@ -620,6 +620,58 @@ Dengan contoh kalkulasi angka absolut agar AI menghasilkan nilai yang valid rela
 
 ---
 
+## [BUG-ETH-010] Auto-Rerange Ethereal — Konfirmasi Tidak Bisa Di-Approve, Bot Selalu Pause
+
+**Status:** ⏳ Belum difix  
+**Severity:** HIGH — Bot Ethereal akan selalu PAUSE otomatis 20 menit setelah auto-rerange trigger karena tidak ada jalur konfirmasi yang berfungsi  
+**File utama:** `artifacts/api-server/src/lib/telegramBot.ts`  
+**File terkait:** `artifacts/api-server/src/lib/autoRerange.ts`
+
+**Gejala:**  
+Log server: `"Auto-Rerange triggered: harga $66824.5000 keluar range. Menunggu konfirmasi user."` → bot stuck di state `pendingRerangeAt` → 20 menit kemudian pause otomatis. User tidak bisa approve rerange dengan cara apapun.
+
+**Flow lengkap:**
+```
+Bot tick → harga di luar range (5 tick berturut-turut)
+         → AI dipanggil → parameter baru dihasilkan
+         → pendingRerangeAt diset ke DB
+         → pesan Telegram dengan tombol ✅ Approve / ❌ Reject dikirim
+         → bot SHORT-CIRCUIT: tidak ada grid logic sampai konfirmasi
+         → 20 menit tanpa konfirmasi → bot PAUSE otomatis
+```
+
+**Root cause — 2 titik dead-end:**
+
+**1. Telegram handler sengaja disabled (`telegramBot.ts` baris 455–458):**
+```ts
+if (strat?.exchange === "ethereal") {
+  logger.warn({ strategyId },
+    "[TelegramBot] Ethereal rerange approve not yet supported via Telegram");
+  return false;  // ← approve/reject via Telegram SELALU gagal silently
+}
+```
+User menekan tombol ✅ Approve di Telegram → tidak terjadi apa-apa. Bot tetap stuck di `pendingRerangeAt`.
+
+**2. Tidak ada UI konfirmasi di dashboard web (`EtherealStrategies.tsx`):**
+Tidak ada tombol, dialog, atau state apapun untuk konfirmasi rerange di halaman Ethereal. Lighter dan Extended juga tidak punya UI web untuk ini — arsitektur sengaja menggunakan Telegram-only untuk konfirmasi.
+
+**Konsekuensi:**  
+Setiap kali auto-rerange trigger:
+- User klik Approve di Telegram → tidak terjadi apa-apa (handler `return false`)
+- 20 menit kemudian → bot **PAUSE otomatis** tanpa bisa di-approve
+- User harus start manual dari dashboard setiap kali ini terjadi
+- Jika user tidak punya `telegramId`: pesan tidak terkirim, bot pasti pause tanpa ada yang bisa dilakukan
+
+**Fix yang diperlukan:**
+
+| File | Perubahan |
+|---|---|
+| `telegramBot.ts` baris 455 | Ganti `return false` → panggil `startEtherealBot(strategyId)` |
+| `telegramBot.ts` baris 471 | Ganti `return false` → panggil `stopEtherealBot(strategyId)` |
+| `autoRerange.ts` baris 644 | Tambah note untuk Ethereal di pesan approve (tidak ada cancel order API, berbeda dari Extended) |
+
+---
+
 ## [BUG-ETH-008] Log Ethereal Tidak Muncul di Halaman Log Sistem
 
 **Status:** ⏳ Belum difix  
@@ -675,4 +727,5 @@ Log Ethereal tidak digabung ke `combinedLogs` di Dashboard, sehingga Ethereal ti
 | BUG-ETH-007 | ⏳ Belum difix | LOW |
 | BUG-ETH-008 | ⏳ Belum difix | MEDIUM |
 | BUG-ETH-009 | ⏳ Belum difix | MEDIUM |
+| BUG-ETH-010 | ⏳ Belum difix | HIGH |
 | BUG-AI-001 | ⏳ Belum difix | MEDIUM |
