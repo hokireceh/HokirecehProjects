@@ -7,7 +7,8 @@ import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { AlertCircle, Users, Plus, RefreshCw, Trash2, Calendar, Shield, Monitor, CreditCard, Megaphone, TrendingUp, Send, XCircle, Clock, CheckCircle2, Ban, History, Bold, Italic, Underline, Strikethrough, Code, Link, Eye, EyeOff, Search } from "lucide-react";
+import { AlertCircle, Users, Plus, RefreshCw, Trash2, Calendar, Shield, Monitor, CreditCard, Megaphone, TrendingUp, Send, XCircle, Clock, CheckCircle2, Ban, History, Bold, Italic, Underline, Strikethrough, Code, Link, Eye, EyeOff, Search, Play, Square, Loader2 } from "lucide-react";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { formatWIBDate } from "@/lib/utils";
 
 interface AdminUser {
@@ -125,6 +126,8 @@ export default function Admin() {
   const broadcastTextareaRef = useRef<HTMLTextAreaElement>(null);
 
   const [confirmDeleteId, setConfirmDeleteId] = useState<number | null>(null);
+  const [busyBotIds, setBusyBotIds] = useState<Set<number>>(new Set());
+  const [confirmStop, setConfirmStop] = useState<AdminStrategy | null>(null);
 
   function authHeaders() {
     return { Authorization: `Bearer ${adminPassword}`, "Content-Type": "application/json" };
@@ -171,6 +174,26 @@ export default function Admin() {
       setPayments(data.payments ?? []);
     } catch { }
   }, [adminPassword]);
+
+  const handleBotAction = useCallback(async (strategy: AdminStrategy, action: "start" | "stop") => {
+    setBusyBotIds((prev) => new Set(prev).add(strategy.id));
+    try {
+      const res = await fetch(`/api/admin/bot/${action}/${strategy.id}`, {
+        method: "POST",
+        headers: authHeaders(),
+      });
+      if (!res.ok) {
+        const json = await res.json().catch(() => ({}));
+        alert(json.error ?? `Gagal ${action === "stop" ? "menghentikan" : "memulai"} bot`);
+        return;
+      }
+      await fetchStrategies();
+    } catch {
+      alert("Terjadi kesalahan jaringan");
+    } finally {
+      setBusyBotIds((prev) => { const s = new Set(prev); s.delete(strategy.id); return s; });
+    }
+  }, [adminPassword, fetchStrategies]);
 
   useEffect(() => {
     if (isAuthenticated) {
@@ -556,34 +579,60 @@ export default function Admin() {
                   <p className="text-center text-muted-foreground py-8">Belum ada strategi</p>
                 ) : (
                   <div className="space-y-2">
-                    {strategies.map((s) => (
-                      <div key={s.id} className="border rounded-lg p-3 flex flex-wrap items-center justify-between gap-2">
-                        <div className="min-w-0">
-                          <div className="flex items-center gap-2">
-                            <span className={`w-2 h-2 rounded-full shrink-0 ${s.isRunning ? "bg-green-500 animate-pulse" : "bg-muted-foreground"}`} />
-                            <span className="font-medium text-sm truncate">{s.name}</span>
-                            <span className="text-xs bg-muted px-1.5 py-0.5 rounded font-mono">{s.marketSymbol}</span>
-                            <span className="text-xs uppercase text-primary font-bold">{s.type}</span>
-                            {(() => {
-                              const ex = EXCHANGE_BADGE[s.exchange] ?? { label: s.exchange, className: "bg-muted text-muted-foreground border-muted" };
-                              return <span className={`text-xs px-1.5 py-0.5 rounded border font-medium ${ex.className}`}>{ex.label}</span>;
-                            })()}
+                    {strategies.map((s) => {
+                      const busy = busyBotIds.has(s.id);
+                      return (
+                        <div key={s.id} className="border rounded-lg p-3 flex flex-wrap items-center justify-between gap-2">
+                          <div className="min-w-0">
+                            <div className="flex items-center gap-2">
+                              <span className={`w-2 h-2 rounded-full shrink-0 ${s.isRunning ? "bg-green-500 animate-pulse" : "bg-muted-foreground"}`} />
+                              <span className="font-medium text-sm truncate">{s.name}</span>
+                              <span className="text-xs bg-muted px-1.5 py-0.5 rounded font-mono">{s.marketSymbol}</span>
+                              <span className="text-xs uppercase text-primary font-bold">{s.type}</span>
+                              {(() => {
+                                const ex = EXCHANGE_BADGE[s.exchange] ?? { label: s.exchange, className: "bg-muted text-muted-foreground border-muted" };
+                                return <span className={`text-xs px-1.5 py-0.5 rounded border font-medium ${ex.className}`}>{ex.label}</span>;
+                              })()}
+                            </div>
+                            <p className="text-xs text-muted-foreground mt-0.5 ml-4">
+                              {s.user ? `${s.user.telegramName || s.user.telegramId}${s.user.telegramUsername ? ` @${s.user.telegramUsername}` : ""}` : "No user"}
+                            </p>
                           </div>
-                          <p className="text-xs text-muted-foreground mt-0.5 ml-4">
-                            {s.user ? `${s.user.telegramName || s.user.telegramId}${s.user.telegramUsername ? ` @${s.user.telegramUsername}` : ""}` : "No user"}
-                          </p>
+                          <div className="flex items-center gap-2 text-xs">
+                            <span className={s.realizedPnl >= 0 ? "text-green-600" : "text-red-500"}>
+                              PnL: {s.realizedPnl >= 0 ? "+" : ""}{s.realizedPnl.toFixed(4)}
+                            </span>
+                            <span className="text-muted-foreground">{s.successfulOrders}/{s.totalOrders} orders</span>
+                            <Badge variant={s.isRunning ? "default" : "secondary"} className="text-xs">
+                              {s.isRunning ? "Running" : "Stopped"}
+                            </Badge>
+                            {s.isRunning ? (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="h-7 px-2 text-xs border-red-500/40 text-red-400 hover:bg-red-500/10 hover:text-red-300"
+                                disabled={busy}
+                                onClick={() => setConfirmStop(s)}
+                              >
+                                {busy ? <Loader2 className="h-3 w-3 animate-spin" /> : <Square className="h-3 w-3 mr-1" />}
+                                {!busy && "Stop"}
+                              </Button>
+                            ) : (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="h-7 px-2 text-xs border-green-500/40 text-green-400 hover:bg-green-500/10 hover:text-green-300"
+                                disabled={busy}
+                                onClick={() => handleBotAction(s, "start")}
+                              >
+                                {busy ? <Loader2 className="h-3 w-3 animate-spin" /> : <Play className="h-3 w-3 mr-1" />}
+                                {!busy && "Start"}
+                              </Button>
+                            )}
+                          </div>
                         </div>
-                        <div className="flex items-center gap-3 text-xs">
-                          <span className={s.realizedPnl >= 0 ? "text-green-600" : "text-red-500"}>
-                            PnL: {s.realizedPnl >= 0 ? "+" : ""}{s.realizedPnl.toFixed(4)}
-                          </span>
-                          <span className="text-muted-foreground">{s.successfulOrders}/{s.totalOrders} orders</span>
-                          <Badge variant={s.isRunning ? "default" : "secondary"} className="text-xs">
-                            {s.isRunning ? "Running" : "Stopped"}
-                          </Badge>
-                        </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 )}
               </CardContent>
@@ -940,6 +989,35 @@ export default function Admin() {
           </TabsContent>
         </Tabs>
       </div>
+
+      {/* ── AlertDialog: Konfirmasi Stop Bot ─────────────────────────── */}
+      <AlertDialog open={!!confirmStop} onOpenChange={(open) => { if (!open) setConfirmStop(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Stop Bot Darurat?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Bot <span className="font-semibold text-foreground">{confirmStop?.name}</span>{" "}
+              ({confirmStop?.exchange} — {confirmStop?.marketSymbol}) akan dihentikan.
+              Semua order aktif yang sedang berjalan akan dibatalkan oleh bot engine.
+              Tindakan ini tidak bisa dibatalkan secara otomatis.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setConfirmStop(null)}>Batal</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => {
+                if (confirmStop) {
+                  handleBotAction(confirmStop, "stop");
+                  setConfirmStop(null);
+                }
+              }}
+            >
+              Ya, Stop Bot
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

@@ -4,9 +4,9 @@ import { usersTable, strategiesTable, pendingPaymentsTable } from "@workspace/db
 import { eq, desc } from "drizzle-orm";
 import { broadcaster, ENTITY_EXAMPLES } from "../lib/smartBroadcaster";
 import { generatePassword, addDays } from "../lib/utils";
-import { getAllRunningBots } from "../lib/lighter/lighterBotEngine";
-import { getAllRunningExtendedBots } from "../lib/extended/extendedBotEngine";
-import { getAllRunningEtherealBots } from "../lib/ethereal/etherealBotEngine";
+import { getAllRunningBots, startBot, stopBot } from "../lib/lighter/lighterBotEngine";
+import { getAllRunningExtendedBots, startExtendedBot, stopExtendedBot } from "../lib/extended/extendedBotEngine";
+import { getAllRunningEtherealBots, startEtherealBot, stopEtherealBot } from "../lib/ethereal/etherealBotEngine";
 
 const router = Router();
 
@@ -243,6 +243,59 @@ router.delete("/broadcast/cancel", (req, res) => {
 // ─── BROADCAST: Entity type reference ─────────────────────────────────────────
 router.get("/broadcast/entities", (_req, res) => {
   res.json({ entities: ENTITY_EXAMPLES });
+});
+
+// ─── BOT CONTROL (emergency stop/start dari admin panel) ──────────────────────
+router.post("/bot/stop/:strategyId", async (req, res) => {
+  const strategyId = parseInt(String(req.params.strategyId));
+  if (isNaN(strategyId)) return res.status(400).json({ error: "strategyId tidak valid" });
+
+  const strategy = await db.query.strategiesTable.findFirst({
+    where: eq(strategiesTable.id, strategyId),
+    columns: { id: true, exchange: true },
+  });
+  if (!strategy) return res.status(404).json({ error: "Strategy tidak ditemukan" });
+
+  try {
+    if (strategy.exchange === "lighter") {
+      await stopBot(strategyId);
+    } else if (strategy.exchange === "extended") {
+      await stopExtendedBot(strategyId);
+    } else {
+      await stopEtherealBot(strategyId);
+    }
+    res.json({ ok: true, strategyId, action: "stop" });
+  } catch (err) {
+    req.log.error({ err, strategyId }, "[Admin] Failed to stop bot");
+    res.status(500).json({ error: "Gagal menghentikan bot" });
+  }
+});
+
+router.post("/bot/start/:strategyId", async (req, res) => {
+  const strategyId = parseInt(String(req.params.strategyId));
+  if (isNaN(strategyId)) return res.status(400).json({ error: "strategyId tidak valid" });
+
+  const strategy = await db.query.strategiesTable.findFirst({
+    where: eq(strategiesTable.id, strategyId),
+    columns: { id: true, exchange: true },
+  });
+  if (!strategy) return res.status(404).json({ error: "Strategy tidak ditemukan" });
+
+  try {
+    let success = false;
+    if (strategy.exchange === "lighter") {
+      success = await startBot(strategyId);
+    } else if (strategy.exchange === "extended") {
+      success = await startExtendedBot(strategyId);
+    } else {
+      success = await startEtherealBot(strategyId);
+    }
+    if (!success) return res.status(409).json({ error: "Bot gagal distart (credentials missing atau sudah running)" });
+    res.json({ ok: true, strategyId, action: "start" });
+  } catch (err) {
+    req.log.error({ err, strategyId }, "[Admin] Failed to start bot");
+    res.status(500).json({ error: "Gagal memulai bot" });
+  }
 });
 
 export default router;

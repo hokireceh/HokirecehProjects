@@ -857,12 +857,22 @@ Circular dependency: **tidak ada** — tidak ada bot engine yang mengimpor dari 
 
 ## [IMPROVE-ADMIN-001] Tab Monitor Perlu Kontrol Darurat Stop/Start Bot
 
-**Status:** ⏳ Belum diimplementasi  
+**Status:** ✅ Implemented (2026-04-05)  
 **Severity:** MEDIUM (fitur baru)  
-**File:** `artifacts/HK-Projects/src/pages/Admin.tsx`
+**File:** `artifacts/HK-Projects/src/pages/Admin.tsx`, `artifacts/api-server/src/routes/admin.ts`
 
 **Usulan:**  
 Admin harus bisa Stop/Start semua bot dari tab Monitor untuk keadaan darurat. Saat ini tab Monitor hanya menampilkan status — tidak ada kontrol bot dari admin panel.
+
+**Implementasi:**
+- **Backend** — Tambah 2 endpoint baru di `admin.ts`:
+  - `POST /api/admin/bot/stop/:strategyId` — lookup exchange dari DB, panggil `stopBot/stopExtendedBot/stopEtherealBot`
+  - `POST /api/admin/bot/start/:strategyId` — lookup exchange dari DB, panggil `startBot/startExtendedBot/startEtherealBot`
+- **Frontend** — Di setiap row Monitor:
+  - Bot running → tombol **Stop** (merah, border `red-500/40`) dengan AlertDialog konfirmasi sebelum eksekusi
+  - Bot stopped → tombol **Start** (hijau, border `green-500/40`) langsung eksekusi tanpa konfirmasi
+  - Loading spinner (`Loader2 animate-spin`) selama request berlangsung via `busyBotIds` state
+  - Setelah berhasil: refresh data Monitor via `fetchStrategies()`
 
 ---
 
@@ -962,7 +972,7 @@ Monitor live trading Ethereal Grid 24-48 jam setelah fix BUG-AI-001 — pastikan
 | BUG-AI-001 | ✅ Fixed (2026-04-05) | MEDIUM |
 | BUG-ADMIN-001 | ⏳ Belum difix | LOW |
 | BUG-ADMIN-002 | ✅ Fixed (2026-04-05) | HIGH |
-| IMPROVE-ADMIN-001 | ⏳ Belum diimplementasi | MEDIUM |
+| IMPROVE-ADMIN-001 | ✅ Implemented (2026-04-05) | MEDIUM |
 | IMPROVE-ADMIN-002 | ⏳ Perlu ditest | LOW |
 | IMPROVE-001 | ⏳ Belum diimplementasi | LOW |
 | IMPROVE-002 | ⏳ Belum diimplementasi | LOW |
