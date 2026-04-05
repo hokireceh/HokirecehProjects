@@ -1,7 +1,7 @@
 # Bug & Technical Debt Tracker
 
 > Last updated: 2026-04-05
-> Status: 2 bug kritis Ethereal di-fix (2026-04-05). BUG-ETH-005 + 3 DESIGN issues di-fix di sesi yang sama. DESIGN-001 + DESIGN-003 di-fix sesi berikutnya. BUG-WS-001 (WS price parser salah field) ditemukan via debug logging dan di-fix di sesi yang sama. BUG-AI-001 dicatat (belum difix).
+> Status: BUG-ETH-006 + BUG-ETH-007 di-fix (2026-04-05) — tombol Edit + EthEditModal ditambah ke card Ethereal, format label post_only → Post-Only diperbaiki. 2 bug kritis Ethereal di-fix sebelumnya. BUG-ETH-005 + 3 DESIGN issues di-fix di sesi yang sama. DESIGN-001 + DESIGN-003 di-fix sesi berikutnya. BUG-WS-001 (WS price parser salah field) ditemukan via debug logging dan di-fix di sesi yang sama. BUG-AI-001 dicatat (belum difix).
 
 ---
 
@@ -576,18 +576,32 @@ Log setelah restart — tidak ada "Harga market tidak tersedia", `[AutoRerange]`
 
 ## [BUG-ETH-006] Tombol Edit Tidak Ada di Card Strategi Ethereal
 
-**Status:** ⏳ Belum difix  
+**Status:** ✅ Fixed (2026-04-05)  
 **Severity:** MEDIUM  
 **File:** `artifacts/HK-Projects/src/pages/EtherealStrategies.tsx`
 
 **Gejala:**  
 Card strategi Ethereal tidak memiliki tombol Edit. Lighter dan Extended keduanya memiliki tombol edit strategi, sehingga Ethereal tidak konsisten dengan kedua exchange lainnya.
 
+**Root cause (4 lapisan yang hilang):**
+1. Prop `onEdit` tidak ada di `EthStrategyCard` interface
+2. Tombol Edit (Pencil icon) tidak ada di footer card
+3. State `editStrategy` tidak ada di main page
+4. `EthEditModal` component tidak ada; `onEdit` tidak dipassing ke card saat render
+
+**Fix yang diapply (hanya `EtherealStrategies.tsx`):**
+- Tambah `onEdit: () => void` ke `EthStrategyCard` props interface
+- Tambah tombol Edit (Pencil, `hover:text-blue-400`) di footer card — setelah tombol Log, konsisten dengan pola Lighter/Extended
+- Tambah state `const [editStrategy, setEditStrategy] = useState<EthStrategy | null>(null)` di main page
+- Tambah `EthEditModal` component inline: pre-fill semua field dari `strategy.dcaConfig` / `strategy.gridConfig` via `useEffect([strategy])`, validasi input, call `PUT /:strategyId` via `apiFetch`
+- Tambah `onEdit={() => setEditStrategy(s)}` ke setiap card render
+- Tambah `<EthEditModal strategy={editStrategy} onClose={...} onSaved={loadAll} />` di main page JSX
+
 ---
 
 ## [BUG-ETH-007] Format Label Tidak Konsisten di Card Ethereal
 
-**Status:** ⏳ Belum difix  
+**Status:** ✅ Fixed (2026-04-05)  
 **Severity:** LOW  
 **File:** `artifacts/HK-Projects/src/pages/EtherealStrategies.tsx`
 
@@ -595,7 +609,21 @@ Card strategi Ethereal tidak memiliki tombol Edit. Lighter dan Extended keduanya
 - Order type tampil `"Post_only"` (underscore) — seharusnya `"Post-Only"` atau `"Post Only"`
 - Mode tampil `"Neutral"` (kapital awal) — perlu dicek konsistensinya dengan tampilan Lighter/Extended
 
-Lighter dan Extended sudah memformat label dengan benar.
+**Root cause:**  
+CSS class `capitalize` hanya mengkapitalisasi huruf pertama dari kata yang dipisahkan **spasi**, bukan underscore. `"post_only"` + CSS `capitalize` → `"Post_only"` — underscore tetap ada, hanya `p` yang naik kapital.
+
+**Fix yang diapply (hanya `EtherealStrategies.tsx`):**  
+Tambah helper function `formatOrderType(val: string): string` yang split by `_`, capitalize setiap segmen, join dengan `-`:
+```ts
+function formatOrderType(val: string): string {
+  return val.split("_").map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join("-");
+}
+```
+Ganti semua `capitalize` CSS class di card label dengan `{formatOrderType(...)}` untuk:
+- DCA: `orderType` (baris 903)
+- Grid: `mode` (baris 911) dan `orderType` (baris 912)
+
+Hasil: `"post_only"` → `"Post-Only"`, `"neutral"` → `"Neutral"`, `"limit"` → `"Limit"`.
 
 ---
 

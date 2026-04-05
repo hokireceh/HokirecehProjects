@@ -737,6 +737,379 @@ function EthCreateModal({
   );
 }
 
+// ── Edit Modal ────────────────────────────────────────────────────────────────
+
+function EthEditModal({
+  strategy,
+  onClose,
+  onSaved,
+}: {
+  strategy: EthStrategy | null;
+  onClose: () => void;
+  onSaved: () => void;
+}) {
+  const { toast } = useToast();
+  const [busy, setBusy] = useState(false);
+
+  const [form, setForm] = useState({
+    name: "",
+    amountPerOrder: 10,
+    intervalMinutes: 60,
+    side: "buy",
+    orderType: "limit",
+    limitPriceOffset: 0,
+    lowerPrice: "",
+    upperPrice: "",
+    gridLevels: 10,
+    amountPerGrid: 10,
+    mode: "neutral",
+    stopLoss: "",
+    takeProfit: "",
+  });
+
+  useEffect(() => {
+    if (!strategy) return;
+    if (strategy.type === "dca" && strategy.dcaConfig) {
+      const c = strategy.dcaConfig;
+      setForm({
+        name: strategy.name,
+        amountPerOrder: c.amountPerOrder,
+        intervalMinutes: c.intervalMinutes,
+        side: c.side,
+        orderType: c.orderType,
+        limitPriceOffset: c.limitPriceOffset ?? 0,
+        lowerPrice: "",
+        upperPrice: "",
+        gridLevels: 10,
+        amountPerGrid: 10,
+        mode: "neutral",
+        stopLoss: "",
+        takeProfit: "",
+      });
+    } else if (strategy.type === "grid" && strategy.gridConfig) {
+      const c = strategy.gridConfig;
+      setForm({
+        name: strategy.name,
+        amountPerOrder: 10,
+        intervalMinutes: 60,
+        side: "buy",
+        orderType: c.orderType,
+        limitPriceOffset: c.limitPriceOffset ?? 0,
+        lowerPrice: String(c.lowerPrice),
+        upperPrice: String(c.upperPrice),
+        gridLevels: c.gridLevels,
+        amountPerGrid: c.amountPerGrid,
+        mode: c.mode,
+        stopLoss: c.stopLoss != null ? String(c.stopLoss) : "",
+        takeProfit: c.takeProfit != null ? String(c.takeProfit) : "",
+      });
+    }
+  }, [strategy]);
+
+  const setField = (k: string, v: any) => setForm((f) => ({ ...f, [k]: v }));
+  const showLimitOffset = form.orderType === "limit" || form.orderType === "post_only";
+
+  const handleSubmit = async () => {
+    if (!strategy) return;
+    if (!form.name.trim()) {
+      toast({ title: "Nama strategi wajib diisi", variant: "destructive" });
+      return;
+    }
+    setBusy(true);
+    try {
+      if (strategy.type === "dca") {
+        await apiFetch(`/${strategy.id}`, {
+          method: "PUT",
+          body: JSON.stringify({
+            name: form.name,
+            dcaConfig: {
+              amountPerOrder: Number(form.amountPerOrder),
+              intervalMinutes: Number(form.intervalMinutes),
+              side: form.side,
+              orderType: form.orderType,
+              limitPriceOffset: Number(form.limitPriceOffset ?? 0),
+            },
+          }),
+        });
+      } else {
+        if (!form.lowerPrice || !form.upperPrice) {
+          toast({ title: "Rentang harga harus diisi", variant: "destructive" });
+          setBusy(false);
+          return;
+        }
+        if (Number(form.upperPrice) <= Number(form.lowerPrice)) {
+          toast({ title: "Harga atas harus lebih besar dari harga bawah", variant: "destructive" });
+          setBusy(false);
+          return;
+        }
+        await apiFetch(`/${strategy.id}`, {
+          method: "PUT",
+          body: JSON.stringify({
+            name: form.name,
+            gridConfig: {
+              lowerPrice: Number(form.lowerPrice),
+              upperPrice: Number(form.upperPrice),
+              gridLevels: Number(form.gridLevels),
+              amountPerGrid: Number(form.amountPerGrid),
+              mode: form.mode,
+              orderType: form.orderType,
+              limitPriceOffset: Number(form.limitPriceOffset ?? 0),
+              stopLoss: form.stopLoss ? Number(form.stopLoss) : null,
+              takeProfit: form.takeProfit ? Number(form.takeProfit) : null,
+            },
+          }),
+        });
+      }
+      toast({ title: "Strategi berhasil diperbarui" });
+      onSaved();
+      onClose();
+    } catch (err: any) {
+      toast({ title: "Gagal memperbarui strategi", description: err.message, variant: "destructive" });
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  if (!strategy) return null;
+
+  return (
+    <Dialog open={!!strategy} onOpenChange={(v) => !v && onClose()}>
+      <DialogContent className="sm:max-w-[520px] bg-card border-border max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <ExchangeLogo exchange="ethereal" size={20} />
+            Edit Strategi — {strategy.name}
+          </DialogTitle>
+        </DialogHeader>
+
+        <div className="space-y-3 mt-2">
+          {/* Name */}
+          <div className="space-y-2">
+            <Label>Nama Strategi</Label>
+            <Input
+              value={form.name}
+              onChange={(e) => setField("name", e.target.value)}
+              placeholder="contoh: ETH DCA Harian"
+              className="bg-background"
+            />
+          </div>
+
+          {/* Market & type (read-only) */}
+          <div className="flex items-center gap-2 text-sm bg-muted/50 px-3 py-2 rounded-lg border border-border/50">
+            <span className="text-muted-foreground">Market:</span>
+            <span className="font-mono font-medium text-purple-300">{strategy.marketSymbol}</span>
+            <span className="ml-2 text-muted-foreground">Tipe:</span>
+            <span className="uppercase font-bold text-purple-400 text-xs tracking-wider">{strategy.type}</span>
+          </div>
+
+          {strategy.type === "dca" && (
+            <>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-2">
+                  <Label>Jumlah (USDe)</Label>
+                  <Input
+                    type="text"
+                    inputMode="decimal"
+                    value={form.amountPerOrder}
+                    onChange={(e) => setField("amountPerOrder", e.target.value)}
+                    placeholder="100"
+                    className="bg-background font-mono"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Interval (Menit)</Label>
+                  <Input
+                    type="text"
+                    inputMode="numeric"
+                    value={form.intervalMinutes}
+                    onChange={(e) => setField("intervalMinutes", e.target.value)}
+                    placeholder="1440"
+                    className="bg-background font-mono"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-2">
+                  <Label>Sisi</Label>
+                  <Select value={form.side} onValueChange={(v) => setField("side", v)}>
+                    <SelectTrigger className="bg-background"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="buy">Buy</SelectItem>
+                      <SelectItem value="sell">Sell</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Tipe Order</Label>
+                  <Select value={form.orderType} onValueChange={(v) => setField("orderType", v)}>
+                    <SelectTrigger className="bg-background"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="post_only">Post-Only (Maker) ⭐⭐</SelectItem>
+                      <SelectItem value="limit">Limit (Maker/Taker) ⭐</SelectItem>
+                      <SelectItem value="market">Market (Taker)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              {showLimitOffset && (
+                <div className="space-y-2">
+                  <Label>
+                    Limit Price Offset (USDe)
+                    <span className="ml-1.5 text-xs text-muted-foreground">— offset dari harga pasar saat eksekusi</span>
+                  </Label>
+                  <Input
+                    type="text"
+                    inputMode="decimal"
+                    value={form.limitPriceOffset}
+                    onChange={(e) => setField("limitPriceOffset", e.target.value)}
+                    placeholder="mis. 10"
+                    className="bg-background font-mono"
+                  />
+                </div>
+              )}
+            </>
+          )}
+
+          {strategy.type === "grid" && (
+            <>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-2">
+                  <Label>Harga Bawah (USDe)</Label>
+                  <Input
+                    type="text"
+                    inputMode="decimal"
+                    value={form.lowerPrice}
+                    onChange={(e) => setField("lowerPrice", e.target.value)}
+                    placeholder="e.g. 2000"
+                    className="bg-background font-mono"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Harga Atas (USDe)</Label>
+                  <Input
+                    type="text"
+                    inputMode="decimal"
+                    value={form.upperPrice}
+                    onChange={(e) => setField("upperPrice", e.target.value)}
+                    placeholder="e.g. 3000"
+                    className="bg-background font-mono"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-2">
+                  <Label>Level Grid</Label>
+                  <Input
+                    type="text"
+                    inputMode="numeric"
+                    value={form.gridLevels}
+                    onChange={(e) => setField("gridLevels", e.target.value)}
+                    placeholder="10"
+                    className="bg-background font-mono"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Jumlah per Grid (USDe)</Label>
+                  <Input
+                    type="text"
+                    inputMode="decimal"
+                    value={form.amountPerGrid}
+                    onChange={(e) => setField("amountPerGrid", e.target.value)}
+                    placeholder="50"
+                    className="bg-background font-mono"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-2">
+                  <Label>Mode Grid</Label>
+                  <Select value={form.mode} onValueChange={(v) => setField("mode", v)}>
+                    <SelectTrigger className="bg-background"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="neutral">Netral (Beli &amp; Jual)</SelectItem>
+                      <SelectItem value="long">Long (Beli Saja)</SelectItem>
+                      <SelectItem value="short">Short (Jual Saja)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Tipe Order</Label>
+                  <Select value={form.orderType} onValueChange={(v) => setField("orderType", v)}>
+                    <SelectTrigger className="bg-background"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="post_only">Post-Only (Maker) ⭐⭐</SelectItem>
+                      <SelectItem value="limit">Limit (Maker/Taker) ⭐</SelectItem>
+                      <SelectItem value="market">Market (Taker)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              {showLimitOffset && (
+                <div className="space-y-2">
+                  <Label>
+                    Limit Price Offset (USDe)
+                    <span className="ml-1.5 text-xs text-muted-foreground">— offset dari harga pasar</span>
+                  </Label>
+                  <Input
+                    type="text"
+                    inputMode="decimal"
+                    value={form.limitPriceOffset}
+                    onChange={(e) => setField("limitPriceOffset", e.target.value)}
+                    placeholder="mis. 10"
+                    className="bg-background font-mono"
+                  />
+                </div>
+              )}
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-2">
+                  <Label className="text-muted-foreground">Stop Loss (USDe, opsional)</Label>
+                  <Input
+                    type="text"
+                    inputMode="decimal"
+                    value={form.stopLoss}
+                    onChange={(e) => setField("stopLoss", e.target.value)}
+                    placeholder="mis. 1700"
+                    className="bg-background font-mono"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-muted-foreground">Take Profit (USDe, opsional)</Label>
+                  <Input
+                    type="text"
+                    inputMode="decimal"
+                    value={form.takeProfit}
+                    onChange={(e) => setField("takeProfit", e.target.value)}
+                    placeholder="mis. 2400"
+                    className="bg-background font-mono"
+                  />
+                </div>
+              </div>
+            </>
+          )}
+        </div>
+
+        <div className="pt-4 flex gap-2 justify-end border-t border-border mt-4">
+          <Button variant="outline" onClick={onClose} disabled={busy}>Batal</Button>
+          <Button
+            onClick={handleSubmit}
+            disabled={busy}
+            className="bg-purple-600 hover:bg-purple-700 text-white"
+          >
+            {busy ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Pencil className="w-4 h-4 mr-2" />}
+            Simpan Perubahan
+          </Button>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 // ── Config Modal ──────────────────────────────────────────────────────────────
 
 function EthConfigModal({
@@ -843,6 +1216,15 @@ function EthConfigModal({
   );
 }
 
+// ── Helpers ────────────────────────────────────────────────────────────────────
+
+function formatOrderType(val: string): string {
+  return val
+    .split("_")
+    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+    .join("-");
+}
+
 // ── Strategy Card ──────────────────────────────────────────────────────────────
 
 function EthStrategyCard({
@@ -850,12 +1232,14 @@ function EthStrategyCard({
   onToggle,
   onDelete,
   onShowLog,
+  onEdit,
   isBusy,
 }: {
   strategy: EthStrategy;
   onToggle: () => void;
   onDelete: () => void;
   onShowLog: () => void;
+  onEdit: () => void;
   isBusy: boolean;
 }) {
   const pnl = parseFloat(strategy.realizedPnl ?? "0");
@@ -900,7 +1284,7 @@ function EthStrategyCard({
             <div><div className="text-xs text-muted-foreground">Jumlah</div><div className="font-mono">${strategy.dcaConfig.amountPerOrder}</div></div>
             <div><div className="text-xs text-muted-foreground">Interval</div><div className="font-mono">{strategy.dcaConfig.intervalMinutes}m</div></div>
             <div><div className="text-xs text-muted-foreground">Sisi</div><div className={`font-medium ${strategy.dcaConfig.side === "buy" ? "text-success" : "text-destructive"}`}>{strategy.dcaConfig.side.toUpperCase()}</div></div>
-            <div><div className="text-xs text-muted-foreground">Order</div><div className="font-mono text-xs capitalize">{strategy.dcaConfig.orderType}</div></div>
+            <div><div className="text-xs text-muted-foreground">Order</div><div className="font-mono text-xs">{formatOrderType(strategy.dcaConfig.orderType)}</div></div>
           </div>
         )}
         {strategy.type === "grid" && strategy.gridConfig && (
@@ -908,8 +1292,8 @@ function EthStrategyCard({
             <div><div className="text-xs text-muted-foreground">Rentang</div><div className="font-mono text-xs">${strategy.gridConfig.lowerPrice}–${strategy.gridConfig.upperPrice}</div></div>
             <div><div className="text-xs text-muted-foreground">Level</div><div className="font-mono">{strategy.gridConfig.gridLevels}</div></div>
             <div><div className="text-xs text-muted-foreground">Per Grid</div><div className="font-mono">${strategy.gridConfig.amountPerGrid}</div></div>
-            <div><div className="text-xs text-muted-foreground">Mode</div><div className="font-mono capitalize">{strategy.gridConfig.mode}</div></div>
-            {strategy.gridConfig.orderType && <div><div className="text-xs text-muted-foreground">Order</div><div className="font-mono text-xs capitalize">{strategy.gridConfig.orderType}</div></div>}
+            <div><div className="text-xs text-muted-foreground">Mode</div><div className="font-mono">{formatOrderType(strategy.gridConfig.mode)}</div></div>
+            {strategy.gridConfig.orderType && <div><div className="text-xs text-muted-foreground">Order</div><div className="font-mono text-xs">{formatOrderType(strategy.gridConfig.orderType)}</div></div>}
             {strategy.gridConfig.stopLoss && <div><div className="text-xs text-muted-foreground">Stop Loss</div><div className="font-mono text-destructive">${strategy.gridConfig.stopLoss}</div></div>}
             {strategy.gridConfig.takeProfit && <div><div className="text-xs text-muted-foreground">Take Profit</div><div className="font-mono text-success">${strategy.gridConfig.takeProfit}</div></div>}
           </div>
@@ -958,6 +1342,10 @@ function EthStrategyCard({
         <Button variant="ghost" size="sm" onClick={onShowLog} title="Lihat Log"
           className="hover:bg-purple-500/10 hover:text-purple-400">
           <ScrollText className="w-4 h-4" />
+        </Button>
+        <Button variant="ghost" size="sm" onClick={onEdit} title="Edit Strategi"
+          className="hover:bg-blue-500/10 hover:text-blue-400">
+          <Pencil className="w-4 h-4" />
         </Button>
         <Button variant="ghost" size="sm" onClick={onDelete} disabled={strategy.isRunning || isBusy} className="ml-auto text-destructive hover:text-destructive">
           <Trash2 className="w-4 h-4" />
@@ -1042,6 +1430,7 @@ export default function EtherealStrategies() {
   const [showConfig, setShowConfig] = useState(false);
   const [logDialogId, setLogDialogId] = useState<number | null>(null);
   const [deleteConfirmId, setDeleteConfirmId] = useState<number | null>(null);
+  const [editStrategy, setEditStrategy] = useState<EthStrategy | null>(null);
 
   const loadAll = useCallback(async () => {
     try {
@@ -1212,6 +1601,7 @@ export default function EtherealStrategies() {
               onToggle={() => toggleBot(s)}
               onDelete={() => setDeleteConfirmId(s.id)}
               onShowLog={() => setLogDialogId(s.id)}
+              onEdit={() => setEditStrategy(s)}
             />
           ))}
         </div>
@@ -1223,6 +1613,12 @@ export default function EtherealStrategies() {
         onClose={() => setShowCreate(false)}
         onCreated={loadAll}
         markets={markets}
+      />
+
+      <EthEditModal
+        strategy={editStrategy}
+        onClose={() => setEditStrategy(null)}
+        onSaved={loadAll}
       />
 
       <EthConfigModal
