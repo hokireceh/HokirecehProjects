@@ -1,7 +1,7 @@
 # Bug & Technical Debt Tracker
 
 > Last updated: 2026-04-05
-> Status: 2 bug kritis Ethereal ditemukan dan di-fix pada 2026-04-05.
+> Status: 2 bug kritis Ethereal di-fix (2026-04-05). BUG-ETH-005 + 3 DESIGN issues (DESIGN-002, 004, 005) di-fix di sesi yang sama.
 
 ---
 
@@ -380,6 +380,36 @@ Keduanya harus difix agar bug tidak muncul lagi:
 
 ---
 
+## [BUG-ETH-005] Settings Ethereal — Subaccount ID Tidak Sync + Tombol Reset Tidak Ada di Semua DEX
+
+**Status:** ✅ Fixed (2026-04-05)  
+**Severity:** MEDIUM — UX rusak: field tidak update setelah save; user tidak bisa clear credentials  
+**File:** `artifacts/HK-Projects/src/pages/Settings.tsx`, `artifacts/api-server/src/routes/configService.ts`, `artifacts/api-server/src/routes/lighter/bot.ts`, `artifacts/api-server/src/routes/extended/bot.ts`
+
+**Masalah (3 lapisan):**
+
+**1 — Subaccount ID tidak update setelah save (frontend)**  
+Setelah `handleSave` Ethereal berhasil, `setCreds(updated)` dipanggil tapi `setSubaccountId(updated.subaccountId)` tidak dipanggil. Field Subaccount ID tetap menampilkan nilai lama meski backend sudah menyimpan nilai baru yang di-auto-fetch dari API.
+
+**2 — Tombol "Ambil Otomatis" Subaccount ID membingungkan (frontend)**  
+Terdapat tombol "Ambil Otomatis" + state `fetchingSubId` + fungsi `handleFetchSubaccountId` yang membuat flow dua langkah padahal backend sudah auto-fetch Subaccount ID setiap kali Private Key disimpan (via `PUT /api/ethereal/strategies/credentials`). Tombol dan instruksinya menyesatkan user.
+
+**3 — Tombol Reset tidak ada di Lighter dan Extended (frontend + backend)**  
+Hanya Ethereal yang punya endpoint `DELETE /credentials`. Lighter dan Extended tidak punya endpoint maupun tombol Reset untuk menghapus credentials dari server.
+
+**Fix yang diapply:**
+
+| Fix | File | Perubahan |
+|-----|------|-----------|
+| FIX-1 | `Settings.tsx` — `handleSave` Ethereal | Tambah `setSubaccountId(updated.subaccountId ?? "")` setelah `setCreds(updated)` |
+| FIX-2 | `Settings.tsx` — EtherealConfigSection | Hapus state `fetchingSubId`, fungsi `handleFetchSubaccountId`, tombol "Ambil Otomatis", import `RefreshCw`, dan teks instruksi yang menyesatkan. Deskripsi diganti: "Diambil otomatis saat menyimpan Private Key." |
+| FIX-3a | `configService.ts` | Tambah `deleteExtendedCredentials()` dan `deleteLighterCredentials()` |
+| FIX-3b | `lighter/bot.ts` | Tambah route `DELETE /api/bot/credentials` |
+| FIX-3c | `extended/bot.ts` | Tambah route `DELETE /api/extended/strategies/credentials` |
+| FIX-3d | `Settings.tsx` | Tambah tombol Reset + AlertDialog konfirmasi di ketiga section: Lighter (kiri bawah card), Extended (kiri bawah card), Ethereal (kiri tombol Simpan Ethereal) |
+
+---
+
 ## [DESIGN-001] Lighter: Account Index Tidak Ada Tombol Deteksi Otomatis yang Eksplisit
 
 **Severity:** LOW — UI consistency  
@@ -492,6 +522,7 @@ Subaccount ID ditampilkan sebagai read-only display (bukan `<Input>`): tampilkan
 | BUG-ETH-002 | ✅ Fixed (2026-04-05) | KRITIS |
 | BUG-ETH-003 | ✅ Fixed (2026-04-05) | MEDIUM |
 | BUG-ETH-004 | ✅ Fixed (2026-04-05) — Fix A | HIGH |
+| BUG-ETH-005 | ✅ Fixed (2026-04-05) | MEDIUM |
 | DESIGN-001 | ⏳ Open | LOW |
 | DESIGN-002 | ✅ Fixed (2026-04-05) | LOW |
 | DESIGN-003 | ⏳ Open | LOW |
