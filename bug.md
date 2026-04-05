@@ -100,55 +100,59 @@ accountDetails.l2Key ?? (accountDetails as any).starkKey ?? (accountDetails as a
 
 ---
 
-## [TODO-001] Ethereal Testnet — `verifyingContract` Belum Dikonfirmasi
+## [TODO-001] ~~Ethereal Testnet — `verifyingContract` Belum Dikonfirmasi~~ — N/A
 
+**Status:** N/A — testnet tidak dipakai  
 **Severity:** LOW (testnet only, tidak mempengaruhi mainnet)  
 **File:** `artifacts/api-server/src/lib/ethereal/etherealSigner.ts` baris 27-29
 
 **Masalah:**  
 Address `verifyingContract` untuk EIP-712 domain di testnet masih hardcoded `0x000...000`. Signing testnet akan menghasilkan signature yang invalid.
 
-**Action item:**  
-Fetch dari `GET https://api.etherealtest.net/v1/rpc/config` sebelum aktifkan testnet. Lihat scratchpad untuk detail.
+**Resolution:**  
+Testnet tidak digunakan — item ini tidak relevan dan tidak perlu di-fix.
 
 ---
 
-## [TODO-002] Ethereal MARKET Order — `price` di EIP-712 Belum Dikonfirmasi
+## [TODO-002] ~~Ethereal MARKET Order — `price` di EIP-712 Belum Dikonfirmasi~~ — RESOLVED
 
+**Status:** ✅ RESOLVED — `price = 0n` dikonfirmasi dari OpenAPI spec  
 **Severity:** MEDIUM (bisa mempengaruhi mainnet jika market order dipakai)  
 **File:** `artifacts/api-server/src/lib/ethereal/etherealSigner.ts` baris 39-45
 
 **Masalah:**  
 Untuk MARKET order, nilai `price` yang dimasukkan ke EIP-712 belum dikonfirmasi dari docs resmi. Saat ini pakai slippage price sebagai workaround.
 
-**Action item:**  
-Konfirmasi dari Ethereal docs atau support — apakah market order butuh `price = 0`, `price = slippage`, atau tidak perlu field price sama sekali.
+**Resolution:**  
+`price = 0n` dikonfirmasi dari OpenAPI spec Ethereal — implementasi saat ini sudah benar.
 
 ---
 
-## [TODO-003] Ethereal CancelOrder — EIP-712 Format Belum Dikonfirmasi
+## [TODO-003] ~~Ethereal CancelOrder — EIP-712 Format Belum Dikonfirmasi~~ — RESOLVED
 
+**Status:** ✅ RESOLVED — `uuidToBytes32()` sudah diimplementasi  
 **Severity:** MEDIUM — Cancel order bisa broken  
 **File:** `artifacts/api-server/src/lib/ethereal/etherealApi.ts` baris 258-260, 443-444
 
 **Masalah:**  
 EIP-712 untuk CancelOrder memiliki tipe `orderIds: bytes32[]` tapi REST body menerima UUID strings. Format konversi yang tepat belum dikonfirmasi.
 
-**Action item:**  
-Test cancel order di testnet dan verifikasi apakah UUID perlu di-encode ke bytes32 sebelum signing.
+**Resolution:**  
+`uuidToBytes32()` sudah diimplementasi dan dipakai — konversi UUID → bytes32 untuk signing sudah benar.
 
 ---
 
-## [TODO-004] Ethereal WebSocket Testnet — URL Tidak Terdokumentasi
+## [TODO-004] ~~Ethereal WebSocket Testnet — URL Tidak Terdokumentasi~~ — N/A
 
+**Status:** N/A — testnet tidak dipakai  
 **Severity:** LOW (testnet only)  
 **File:** `artifacts/api-server/src/lib/ethereal/etherealWs.ts` baris 10
 
 **Masalah:**  
 URL WebSocket untuk testnet Ethereal belum terdokumentasi di referensi yang tersedia. Koneksi testnet WS tidak bisa dibuat.
 
-**Action item:**  
-Cek Ethereal Discord/GitHub atau tanya support untuk URL WS testnet.
+**Resolution:**  
+Testnet tidak digunakan — item ini tidak relevan dan tidak perlu di-fix.
 
 ---
 
@@ -174,7 +178,7 @@ Berikut `as any` yang sudah dikonfirmasi memang diperlukan dan tidak berbahaya:
 | BUG-001 | ✅ Fixed (2026-04-04) | HIGH |
 | BUG-002 | ✅ Fixed (2026-04-04) | MEDIUM |
 | BUG-003 | ✅ Fixed (2026-04-04) | MEDIUM |
-| TODO-001 | ⏳ Belum | LOW |
-| TODO-002 | ⏳ Belum | MEDIUM |
-| TODO-003 | ⏳ Belum | MEDIUM |
-| TODO-004 | ⏳ Belum | LOW |
+| TODO-001 | N/A — testnet tidak dipakai | LOW |
+| TODO-002 | ✅ Resolved — `price=0n` dari OpenAPI spec | MEDIUM |
+| TODO-003 | ✅ Resolved — `uuidToBytes32()` implemented | MEDIUM |
+| TODO-004 | N/A — testnet tidak dipakai | LOW |
