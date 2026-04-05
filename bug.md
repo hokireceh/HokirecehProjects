@@ -380,6 +380,102 @@ Keduanya harus difix agar bug tidak muncul lagi:
 
 ---
 
+## [DESIGN-001] Lighter: Account Index Tidak Ada Tombol Deteksi Otomatis yang Eksplisit
+
+**Severity:** LOW — UI consistency  
+**File:** `artifacts/HK-Projects/src/pages/Settings.tsx`
+
+**Baris relevan:**
+- Baris 662–682: `handleLookupAccount` — fungsi yang memanggil API lookup via `GET /api/config/lookup-account?l1Address=...` dan mengisi `accountIndex` via `form.setValue`
+- Baris 805–815: Tombol Search (ikon `<Search>`) di sebelah field L1 Address yang memanggil `handleLookupAccount`
+- Baris 817: Teks bantuan `"Klik ikon cari untuk deteksi otomatis Account Index kamu."` — tersembunyi di bawah field L1 Address
+- Baris 820–831: Field Account Index — plain `<Input>` tanpa tombol auto-derive di sampingnya
+
+**Masalah:**  
+Mekanisme auto-deteksi Account Index sudah ada (via Search icon di L1 Address), tetapi UX-nya tidak eksplisit dan tidak konsisten dengan pola Ethereal. Tombol hanya berupa ikon kaca pembesar kecil tanpa label teks, dan posisinya di field L1 Address — bukan di field Account Index yang merupakan target hasilnya. Field Account Index sendiri tidak memiliki tombol deteksi yang berdampingan langsung.
+
+**Yang seharusnya terjadi:**  
+Tombol deteksi otomatis berlabel eksplisit (mis. "Deteksi Otomatis") berada di field Account Index, atau paling tidak ada feedback visual yang jelas (mis. badge "Terdeteksi dari L1 Address") di bawah field Account Index setelah lookup berhasil. Pola ini seharusnya konsisten dengan cara Ethereal auto-fetch Subaccount ID dari Private Key.
+
+---
+
+## [DESIGN-002] Lighter: Header Section Tidak Punya Logo DEX dan Nama DEX Eksplisit
+
+**Severity:** LOW — UI consistency  
+**File:** `artifacts/HK-Projects/src/pages/Settings.tsx`
+
+**Baris relevan:**
+- Baris 768–774: CardTitle Lighter — menggunakan `<KeyRound>` icon + teks `"Kredensial API"` (generik)
+- Baris 884–886: CardTitle Telegram — menggunakan `<Bell>` icon + `"Notifikasi Telegram"`
+- Baris 164–172 (ExtendedConfigSection): CardTitle Extended — `<ExchangeLogo exchange="extended">` + `"Kredensial Extended DEX"`
+- Baris 434–441 (EtherealConfigSection): CardTitle Ethereal — `<ExchangeLogo exchange="ethereal">` + `"Kredensial Ethereal DEX"`
+
+**Masalah:**  
+Section Lighter menggunakan judul generik `"Kredensial API"` dengan ikon `<KeyRound>` biasa. Extended dan Ethereal masing-masing menampilkan logo DEX (`<ExchangeLogo>`) beserta nama DEX yang eksplisit di judul (`"Kredensial Extended DEX"`, `"Kredensial Ethereal DEX"`). Lighter tidak menyebut nama "Lighter" sama sekali di header section credentials-nya.
+
+**Yang seharusnya terjadi:**  
+Header section Lighter seharusnya: `<ExchangeLogo exchange="lighter">` + `"Kredensial Lighter DEX"` — konsisten dengan Extended dan Ethereal.
+
+---
+
+## [DESIGN-003] Lighter: Tidak Ada Badge Status Credential
+
+**Severity:** LOW — UI consistency  
+**File:** `artifacts/HK-Projects/src/pages/Settings.tsx`
+
+**Baris relevan:**
+- Baris 778–785: Lighter hanya punya banner kondisional `"Brankas Aman"` saat `config?.hasPrivateKey === true` — tidak ada badge chip status
+- Baris 180–196 (ExtendedConfigSection): Extended punya badge chip: `"API Key belum diset"`, `"Stark Private Key belum diset"`, `"Account ID belum diset"` — selalu ditampilkan, berubah warna hijau saat field sudah diset
+- Baris 451–466 (EtherealConfigSection): Ethereal punya badge chip: `"Private Key belum diset"`, `"Subaccount ID belum diset"` — selalu ditampilkan, berubah warna hijau saat sudah diset
+
+**Masalah:**  
+Lighter tidak memiliki badge status credential di bagian atas form. Extended dan Ethereal menampilkan badge per-field yang selalu visible, sehingga user bisa langsung melihat status credential apa saja yang sudah diset tanpa harus scroll atau mengisi form. Lighter hanya menampilkan banner "Brankas Aman" (hanya muncul jika `hasPrivateKey = true`) yang tidak memberi informasi lengkap tentang status tiap field.
+
+**Yang seharusnya terjadi:**  
+Badge status untuk: `"L1 Address"`, `"Account Index"`, `"API Key Index"`, `"Private Key"` — ditampilkan selalu di atas form credentials Lighter, dengan warna hijau jika sudah diset dan abu-abu jika belum.
+
+---
+
+## [DESIGN-004] Tombol Simpan Tidak Konsisten Antar DEX Section
+
+**Severity:** LOW — UI consistency  
+**File:** `artifacts/HK-Projects/src/pages/Settings.tsx`
+
+**Baris relevan:**
+- Baris 526–534: Ethereal punya tombol `"Simpan Ethereal"` sendiri di dalam card — `type="button"`, memanggil `handleSave()` langsung
+- Baris 653–660: `onSubmit` (form submit handler) — memanggil `updateMutation.mutate()` untuk Lighter config + `extendedRef.current?.save()` + `etherealRef.current?.save()` (artinya Ethereal disimpan dua kali jika user klik Simpan Konfigurasi setelah sudah Simpan Ethereal)
+- Baris 964–974: Tombol `"Simpan Konfigurasi"` (`type="submit"`) di bawah halaman — menyimpan Lighter + Extended + memanggil ulang `etherealRef.current?.save()`
+- Baris 164–396 (ExtendedConfigSection): Extended tidak punya tombol Simpan sendiri — disimpan via `extendedRef.current?.save()` dari `onSubmit`
+
+**Masalah:**  
+Tiga DEX memiliki pola save yang berbeda-beda:
+- **Ethereal**: punya tombol Simpan sendiri di dalam card + ikut tersimpan via "Simpan Konfigurasi" (double-save berpotensi)
+- **Extended**: tidak punya tombol Simpan sendiri — hanya bisa disimpan via "Simpan Konfigurasi" di bawah halaman
+- **Lighter**: tidak punya tombol Simpan sendiri — hanya bisa disimpan via "Simpan Konfigurasi" di bawah halaman
+
+**Yang seharusnya terjadi:**  
+Semua tiga DEX section seharusnya konsisten: masing-masing punya tombol Simpan sendiri di dalam card-nya, atau semuanya bergantung pada satu tombol global "Simpan Konfigurasi". Pola Ethereal (tombol sendiri) lebih baik dari UX standpoint karena user bisa menyimpan credentials tanpa menyentuh settings lain.
+
+---
+
+## [DESIGN-005] Subaccount ID Ethereal Adalah Input Field — Seharusnya Read-Only Display
+
+**Severity:** LOW — UI consistency  
+**File:** `artifacts/HK-Projects/src/pages/Settings.tsx`
+
+**Baris relevan:**
+- Baris 499–513: Field Subaccount ID Ethereal — `<Input type="text">` dengan `onChange={e => setSubaccountId(e.target.value)}` dan placeholder `"xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"`, dengan teks bantuan `"Diambil otomatis saat menyimpan Private Key. Isi manual jika ingin mengganti."`
+- Baris 370–394 (handleSave): saat save, `subaccountId` dari state dikirim ke backend — jika user mengetik nilai sembarang, nilai tersebut akan dikirim dan menimpa hasil auto-fetch
+- Baris 362–368 (handleSave → response): setelah save, backend mengembalikan `updated.subaccountId` yang di-set kembali ke state via `setSubaccountId(updated.subaccountId ?? "")`
+
+**Masalah:**  
+Subaccount ID adalah nilai yang seharusnya **hanya** datang dari API Ethereal (auto-derive dari Private Key). Field ini bisa diedit bebas oleh user, membuka risiko user memasukkan Subaccount ID yang salah. Teks bantuan menyebut "Isi manual jika ingin mengganti" — tapi mengganti Subaccount ID secara manual akan menyebabkan mismatch dengan akun Ethereal yang terdaftar.
+
+**Yang seharusnya terjadi:**  
+Subaccount ID ditampilkan sebagai read-only display (bukan `<Input>`): tampilkan nilai yang sudah tersimpan sebagai teks monospace, atau placeholder `"Belum diset — akan diambil otomatis saat menyimpan Private Key"` jika belum ada. Jika memang ingin bisa override manual, berikan warning eksplisit bahwa perubahan manual bisa menyebabkan signing error.
+
+---
+
 ## Status Fix
 
 | ID | Status | Priority |
@@ -396,3 +492,8 @@ Keduanya harus difix agar bug tidak muncul lagi:
 | BUG-ETH-002 | ✅ Fixed (2026-04-05) | KRITIS |
 | BUG-ETH-003 | ✅ Fixed (2026-04-05) | MEDIUM |
 | BUG-ETH-004 | ✅ Fixed (2026-04-05) — Fix A | HIGH |
+| DESIGN-001 | ⏳ Open | LOW |
+| DESIGN-002 | ⏳ Open | LOW |
+| DESIGN-003 | ⏳ Open | LOW |
+| DESIGN-004 | ⏳ Open | LOW |
+| DESIGN-005 | ⏳ Open | LOW |
