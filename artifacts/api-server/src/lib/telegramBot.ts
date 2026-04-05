@@ -544,6 +544,8 @@ export function startTelegramBot() {
         const { startBot } = await import("./lighter/lighterBotEngine");
         await startBot(strategyId);
       }
+      // IMPROVE-001 + IMPROVE-002: Edit/hapus pesan pause & unpin — silent jika gagal
+      await clearPauseNotification(strategyId);
       await ctx.reply(`▶️ *Bot Dimulai Kembali*\nStrategy: *${strat.name}*`, { parse_mode: "Markdown" });
     } catch (err: any) {
       logger.error({ err, strategyId }, "[TelegramBot] Gagal restart bot dari tombol pause");

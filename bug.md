@@ -892,30 +892,37 @@ Perlu ditest apakah fitur kirim pesan Telegram ke semua user berfungsi dengan be
 
 ## [IMPROVE-001] Pesan Pause Telegram Tidak Terhapus Saat Bot Start Kembali
 
-**Status:** ⏳ Belum diimplementasi  
+**Status:** ✅ Implemented (2026-04-05)  
 **Severity:** LOW (UX improvement)  
 **File:** `artifacts/api-server/src/lib/telegramBot.ts`
 
 **Gejala:**  
 Pesan "Bot Di-Pause" di Telegram tetap ada setelah user start bot manual dari dashboard. Idealnya pesan dihapus atau diupdate menjadi "Bot sudah aktif kembali" saat bot di-start ulang, supaya tidak membingungkan user.
 
-**Catatan:** Berlaku untuk semua DEX — implementasi harus exchange-agnostic, tidak hardcode per DEX.
+**Fix:**  
+Fungsi `clearPauseNotification(strategyId)` — yang sudah tersedia — kini dipanggil dari dalam handler `bot_restart_<id>` (action callback Telegram) setelah bot engine berhasil di-start ulang. Fungsi tersebut:  
+1. Edit pesan pause menjadi `▶️ *Bot sudah aktif kembali*` (fallback delete jika gagal)  
+2. Unpin pesan pause dari chat (IMPROVE-002, lihat di bawah)  
+3. Semua error ditangkap secara silent — tidak crash jika pesan sudah dihapus user / bot tidak punya izin
+
+**Exchange-agnostic:** Mekanisme berlaku untuk Lighter, Extended, Ethereal — menggunakan `pauseMessageStore` (Map per strategyId), tidak hardcode per DEX.
 
 ---
 
 ## [IMPROVE-002] Pesan Pause Telegram Tidak Di-Pin Otomatis
 
-**Status:** ⏳ Belum diimplementasi  
+**Status:** ✅ Implemented (2026-04-05)  
 **Severity:** LOW (UX improvement)  
 **File:** `artifacts/api-server/src/lib/telegramBot.ts`
 
 **Gejala:**  
 Pesan pause tidak di-pin di chat Telegram sehingga user bisa melewatkan notifikasi penting ini, terutama jika chat aktif.
 
-**Usulan:**  
-Pin pesan pause otomatis saat dikirim, unpin saat bot start kembali.
+**Fix:**  
+- **Auto-pin saat kirim:** `pauseProxy.sendMessage()` mendeteksi pesan yang mengandung tombol `bot_restart_<id>`, menyimpan `{ chatId, messageId }` ke `pauseMessageStore`, lalu memanggil `pinChatMessage()` — silent jika bot tidak punya izin pin.  
+- **Auto-unpin saat bot start:** `clearPauseNotification()` memanggil `unpinChatMessage()` setelah edit/delete pesan — silent jika gagal.
 
-**Catatan:** Berlaku untuk semua DEX — implementasi harus exchange-agnostic, tidak hardcode per DEX.
+**Exchange-agnostic:** Berlaku untuk semua DEX via mekanisme proxy tunggal di `telegramBot.ts`, tanpa menyentuh bot engine files.
 
 ---
 
@@ -1033,6 +1040,6 @@ Monitor live trading Ethereal Grid 24-48 jam setelah fix BUG-AI-001 — pastikan
 | BUG-ADMIN-002 | ✅ Fixed (2026-04-05) | HIGH |
 | IMPROVE-ADMIN-001 | ✅ Implemented (2026-04-05) | MEDIUM |
 | IMPROVE-ADMIN-002 | ⏳ Perlu ditest | LOW |
-| IMPROVE-001 | ⏳ Belum diimplementasi | LOW |
-| IMPROVE-002 | ⏳ Belum diimplementasi | LOW |
+| IMPROVE-001 | ✅ Implemented (2026-04-05) | LOW |
+| IMPROVE-002 | ✅ Implemented (2026-04-05) | LOW |
 | IMPROVE-ETH-001 | ⏳ Perlu divalidasi (prompt sudah diupdate) | LOW |
