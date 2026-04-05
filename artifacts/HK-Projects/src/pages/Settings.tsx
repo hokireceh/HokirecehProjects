@@ -787,7 +787,19 @@ export default function Settings() {
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
-              
+
+              <div className="flex flex-wrap gap-3 mb-2">
+                {[
+                  { label: "Private Key", ok: !!config?.hasPrivateKey },
+                  { label: "Account Index", ok: config?.accountIndex != null },
+                ].map(({ label, ok }) => (
+                  <div key={label} className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium border ${ok ? "bg-green-500/10 border-green-500/30 text-green-400" : "bg-muted/50 border-border text-muted-foreground"}`}>
+                    {ok ? <CheckCircle2 className="w-3 h-3" /> : <Zap className="w-3 h-3 opacity-50" />}
+                    {label} {ok ? "✓" : "belum diset"}
+                  </div>
+                ))}
+              </div>
+
               {config?.hasPrivateKey && (
                 <div className="bg-success/10 border border-success/30 text-success px-4 py-3 rounded-lg flex items-center gap-3 text-sm">
                   <ShieldAlert className="w-5 h-5" />

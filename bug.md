@@ -1,7 +1,7 @@
 # Bug & Technical Debt Tracker
 
 > Last updated: 2026-04-05
-> Status: 2 bug kritis Ethereal di-fix (2026-04-05). BUG-ETH-005 + 3 DESIGN issues (DESIGN-002, 004, 005) di-fix di sesi yang sama.
+> Status: 2 bug kritis Ethereal di-fix (2026-04-05). BUG-ETH-005 + 3 DESIGN issues (DESIGN-002, 004, 005) di-fix di sesi yang sama. DESIGN-003 di-fix di sesi selanjutnya (badge status Lighter).
 
 ---
 
@@ -450,6 +450,7 @@ Header section Lighter seharusnya: `<ExchangeLogo exchange="lighter">` + `"Krede
 
 ## [DESIGN-003] Lighter: Tidak Ada Badge Status Credential
 
+**Status:** ✅ Fixed (2026-04-05)  
 **Severity:** LOW — UI consistency  
 **File:** `artifacts/HK-Projects/src/pages/Settings.tsx`
 
@@ -461,8 +462,22 @@ Header section Lighter seharusnya: `<ExchangeLogo exchange="lighter">` + `"Krede
 **Masalah:**  
 Lighter tidak memiliki badge status credential di bagian atas form. Extended dan Ethereal menampilkan badge per-field yang selalu visible, sehingga user bisa langsung melihat status credential apa saja yang sudah diset tanpa harus scroll atau mengisi form. Lighter hanya menampilkan banner "Brankas Aman" (hanya muncul jika `hasPrivateKey = true`) yang tidak memberi informasi lengkap tentang status tiap field.
 
-**Yang seharusnya terjadi:**  
-Badge status untuk: `"L1 Address"`, `"Account Index"`, `"API Key Index"`, `"Private Key"` — ditampilkan selalu di atas form credentials Lighter, dengan warna hijau jika sudah diset dan abu-abu jika belum.
+**Fix yang diapply:**  
+Tambah blok badge di `<CardContent>` Lighter, tepat sebelum banner "Brankas Aman":
+```tsx
+<div className="flex flex-wrap gap-3 mb-2">
+  {[
+    { label: "Private Key", ok: !!config?.hasPrivateKey },
+    { label: "Account Index", ok: config?.accountIndex != null },
+  ].map(({ label, ok }) => (
+    <div key={label} className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium border ${ok ? "bg-green-500/10 border-green-500/30 text-green-400" : "bg-muted/50 border-border text-muted-foreground"}`}>
+      {ok ? <CheckCircle2 className="w-3 h-3" /> : <Zap className="w-3 h-3 opacity-50" />}
+      {label} {ok ? "✓" : "belum diset"}
+    </div>
+  ))}
+</div>
+```
+Menggunakan `config?.hasPrivateKey` dan `config?.accountIndex` dari `useGetBotConfig()` yang sudah ada — tidak ada perubahan backend.
 
 ---
 
@@ -525,6 +540,6 @@ Subaccount ID ditampilkan sebagai read-only display (bukan `<Input>`): tampilkan
 | BUG-ETH-005 | ✅ Fixed (2026-04-05) | MEDIUM |
 | DESIGN-001 | ⏳ Open | LOW |
 | DESIGN-002 | ✅ Fixed (2026-04-05) | LOW |
-| DESIGN-003 | ⏳ Open | LOW |
+| DESIGN-003 | ✅ Fixed (2026-04-05) | LOW |
 | DESIGN-004 | ✅ Fixed (2026-04-05) | LOW |
 | DESIGN-005 | ✅ Fixed (2026-04-05) | LOW |
