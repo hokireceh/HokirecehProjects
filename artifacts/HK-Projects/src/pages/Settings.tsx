@@ -839,20 +839,31 @@ export default function Settings() {
                       <Search className="w-4 h-4" />
                     </Button>
                   </div>
-                  <p className="text-xs text-muted-foreground">Klik ikon cari untuk deteksi otomatis Account Index kamu.</p>
+                  <p className="text-xs text-muted-foreground">Isi L1 Address, lalu klik "Deteksi Otomatis" di field Account Index.</p>
                 </div>
 
                 <div className="space-y-2">
                   <Label>Account Index</Label>
-                  <div className="relative">
-                    <Input type="number" {...form.register("accountIndex")} placeholder="mis. 720746" className="bg-background font-mono" />
-                    {detectedBalance !== null && (
-                      <div className="flex items-center gap-1 text-xs text-success mt-1">
-                        <CheckCircle2 className="w-3 h-3" />
-                        Terdeteksi — Saldo: {parseFloat(detectedBalance).toFixed(4)} USDC
-                      </div>
-                    )}
+                  <div className="flex gap-2">
+                    <Input type="number" {...form.register("accountIndex")} placeholder="mis. 720746" className="bg-background font-mono flex-1" />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={handleLookupAccount}
+                      disabled={isLookingUp}
+                      className="shrink-0 gap-1.5"
+                    >
+                      {isLookingUp ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
+                      Deteksi Otomatis
+                    </Button>
                   </div>
+                  {detectedBalance !== null && (
+                    <div className="flex items-center gap-1 text-xs text-success">
+                      <CheckCircle2 className="w-3 h-3" />
+                      Terdeteksi — Saldo: {parseFloat(detectedBalance).toFixed(4)} USDC
+                    </div>
+                  )}
                 </div>
 
                 <div className="space-y-2">

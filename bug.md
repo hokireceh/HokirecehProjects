@@ -1,7 +1,7 @@
 # Bug & Technical Debt Tracker
 
 > Last updated: 2026-04-05
-> Status: 2 bug kritis Ethereal di-fix (2026-04-05). BUG-ETH-005 + 3 DESIGN issues (DESIGN-002, 004, 005) di-fix di sesi yang sama. DESIGN-003 di-fix di sesi selanjutnya (badge status Lighter).
+> Status: 2 bug kritis Ethereal di-fix (2026-04-05). BUG-ETH-005 + 3 DESIGN issues (DESIGN-002, 004, 005) di-fix di sesi yang sama. DESIGN-003 + DESIGN-001 di-fix di sesi selanjutnya.
 
 ---
 
@@ -412,6 +412,7 @@ Hanya Ethereal yang punya endpoint `DELETE /credentials`. Lighter dan Extended t
 
 ## [DESIGN-001] Lighter: Account Index Tidak Ada Tombol Deteksi Otomatis yang Eksplisit
 
+**Status:** ✅ Fixed (2026-04-05)  
 **Severity:** LOW — UI consistency  
 **File:** `artifacts/HK-Projects/src/pages/Settings.tsx`
 
@@ -424,8 +425,11 @@ Hanya Ethereal yang punya endpoint `DELETE /credentials`. Lighter dan Extended t
 **Masalah:**  
 Mekanisme auto-deteksi Account Index sudah ada (via Search icon di L1 Address), tetapi UX-nya tidak eksplisit dan tidak konsisten dengan pola Ethereal. Tombol hanya berupa ikon kaca pembesar kecil tanpa label teks, dan posisinya di field L1 Address — bukan di field Account Index yang merupakan target hasilnya. Field Account Index sendiri tidak memiliki tombol deteksi yang berdampingan langsung.
 
-**Yang seharusnya terjadi:**  
-Tombol deteksi otomatis berlabel eksplisit (mis. "Deteksi Otomatis") berada di field Account Index, atau paling tidak ada feedback visual yang jelas (mis. badge "Terdeteksi dari L1 Address") di bawah field Account Index setelah lookup berhasil. Pola ini seharusnya konsisten dengan cara Ethereal auto-fetch Subaccount ID dari Private Key.
+**Fix yang diapply:**  
+1. Field Account Index diubah dari plain `<Input>` menjadi `flex gap-2` row dengan tombol `"Deteksi Otomatis"` berlabel eksplisit di sampingnya. Tombol memanggil `handleLookupAccount` yang sudah ada, menampilkan spinner `Loader2` saat `isLookingUp`, menggunakan ikon `Search` saat idle — konsisten dengan Search icon di L1 Address.
+2. Helper text L1 Address diperbarui dari `"Klik ikon cari untuk deteksi otomatis Account Index kamu."` → `"Isi L1 Address, lalu klik "Deteksi Otomatis" di field Account Index."` agar user diarahkan ke tombol yang baru.
+3. Search icon di L1 Address dipertahankan sebagai shortcut tambahan — tidak ada perubahan di sana.
+4. Tidak ada import baru — `Search` dan `Loader2` sudah ada.
 
 ---
 
@@ -538,7 +542,7 @@ Subaccount ID ditampilkan sebagai read-only display (bukan `<Input>`): tampilkan
 | BUG-ETH-003 | ✅ Fixed (2026-04-05) | MEDIUM |
 | BUG-ETH-004 | ✅ Fixed (2026-04-05) — Fix A | HIGH |
 | BUG-ETH-005 | ✅ Fixed (2026-04-05) | MEDIUM |
-| DESIGN-001 | ⏳ Open | LOW |
+| DESIGN-001 | ✅ Fixed (2026-04-05) | LOW |
 | DESIGN-002 | ✅ Fixed (2026-04-05) | LOW |
 | DESIGN-003 | ✅ Fixed (2026-04-05) | LOW |
 | DESIGN-004 | ✅ Fixed (2026-04-05) | LOW |
