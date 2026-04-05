@@ -307,7 +307,7 @@ const ExtendedConfigSection = forwardRef<{ save: () => Promise<void> }>(function
           </>
         )}
         {!loading && (
-          <div className="flex justify-start pt-2">
+          <div className="flex items-center justify-between pt-2">
             <Button
               type="button"
               variant="ghost"
@@ -317,6 +317,15 @@ const ExtendedConfigSection = forwardRef<{ save: () => Promise<void> }>(function
             >
               {resetting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
               Reset Extended
+            </Button>
+            <Button
+              type="button"
+              onClick={handleSave}
+              disabled={saving}
+              className="gap-2"
+            >
+              {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+              Simpan Extended
             </Button>
           </div>
         )}
@@ -654,9 +663,14 @@ export default function Settings() {
     if (!payload.privateKey) delete payload.privateKey;
     if (!payload.notifyBotToken) delete payload.notifyBotToken;
     updateMutation.mutate({ data: payload });
-    extendedRef.current?.save();
-    etherealRef.current?.save();
   };
+
+  const handleSaveLighter = form.handleSubmit((data) => {
+    const payload = { ...data };
+    if (!payload.privateKey) delete payload.privateKey;
+    if (!payload.notifyBotToken) delete payload.notifyBotToken;
+    updateMutation.mutate({ data: payload });
+  });
 
   const handleLookupAccount = async () => {
     const l1Address = form.getValues("l1Address");
@@ -860,7 +874,7 @@ export default function Settings() {
                 </div>
               </div>
 
-              <div className="flex justify-start pt-2">
+              <div className="flex items-center justify-between pt-2">
                 <Button
                   type="button"
                   variant="ghost"
@@ -870,6 +884,15 @@ export default function Settings() {
                 >
                   {resettingLighter ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
                   Reset Lighter
+                </Button>
+                <Button
+                  type="button"
+                  onClick={handleSaveLighter}
+                  disabled={updateMutation.isPending}
+                  className="gap-2"
+                >
+                  {updateMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                  Simpan Lighter
                 </Button>
               </div>
             </CardContent>
@@ -969,7 +992,7 @@ export default function Settings() {
               disabled={updateMutation.isPending}
             >
               {updateMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-              {updateMutation.isPending ? "Menyimpan..." : "Simpan Konfigurasi"}
+              {updateMutation.isPending ? "Menyimpan..." : "Simpan Notifikasi"}
             </Button>
           </div>
         </form>
