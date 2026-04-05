@@ -4,6 +4,9 @@ import { usersTable, strategiesTable, pendingPaymentsTable } from "@workspace/db
 import { eq, desc } from "drizzle-orm";
 import { broadcaster, ENTITY_EXAMPLES } from "../lib/smartBroadcaster";
 import { generatePassword, addDays } from "../lib/utils";
+import { getAllRunningBots } from "../lib/lighter/lighterBotEngine";
+import { getAllRunningExtendedBots } from "../lib/extended/extendedBotEngine";
+import { getAllRunningEtherealBots } from "../lib/ethereal/etherealBotEngine";
 
 const router = Router();
 
@@ -128,9 +131,17 @@ router.get("/all-strategies", async (_req, res) => {
     const users = await db.query.usersTable.findMany();
     const userMap = new Map(users.map((u) => [u.id, u]));
 
+    const lighterRunning = new Set(getAllRunningBots().map((b) => b.strategyId));
+    const extendedRunning = new Set(getAllRunningExtendedBots().map((b) => b.strategyId));
+    const etherealRunning = new Set(getAllRunningEtherealBots().map((b) => b.strategyId));
+
     res.json({
       strategies: strategies.map((s) => {
         const user = s.userId ? userMap.get(s.userId) : null;
+        const isRunning =
+          lighterRunning.has(s.id) ||
+          extendedRunning.has(s.id) ||
+          etherealRunning.has(s.id);
         return {
           id: s.id,
           name: s.name,
@@ -138,7 +149,7 @@ router.get("/all-strategies", async (_req, res) => {
           exchange: s.exchange,
           marketSymbol: s.marketSymbol,
           isActive: s.isActive,
-          isRunning: s.isRunning,
+          isRunning,
           realizedPnl: parseFloat(s.realizedPnl ?? "0"),
           totalOrders: s.totalOrders,
           successfulOrders: s.successfulOrders,

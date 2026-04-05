@@ -713,12 +713,32 @@ Field "Admin Password" tidak memiliki ikon mata untuk show/hide password. Settin
 
 ## [BUG-ADMIN-002] Tab Monitor Tidak Sinkron dengan Data Asli
 
-**Status:** ⏳ Belum difix  
+**Status:** ✅ Fixed (2026-04-05)  
 **Severity:** HIGH  
-**File:** `artifacts/HK-Projects/src/pages/Admin.tsx`
+**File:** `artifacts/HK-Projects/src/pages/Admin.tsx`, `artifacts/api-server/src/routes/admin.ts`
 
 **Gejala:**  
 Bot Ethereal yang sedang BERJALAN tampil sebagai "Stopped" di tab Monitor. PnL dan orders menunjukkan 0/0. Data tidak real-time atau tidak di-fetch dari sumber yang benar.
+
+**Root Cause (3 lapisan):**
+
+**1 — Backend: `isRunning` dibaca dari DB, bukan in-memory state (penyebab utama)**  
+Endpoint `GET /api/admin/all-strategies` mengembalikan `isRunning: s.isRunning` langsung dari kolom database. Sedangkan user-facing endpoints untuk Lighter, Extended, dan Ethereal **meng-overlay** nilai DB dengan in-memory state dari masing-masing bot engine (`getAllRunningBots()`, `getAllRunningExtendedBots()`, `getAllRunningEtherealBots()`). In-memory map adalah sumber kebenaran aktual — DB bisa tertinggal jika ada race condition, timing issue, atau edge case saat server restart. `admin.ts` tidak mengimpor fungsi `getAllRunning*` sehingga tidak bisa membaca in-memory state.
+
+**2 — Frontend: Tidak ada auto-polling di Admin Monitor**  
+`fetchStrategies` hanya dipanggil sekali saat login (`useEffect` dengan `[isAuthenticated]`). Data langsung basi begitu bot state berubah setelah admin membuka halaman. User-facing pages menggunakan React Query dengan `refetchInterval`.
+
+**3 — `realizedPnl` tidak pernah di-update oleh engine manapun**  
+`ethUpdateStrategyStatsAtomic` dan padanannya di Lighter/Extended hanya update `total_orders`, `successful_orders`, `total_bought/sold`, `avg_buy/sell_price` — kolom `realized_pnl` tidak disentuh. Nilai selalu 0. Berlaku untuk semua exchange.
+
+**Fix yang diapply:**
+
+| # | File | Perubahan |
+|---|------|-----------|
+| FIX-1 | `admin.ts` | Import `getAllRunningBots`, `getAllRunningExtendedBots`, `getAllRunningEtherealBots` dari ketiga engine. Build Set of running IDs, overlay `isRunning` dengan in-memory state di endpoint `all-strategies` — identik dengan pola user-facing endpoints |
+| FIX-2 | `Admin.tsx` | Tambah `useEffect` dengan `setInterval(fetchStrategies, 30_000)` — Monitor otomatis refresh setiap 30 detik selama admin terautentikasi |
+
+Circular dependency: **tidak ada** — tidak ada bot engine yang mengimpor dari `admin.ts`. Build backend + frontend keduanya sukses tanpa error.
 
 ---
 
@@ -803,7 +823,7 @@ Pin pesan pause otomatis saat dikirim, unpin saat bot start kembali.
 | BUG-ETH-010 | ✅ Fixed (2026-04-05) | HIGH |
 | BUG-AI-001 | ⏳ Belum difix | MEDIUM |
 | BUG-ADMIN-001 | ⏳ Belum difix | LOW |
-| BUG-ADMIN-002 | ⏳ Belum difix | HIGH |
+| BUG-ADMIN-002 | ✅ Fixed (2026-04-05) | HIGH |
 | IMPROVE-ADMIN-001 | ⏳ Belum diimplementasi | MEDIUM |
 | IMPROVE-ADMIN-002 | ⏳ Perlu ditest | LOW |
 | IMPROVE-001 | ⏳ Belum diimplementasi | LOW |

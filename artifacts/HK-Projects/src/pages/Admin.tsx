@@ -179,6 +179,14 @@ export default function Admin() {
     }
   }, [isAuthenticated]);
 
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    const id = setInterval(() => {
+      fetchStrategies();
+    }, 30_000);
+    return () => clearInterval(id);
+  }, [isAuthenticated, fetchStrategies]);
+
   async function addUser(e: React.FormEvent) {
     e.preventDefault();
     setAddLoading(true);
