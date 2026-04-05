@@ -493,7 +493,7 @@ Subaccount ID ditampilkan sebagai read-only display (bukan `<Input>`): tampilkan
 | BUG-ETH-003 | ✅ Fixed (2026-04-05) | MEDIUM |
 | BUG-ETH-004 | ✅ Fixed (2026-04-05) — Fix A | HIGH |
 | DESIGN-001 | ⏳ Open | LOW |
-| DESIGN-002 | ⏳ Open | LOW |
+| DESIGN-002 | ✅ Fixed (2026-04-05) | LOW |
 | DESIGN-003 | ⏳ Open | LOW |
 | DESIGN-004 | ✅ Fixed (2026-04-05) | LOW |
 | DESIGN-005 | ✅ Fixed (2026-04-05) | LOW |

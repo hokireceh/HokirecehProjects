@@ -779,8 +779,8 @@ export default function Settings() {
           <Card className="glass-panel border-border/50">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                <KeyRound className="w-5 h-5 text-primary" />
-                Kredensial API
+                <ExchangeLogo exchange="lighter" size={20} />
+                Kredensial Lighter DEX
               </CardTitle>
               <CardDescription>
                 Dapatkan dari antarmuka Lighter.xyz. Diperlukan untuk menandatangani transaksi.
