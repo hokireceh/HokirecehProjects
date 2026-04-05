@@ -496,4 +496,4 @@ Subaccount ID ditampilkan sebagai read-only display (bukan `<Input>`): tampilkan
 | DESIGN-002 | ⏳ Open | LOW |
 | DESIGN-003 | ⏳ Open | LOW |
 | DESIGN-004 | ⏳ Open | LOW |
-| DESIGN-005 | ⏳ Open | LOW |
+| DESIGN-005 | ✅ Fixed (2026-04-05) | LOW |

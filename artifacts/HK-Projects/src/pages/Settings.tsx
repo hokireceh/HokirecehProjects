@@ -500,15 +500,14 @@ const EtherealConfigSection = forwardRef<{ save: () => Promise<void> }>(function
               <Label className="flex items-center gap-1.5">
                 <Bot className="w-3.5 h-3.5 text-muted-foreground" /> Subaccount ID
               </Label>
-              <Input
-                type="text"
-                placeholder={creds.subaccountId ? "••• tersimpan — isi untuk mengganti •••" : "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"}
-                value={subaccountId}
-                onChange={e => setSubaccountId(e.target.value)}
-                className="bg-background font-mono text-sm"
-              />
+              <div className="bg-background border border-input rounded-md px-3 py-2 min-h-[2.5rem] flex items-center">
+                {subaccountId
+                  ? <span className="font-mono text-sm">{subaccountId}</span>
+                  : <span className="text-sm text-muted-foreground">Belum diset</span>
+                }
+              </div>
               <p className="text-xs text-muted-foreground">
-                Diambil otomatis saat menyimpan Private Key. Isi manual jika ingin mengganti.
+                Diambil otomatis saat menyimpan Private Key.
               </p>
             </div>
 
