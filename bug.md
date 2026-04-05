@@ -271,6 +271,115 @@ Icon `Zap` sudah di-import. Tidak ada perubahan lain yang diperlukan.
 
 ---
 
+## [BUG-ETH-004] Market Dropdown Stuck "Memuat market..." di Modal Buat Strategi
+
+**Status:** 🔍 Audit selesai — belum difix  
+**Severity:** HIGH — blocker UX: user tidak bisa buat strategi Ethereal sama sekali  
+**File:** `artifacts/HK-Projects/src/pages/EtherealStrategies.tsx` (fetch logic) + `artifacts/api-server/src/app.ts` (rate limiter)
+
+---
+
+### Temuan Audit
+
+**1. Kapan markets di-fetch?**
+
+`markets` di-fetch **saat halaman load**, bukan saat modal dibuka. Flow:
+```
+useEffect → loadAll() → Promise.all([apiFetch("/"), apiFetch("/markets")])
+                                                            ↓
+                                              setMarkets(mks ?? [])
+```
+`markets` kemudian dipass sebagai prop ke `EthCreateModal`:
+```tsx
+<EthCreateModal markets={markets} />   // EtherealStrategies.tsx baris 1221-1226
+```
+Modal tidak punya fetch sendiri. Jika `markets.length === 0`, dropdown menampilkan spinner + "Memuat market..." (baris 234–238).
+
+**Tidak ada retry**: 10-second interval hanya poll `/` (strategies), bukan `/markets`.
+
+---
+
+**2. Endpoint `/markets` — ada dan berfungsi?**
+
+✅ Endpoint ada di `artifacts/api-server/src/routes/ethereal/bot.ts` baris 89.  
+✅ Endpoint berfungsi normal — log server menunjukkan:
+```
+[EtherealMarkets] Products cached — count: 15, network: "mainnet"
+GET /api/ethereal/strategies/markets → 200 (576ms)
+```
+Ketika berhasil, endpoint mengembalikan 15 market Ethereal mainnet.
+
+---
+
+**3. Root cause: HTTP 429 dari server's own rate limiter**
+
+`app.ts` baris 64–71:
+```ts
+const apiLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,   // 15 menit
+  limit: 200,                  // 200 request per 15 menit per IP
+  ...
+});
+app.use("/api", apiLimiter);   // baris 104 — semua /api/* kena limiter ini
+```
+
+Log server **konfirmasi 429 pada saat `/markets` di-fetch saat page load**:
+```
+GET /api/ethereal/strategies/markets → 429   (req id 555, 04:31:49)
+GET /api/ethereal/strategies/credentials → 429   (req id 557, 04:31:49)
+```
+
+Limit 200 req/15min = ~13 req/menit = ~1 req/4.5 detik. Terlalu ketat karena ada **banyak polling interval aktif sekaligus** dari berbagai halaman:
+- `/api/ethereal/strategies/` — setiap 10 detik
+- `/api/ethereal/strategies/logs/recent` — setiap 5 detik
+- `/api/extended/strategies/logs/recent` — setiap 5 detik
+- `/api/bot/logs` — setiap 5 detik
+- Plus: `/api/auth/me`, `/api/config`, `/api/ethereal/strategies/account`
+
+Dalam 15 menit dengan semua halaman aktif → 200 request habis dalam beberapa menit.
+
+---
+
+**4. Root cause chain lengkap**
+
+```
+Page load
+  → loadAll()
+  → Promise.all(["/", "/markets"])
+  → /markets kena rate limit → HTTP 429 → apiFetch() throws
+  → Promise.all reject
+  → catch { // ignore }   ← ERROR DITELAN, TIDAK ADA RETRY, TIDAK ADA TOAST
+  → setMarkets([]) tidak pernah dipanggil
+  → markets tetap []
+  → modal buka → markets.length === 0 → "Memuat market..."
+  → tidak ada auto-recovery (interval hanya poll strategies)
+  → stuck selamanya sampai hard-refresh
+```
+
+---
+
+**5. Ada 2 root cause independen:**
+
+| # | Root Cause | Lokasi |
+|---|---|---|
+| A | Rate limiter terlalu ketat (200/15min) untuk app dengan banyak polling | `app.ts` baris 64 |
+| B | Error `/markets` ditelan diam-diam tanpa retry/toast/recovery | `EtherealStrategies.tsx` baris 1057 |
+
+Keduanya harus difix agar bug tidak muncul lagi:
+- Fix A saja: rate limit longgar → `/markets` berhasil saat page load → selesai untuk skenario normal
+- Fix B saja: recovery setelah 429 → tapi rate limit tetap bisa memukul endpoint lain
+- Fix A + B: solusi proper
+
+---
+
+**Opsi fix (belum diapply — menunggu konfirmasi):**
+
+- **Fix A** — Naikkan `apiLimiter.limit` dari 200 → 1000 (atau lebih) di `app.ts` (hanya 1 baris)
+- **Fix B** — Di `loadAll()`, pisahkan `/markets` dari `Promise.all`, tangkap error-nya sendiri dengan retry/toast
+- **Fix C** — Di `EthCreateModal`, jika `open=true` dan `markets.length === 0`, fetch markets langsung dari modal (tidak bergantung pada page-level state)
+
+---
+
 ## Status Fix
 
 | ID | Status | Priority |
@@ -286,3 +395,4 @@ Icon `Zap` sudah di-import. Tidak ada perubahan lain yang diperlukan.
 | BUG-ETH-001 | ✅ Fixed (2026-04-05) | KRITIS |
 | BUG-ETH-002 | ✅ Fixed (2026-04-05) | KRITIS |
 | BUG-ETH-003 | ✅ Fixed (2026-04-05) | MEDIUM |
+| BUG-ETH-004 | 🔍 Audit selesai — pending fix | HIGH |
