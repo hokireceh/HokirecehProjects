@@ -316,6 +316,114 @@ export async function clearPauseNotification(strategyId: number): Promise<void> 
   try { await (globalBotTelegram as any).unpinChatMessage(chatId, messageId); } catch (_) {}
 }
 
+// ─── Notification Template Helpers ───────────────────────────────────────────
+// Exchange-agnostic formatters — dipanggil dari semua bot engines.
+// Perubahan format cukup di sini tanpa menyentuh engine files lagi.
+
+export type DexName = "lighter" | "extended" | "ethereal";
+
+function dexLabel(dex: DexName): string {
+  if (dex === "lighter") return "⚡ Lighter";
+  if (dex === "extended") return "✳️ Extended";
+  return "🌀 Ethereal";
+}
+
+function sideEmoji(side: string): string {
+  const s = side.toLowerCase();
+  return s === "buy" || s === "long" ? "🟢" : "🔴";
+}
+
+function truncate(msg: string, max = 100): string {
+  return msg.length > max ? msg.slice(0, max - 3) + "..." : msg;
+}
+
+export function formatBotStarted(dex: DexName, name: string, type: string, market: string): string {
+  return (
+    `▶️ BOT STARTED — ${dexLabel(dex)}\n` +
+    `📌 ${name}\n` +
+    `🔄 ${type.toUpperCase()} | 📍 ${market}`
+  );
+}
+
+export function formatBotStopped(dex: DexName, name: string, market: string): string {
+  return (
+    `⛔ BOT STOPPED — ${dexLabel(dex)}\n` +
+    `📌 ${name} | 📍 ${market}`
+  );
+}
+
+export function formatBotPaused(dex: DexName, name: string, reason: string): string {
+  return (
+    `⚠️ BOT PAUSE — ${dexLabel(dex)}\n` +
+    `📌 Strategy: ${name}\n` +
+    `❓ Reason  : ${reason}`
+  );
+}
+
+export function formatOrderFilled(
+  dex: DexName,
+  side: string,
+  qty: string | number,
+  market: string,
+  avgPrice: string | number,
+  fee?: string | number | null
+): string {
+  const feeNum = fee != null ? Number(fee) : 0;
+  const feeLine = feeNum > 0 ? `\n💸 Fee  : $${feeNum.toFixed(4)}` : "";
+  const priceStr = parseFloat(String(avgPrice)).toFixed(4);
+  return (
+    `✅ ORDER FILLED — ${dexLabel(dex)}\n` +
+    `${sideEmoji(side)} ${side.toUpperCase()}  ${market}\n` +
+    `📊 Qty  : ${qty}\n` +
+    `💰 Avg  : $${priceStr}` +
+    feeLine
+  );
+}
+
+export function formatOrderFailed(dex: DexName, name: string, msg: string): string {
+  return (
+    `🚨 ERROR — ${dexLabel(dex)}\n` +
+    `📌 ${name}\n` +
+    `❌ ${truncate(msg)}`
+  );
+}
+
+export function formatStrategyError(dex: DexName, name: string, msg: string): string {
+  return (
+    `🚨 ERROR — ${dexLabel(dex)}\n` +
+    `📌 ${name}\n` +
+    `❌ ${truncate(msg)}`
+  );
+}
+
+export function formatStopLoss(
+  dex: DexName,
+  name: string,
+  market: string,
+  price: string | number,
+  slPrice: string | number
+): string {
+  return (
+    `🛑 STOP LOSS — ${dexLabel(dex)}\n` +
+    `📌 ${name} | 📍 ${market}\n` +
+    `💰 Price: $${price} | SL: $${slPrice}`
+  );
+}
+
+export function formatTakeProfit(
+  dex: DexName,
+  name: string,
+  market: string,
+  price: string | number,
+  tpPrice: string | number
+): string {
+  return (
+    `🎯 TAKE PROFIT — ${dexLabel(dex)}\n` +
+    `📌 ${name} | 📍 ${market}\n` +
+    `💰 Price: $${price} | TP: $${tpPrice}`
+  );
+}
+
 export async function sendMessageToUser(
   chatId: string,
   text: string,

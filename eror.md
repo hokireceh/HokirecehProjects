@@ -3,6 +3,9 @@
 > Dicatat: 2026-04-05  
 > File ini berisi error TypeScript pre-existing yang ditemukan saat menjalankan `pnpm run typecheck` di `artifacts/api-server`. Error ini **bukan** diintroduksi oleh perubahan terbaru — sudah ada sebelumnya di codebase.
 
+> **Run terbaru (2026-04-05 — IMPROVE-003 notification template centralization):**  
+> `pnpm run typecheck` → **✅ 0 error** — semua formatter functions di telegramBot.ts + engine imports + call site replacements typecheck clean. Tidak ada error baru ditemukan.
+
 ---
 
 ## [ERR-TS-001] TS7006 Implicit `any` — `etherealBotEngine.ts`

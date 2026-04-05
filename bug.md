@@ -1,7 +1,7 @@
 # Bug & Technical Debt Tracker
 
 > Last updated: 2026-04-05
-> Status: BUG-ETH-011 di-fix (2026-04-05) — runtime crash `strategies.find is not a function` akibat `apiFetch` fallback `{}` dan `??` bukan `Array.isArray`. BUG-ETH-008 di-fix sebelumnya — Ethereal AI sekarang pakai live price dari REST API/WS cache, bukan lastPrice=0. BUG-ETH-006 + BUG-ETH-007 di-fix sebelumnya. BUG-ETH-005 + 3 DESIGN issues di-fix di sesi yang sama. DESIGN-001 + DESIGN-003 di-fix sesi berikutnya. BUG-WS-001 (WS price parser salah field) ditemukan via debug logging dan di-fix di sesi yang sama. BUG-AI-001 dicatat (belum difix). ENH-ETH-001 (tombol AI di EthEditModal) di-fix 2026-04-05.
+> Status: IMPROVE-003 (format notifikasi Telegram terpusat) diimplementasi 2026-04-05 — semua template dipindah ke telegramBot.ts, engine files pakai formatter function. IMPROVE-001 + IMPROVE-002 (pin/unpin pesan pause + clear saat restart) diimplementasi 2026-04-05. BUG-ETH-011 di-fix sebelumnya. BUG-AI-001 dicatat (belum difix). ENH-ETH-001 di-fix 2026-04-05.
 
 ---
 
@@ -926,6 +926,51 @@ Pesan pause tidak di-pin di chat Telegram sehingga user bisa melewatkan notifika
 
 ---
 
+## [IMPROVE-003] Sentralisasi Format Notifikasi Telegram
+
+**Status:** ✅ Implemented (2026-04-05)  
+**Severity:** MEDIUM (maintainability + UX consistency)  
+**Files:** `telegramBot.ts`, `lighterBotEngine.ts`, `extendedBotEngine.ts`, `etherealBotEngine.ts`
+
+**Masalah sebelumnya:**  
+Template pesan Telegram tersebar di 3 bot engine files dengan format berbeda-beda (beberapa pakai suffix "(Extended)", beberapa pakai bahasa Indonesia, beberapa Inggris). Perubahan format harus dilakukan di 3 file sekaligus.
+
+**Fix:**  
+Dibuat 8 exported formatter functions di `telegramBot.ts`:
+- `formatBotStarted(dex, name, type, market)`
+- `formatBotStopped(dex, name, market)`
+- `formatBotPaused(dex, name, reason)`
+- `formatOrderFilled(dex, side, qty, market, avgPrice, fee?)`
+- `formatOrderFailed(dex, name, msg)`
+- `formatStrategyError(dex, name, msg)`
+- `formatStopLoss(dex, name, market, price, slPrice)`
+- `formatTakeProfit(dex, name, market, price, tpPrice)`
+
+Semua engine files diupdate untuk menggunakan fungsi-fungsi tersebut. Helper internal: `dexLabel()` (emoji + nama DEX), `sideEmoji()` (🟢/🔴), `truncate()` (max 100 char).
+
+**Format baru (contoh):**
+```
+✅ ORDER FILLED — ⚡ Lighter
+🟢 BUY  ETH-USDC
+📊 Qty  : 0.500000
+💰 Avg  : $2100.2300
+💸 Fee  : $0.0021  ← hanya tampil jika fee > 0
+
+⛔ BOT STOPPED — ✳️ Extended
+📌 My DCA Strategy | 📍 BTC-USDC
+
+🛑 STOP LOSS — 🌀 Ethereal
+📌 Grid ETH | 📍 ETH-USDC
+💰 Price: $1950.00 | SL: $2000
+```
+
+**DEX emoji:** ⚡ Lighter | ✳️ Extended | 🌀 Ethereal  
+**Side emoji:** 🟢 BUY/LONG | 🔴 SELL/SHORT  
+**Fee line:** di-skip jika `null` atau `0`  
+**Error msg:** di-truncate ke max 100 karakter
+
+---
+
 ## [BUG-ETH-011] Runtime Error `strategies.find is not a function` di EtherealStrategies.tsx
 
 **Status:** ✅ Fixed (2026-04-05)
@@ -1042,4 +1087,5 @@ Monitor live trading Ethereal Grid 24-48 jam setelah fix BUG-AI-001 — pastikan
 | IMPROVE-ADMIN-002 | ⏳ Perlu ditest | LOW |
 | IMPROVE-001 | ✅ Implemented (2026-04-05) | LOW |
 | IMPROVE-002 | ✅ Implemented (2026-04-05) | LOW |
+| IMPROVE-003 | ✅ Implemented (2026-04-05) | MEDIUM |
 | IMPROVE-ETH-001 | ⏳ Perlu divalidasi (prompt sudah diupdate) | LOW |

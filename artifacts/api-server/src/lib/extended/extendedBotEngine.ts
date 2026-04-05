@@ -3,7 +3,9 @@ import { strategiesTable, tradesTable, botLogsTable, DcaConfig, GridConfig } fro
 import { eq, sql, and, isNotNull, ne, gte, lte } from "drizzle-orm";
 import Decimal from "decimal.js";
 import { logger } from "../logger";
-import { sendMessageToUser } from "../telegramBot";
+import { sendMessageToUser, formatBotStarted, formatBotStopped, formatOrderFilled,
+         formatOrderFailed, formatStrategyError, formatStopLoss, formatTakeProfit,
+         formatBotPaused } from "../telegramBot";
 import {
   placeExtendedOrder,
   cancelExtendedOrderByExternalId,
@@ -689,7 +691,7 @@ async function extExecuteLiveOrder(params: {
     if (userId !== null) {
       const notif = await extGetNotificationConfig(userId);
       if (notif.notifyOnError) {
-        await extNotifyUser(userId, `❌ *Order Gagal (Extended)*\n*${strategy.name}*\n${msg}`);
+        await extNotifyUser(userId, formatOrderFailed("extended", strategy.name, msg));
       }
     }
     await extRecordTrade({
@@ -979,7 +981,7 @@ async function extExecuteGridCheck(strategy: typeof strategiesTable.$inferSelect
       const pauseNotifCfg = userId !== null ? await getBotConfig(userId).catch(() => null) : null;
       await sendMainBotMessageWithButton(
         pauseNotifCfg?.notifyChatId,
-        `⏸ *Bot Extended Di-Pause*\nStrategy: *${strategy.name}*\n\nTidak ada konfirmasi rerange dalam 20 menit.\nAtur parameter manual dari dashboard lalu start kembali.`,
+        formatBotPaused("extended", strategy.name, "Tidak ada konfirmasi rerange dalam 20 menit"),
         { text: "▶️ Start Bot", callback_data: `bot_restart_${strategy.id}` }
       );
       await stopExtendedBot(strategy.id);
@@ -1016,9 +1018,7 @@ async function extExecuteGridCheck(strategy: typeof strategiesTable.$inferSelect
     if (userId !== null) {
       const notif = await extGetNotificationConfig(userId);
       if (notif.notifyOnStop) {
-        await extNotifyUser(userId,
-          `⚠️ *Stop Loss Triggered (Extended)*\nStrategy: *${strategy.name}*\nHarga: $${currentPrice.toFixed(2)} ≤ SL: $${config.stopLoss}\nBot dihentikan otomatis.`
-        );
+        await extNotifyUser(userId, formatStopLoss("extended", strategy.name, strategy.marketSymbol, currentPrice.toFixed(2), config.stopLoss));
       }
     }
     await stopExtendedBot(strategy.id);
@@ -1033,9 +1033,7 @@ async function extExecuteGridCheck(strategy: typeof strategiesTable.$inferSelect
     if (userId !== null) {
       const notif = await extGetNotificationConfig(userId);
       if (notif.notifyOnStop) {
-        await extNotifyUser(userId,
-          `🎯 *Take Profit Triggered (Extended)*\nStrategy: *${strategy.name}*\nHarga: $${currentPrice.toFixed(2)} ≥ TP: $${config.takeProfit}\nBot dihentikan otomatis.`
-        );
+        await extNotifyUser(userId, formatTakeProfit("extended", strategy.name, strategy.marketSymbol, currentPrice.toFixed(2), config.takeProfit));
       }
     }
     await stopExtendedBot(strategy.id);
@@ -1227,7 +1225,7 @@ async function extRunStrategyOnce(strategyId: number): Promise<void> {
     if (strategy.userId) {
       extGetNotificationConfig(strategy.userId).then(notif => {
         if (notif.notifyOnError) {
-          extNotifyUser(strategy.userId, `🚨 *Strategy Error (Extended)*\n*${strategy.name}*\n${message}`);
+          extNotifyUser(strategy.userId, formatStrategyError("extended", strategy.name, message));
         }
       }).catch(() => {});
     }
@@ -1526,9 +1524,7 @@ export async function startExtendedBot(strategyId: number): Promise<boolean> {
   if (strategy.userId !== null && strategy.userId !== undefined) {
     const notif = await extGetNotificationConfig(strategy.userId).catch(() => null);
     if (notif?.notifyOnStart) {
-      await extNotifyUser(strategy.userId,
-        `🚀 *Bot Extended Dimulai*\nStrategy: *${strategy.name}*\nType: ${strategy.type.toUpperCase()}\nMarket: ${strategy.marketSymbol}`
-      );
+      await extNotifyUser(strategy.userId, formatBotStarted("extended", strategy.name, strategy.type, strategy.marketSymbol));
     }
   }
 
@@ -1577,9 +1573,7 @@ export async function stopExtendedBot(strategyId: number, skipDbUpdate = false):
     if (strategy.userId !== null && strategy.userId !== undefined) {
       const notif = await extGetNotificationConfig(strategy.userId).catch(() => null);
       if (notif?.notifyOnStop) {
-        await extNotifyUser(strategy.userId,
-          `⛔ *Bot Extended Dihentikan*\nStrategy: *${strategy.name}*\nMarket: ${strategy.marketSymbol}`
-        );
+        await extNotifyUser(strategy.userId, formatBotStopped("extended", strategy.name, strategy.marketSymbol));
       }
     }
   }

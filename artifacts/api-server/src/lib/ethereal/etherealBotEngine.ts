@@ -3,7 +3,9 @@ import { strategiesTable, tradesTable, botLogsTable } from "@workspace/db";
 import { eq, sql, and, isNotNull, ne, gte, lte } from "drizzle-orm";
 import Decimal from "decimal.js";
 import { logger } from "../logger";
-import { sendMessageToUser } from "../telegramBot";
+import { sendMessageToUser, formatBotStarted, formatBotStopped, formatOrderFilled,
+         formatOrderFailed, formatStrategyError, formatStopLoss, formatTakeProfit,
+         formatBotPaused } from "../telegramBot";
 import {
   placeOrder,
   cancelOrder,
@@ -428,7 +430,7 @@ async function ethExecuteLiveOrder(params: {
     if (userId !== null) {
       const notif = await ethGetNotificationConfig(userId);
       if (notif.notifyOnError) {
-        await ethNotifyUser(userId, `❌ *Order Gagal (Ethereal)*\n*${strategy.name}*\n${msg}`);
+        await ethNotifyUser(userId, formatOrderFailed("ethereal", strategy.name, msg));
       }
     }
     await ethRecordTrade({
@@ -469,10 +471,7 @@ async function ethExecuteLiveOrder(params: {
     if (userId !== null) {
       const notif = await ethGetNotificationConfig(userId);
       if (notif.notifyOnError) {
-        await ethNotifyUser(userId,
-          `⚠️ *Order Ditolak (Ethereal)*\n*${strategy.name}*\n` +
-          `Result: ${submitResult.result}\nType: ${orderType} ${side.toUpperCase()}`
-        );
+        await ethNotifyUser(userId, formatOrderFailed("ethereal", strategy.name, `${submitResult.result} (${orderType} ${side.toUpperCase()})`));
       }
     }
     return;
@@ -519,11 +518,7 @@ async function ethExecuteLiveOrder(params: {
     const notif = await ethGetNotificationConfig(userId);
     const shouldNotify = side === "buy" ? notif.notifyOnBuy : notif.notifyOnSell;
     if (shouldNotify) {
-      await ethNotifyUser(userId,
-        `✅ *Order Ethereal ${side.toUpperCase()} Terisi*\n*${strategy.name}*\n` +
-        `Market: ${strategy.marketSymbol}\n` +
-        `Size: ${filledSize.toFixed(6)} @ $${executionPriceStr}`
-      );
+      await ethNotifyUser(userId, formatOrderFilled("ethereal", side, filledSize.toFixed(6), strategy.marketSymbol, executionPriceStr));
     }
   }
 }
@@ -565,7 +560,7 @@ async function ethExecuteGridCheck(strategy: typeof strategiesTable.$inferSelect
       const pauseNotifCfg = userId !== null ? await getBotConfig(userId).catch(() => null) : null;
       await sendMainBotMessageWithButton(
         pauseNotifCfg?.notifyChatId,
-        `⏸ *Bot Ethereal Di-Pause*\nStrategy: *${strategy.name}*\n\nTidak ada konfirmasi rerange dalam 20 menit.\nAtur parameter manual dari dashboard lalu start kembali.`,
+        formatBotPaused("ethereal", strategy.name, "Tidak ada konfirmasi rerange dalam 20 menit"),
         { text: "▶️ Start Bot", callback_data: `bot_restart_${strategy.id}` }
       );
       await stopEtherealBot(strategy.id);
@@ -614,9 +609,7 @@ async function ethExecuteGridCheck(strategy: typeof strategiesTable.$inferSelect
     if (userId !== null) {
       const notif = await ethGetNotificationConfig(userId);
       if (notif.notifyOnStop) {
-        await ethNotifyUser(userId,
-          `⚠️ *Stop Loss Triggered (Ethereal)*\nStrategy: *${strategy.name}*\nHarga: $${currentPrice.toFixed(2)} ≤ SL: $${config.stopLoss}\nBot dihentikan otomatis.`
-        );
+        await ethNotifyUser(userId, formatStopLoss("ethereal", strategy.name, strategy.marketSymbol, currentPrice.toFixed(2), config.stopLoss));
       }
     }
     await stopEtherealBot(strategy.id);
@@ -630,9 +623,7 @@ async function ethExecuteGridCheck(strategy: typeof strategiesTable.$inferSelect
     if (userId !== null) {
       const notif = await ethGetNotificationConfig(userId);
       if (notif.notifyOnStop) {
-        await ethNotifyUser(userId,
-          `🎯 *Take Profit Triggered (Ethereal)*\nStrategy: *${strategy.name}*\nHarga: $${currentPrice.toFixed(2)} ≥ TP: $${config.takeProfit}\nBot dihentikan otomatis.`
-        );
+        await ethNotifyUser(userId, formatTakeProfit("ethereal", strategy.name, strategy.marketSymbol, currentPrice.toFixed(2), config.takeProfit));
       }
     }
     await stopEtherealBot(strategy.id);
@@ -933,9 +924,7 @@ export async function startEtherealBot(strategyId: number): Promise<boolean> {
   if (userId !== null) {
     const notif = await ethGetNotificationConfig(userId).catch(() => null);
     if (notif?.notifyOnStart) {
-      await ethNotifyUser(userId,
-        `🚀 *Bot Ethereal Dimulai*\nStrategy: *${strategy.name}*\nType: ${strategy.type.toUpperCase()}\nMarket: ${strategy.marketSymbol}`
-      );
+      await ethNotifyUser(userId, formatBotStarted("ethereal", strategy.name, strategy.type, strategy.marketSymbol));
     }
   }
 
@@ -988,9 +977,7 @@ export async function stopEtherealBot(strategyId: number, skipDbUpdate = false):
     if (userId !== null) {
       const notif = await ethGetNotificationConfig(userId).catch(() => null);
       if (notif?.notifyOnStop) {
-        await ethNotifyUser(userId,
-          `⛔ *Bot Ethereal Dihentikan*\nStrategy: *${strategy.name}*\nMarket: ${strategy.marketSymbol}`
-        );
+        await ethNotifyUser(userId, formatBotStopped("ethereal", strategy.name, strategy.marketSymbol));
       }
     }
   }
@@ -1164,9 +1151,7 @@ export async function pollPendingEtherealTrades(): Promise<void> {
           if (shouldNotify && notif) {
             await ethNotifyUser(
               trade.userId,
-              `✅ *Order Ethereal ${trade.side.toUpperCase()} Terisi*\n` +
-              `*${trade.strategyName}*\n` +
-              `Qty: ${totalFilled.toFixed(6)} @ $${fillPrice.toFixed(4)}`
+              formatOrderFilled("ethereal", trade.side, totalFilled.toFixed(6), trade.marketSymbol, fillPrice.toFixed(4), totalFeeUsd)
             );
           }
         }

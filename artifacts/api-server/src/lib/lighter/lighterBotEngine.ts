@@ -7,7 +7,9 @@ import { getBotConfig, getNotificationConfig } from "../../routes/configService"
 import { getNextNonce, sendTx, sendTxBatch, toBaseAmount, toPriceInt, getTx } from "./lighterApi";
 import { getMarketInfo } from "./marketCache";
 import { initSigner, signCreateOrder } from "./lighterSigner";
-import { sendMessageToUser } from "../telegramBot";
+import { sendMessageToUser, formatBotStarted, formatBotStopped, formatOrderFilled,
+         formatOrderFailed, formatStrategyError, formatStopLoss, formatTakeProfit,
+         formatBotPaused } from "../telegramBot";
 import { registerPriceCallback, unregisterPriceCallback, getWsCachedPrice } from "./lighterWs";
 import { handleAutoRerange, clearRerangeState, sendMainBotMessageWithButton } from "../autoRerange";
 import { getDuplicateTolerance } from "../shared/tolerance";
@@ -424,7 +426,7 @@ async function executeLiveOrder(params: {
     await addLog(userId, strategy.id, strategy.name, "error", "Order signing failed", msg);
     if (userId !== null) {
       getNotificationConfig(userId).then(notif => {
-        if (notif.notifyOnError) notifyUser(userId, `❌ *Order Sign Failed*\n*${strategy.name}*\n${msg}`);
+        if (notif.notifyOnError) notifyUser(userId, formatOrderFailed("lighter", strategy.name, msg));
       }).catch(() => {});
     }
     await recordTrade({
@@ -456,7 +458,7 @@ async function executeLiveOrder(params: {
     await addLog(userId, strategy.id, strategy.name, "error", "Order submission failed", msg);
     if (userId !== null) {
       getNotificationConfig(userId).then(notif => {
-        if (notif.notifyOnError) notifyUser(userId, `❌ *Order Submission Failed*\n*${strategy.name}* (${side.toUpperCase()} ${strategy.marketSymbol})\n${msg}`);
+        if (notif.notifyOnError) notifyUser(userId, formatOrderFailed("lighter", strategy.name, msg));
       }).catch(() => {});
     }
     await recordTrade({
@@ -732,7 +734,7 @@ async function executeGridCheck(strategy: typeof strategiesTable.$inferSelect) {
       const pauseNotifCfg = userId !== null ? await getBotConfig(userId).catch(() => null) : null;
       await sendMainBotMessageWithButton(
         pauseNotifCfg?.notifyChatId,
-        `⏸ *Bot Di-Pause*\nStrategy: *${strategy.name}*\n\nTidak ada konfirmasi rerange dalam 20 menit.\nAtur parameter manual dari dashboard lalu start kembali.`,
+        formatBotPaused("lighter", strategy.name, "Tidak ada konfirmasi rerange dalam 20 menit"),
         { text: "▶️ Start Bot", callback_data: `bot_restart_${strategy.id}` }
       );
       await stopBot(strategy.id);
@@ -761,7 +763,7 @@ async function executeGridCheck(strategy: typeof strategiesTable.$inferSelect) {
     if (userId !== null) {
       const notif = await getNotificationConfig(userId);
       if (notif.notifyOnStop) {
-        await notifyUser(userId, `⚠️ *Stop Loss Triggered*\nStrategy: *${strategy.name}*\nPrice: $${currentPrice.toFixed(2)} ≤ SL: $${config.stopLoss}\nBot dihentikan otomatis.`);
+        await notifyUser(userId, formatStopLoss("lighter", strategy.name, strategy.marketSymbol, currentPrice.toFixed(2), config.stopLoss));
       }
     }
     await stopBot(strategy.id);
@@ -776,7 +778,7 @@ async function executeGridCheck(strategy: typeof strategiesTable.$inferSelect) {
     if (userId !== null) {
       const notif = await getNotificationConfig(userId);
       if (notif.notifyOnStop) {
-        await notifyUser(userId, `🎯 *Take Profit Triggered*\nStrategy: *${strategy.name}*\nPrice: $${currentPrice.toFixed(2)} ≥ TP: $${config.takeProfit}\nBot dihentikan otomatis.`);
+        await notifyUser(userId, formatTakeProfit("lighter", strategy.name, strategy.marketSymbol, currentPrice.toFixed(2), config.takeProfit));
       }
     }
     await stopBot(strategy.id);
@@ -990,7 +992,7 @@ async function runStrategyOnce(strategyId: number) {
     logger.error({ err, strategyId }, "Strategy execution error");
     if (strategy.userId) {
       getNotificationConfig(strategy.userId).then(notif => {
-        if (notif.notifyOnError) notifyUser(strategy.userId, `🚨 *Strategy Error*\n*${strategy.name}*\n${message}`);
+        if (notif.notifyOnError) notifyUser(strategy.userId, formatStrategyError("lighter", strategy.name, message));
       }).catch(() => {});
     }
   }
@@ -1120,7 +1122,7 @@ export async function startBot(strategyId: number): Promise<boolean> {
   if (strategy.userId !== null && strategy.userId !== undefined) {
     const notif = await getNotificationConfig(strategy.userId).catch(() => null);
     if (notif?.notifyOnStart) {
-      await notifyUser(strategy.userId, `🚀 *Bot Started*\nStrategy: *${strategy.name}*\nType: ${strategy.type.toUpperCase()}\nMarket: ${strategy.marketSymbol}`);
+      await notifyUser(strategy.userId, formatBotStarted("lighter", strategy.name, strategy.type, strategy.marketSymbol));
     }
   }
 
@@ -1163,7 +1165,7 @@ export async function stopBot(strategyId: number, skipDbUpdate = false): Promise
     if (strategy.userId !== null && strategy.userId !== undefined) {
       const notif = await getNotificationConfig(strategy.userId).catch(() => null);
       if (notif?.notifyOnStop) {
-        await notifyUser(strategy.userId, `⛔ *Bot Stopped*\nStrategy: *${strategy.name}*\nMarket: ${strategy.marketSymbol}`);
+        await notifyUser(strategy.userId, formatBotStopped("lighter", strategy.name, strategy.marketSymbol));
       }
     }
   }
@@ -1357,7 +1359,7 @@ export async function pollPendingTrades() {
           if (shouldNotify) {
             await notifyUser(
               trade.userId,
-              `✅ *Order Filled*\n${trade.side.toUpperCase()} ${trade.size} ${trade.marketSymbol} @ $${parseFloat(trade.price).toFixed(2)}`
+              formatOrderFilled("lighter", trade.side, trade.size, trade.marketSymbol, trade.price)
             );
           }
         }
