@@ -2,7 +2,8 @@ import { Router } from "express";
 import { authMiddleware, type AuthRequest } from "../middlewares/auth";
 import { getMarketInfo } from "../lib/lighter/marketCache";
 import { getExtendedMarketInfo } from "../lib/extended/extendedMarkets";
-import { getProductByTicker } from "../lib/ethereal/etherealMarkets";
+import { getProductByTicker, getProductWithPrice } from "../lib/ethereal/etherealMarkets";
+import { getEtherealWsCachedPrice } from "../lib/ethereal/etherealWs";
 import { analyzeMarketForStrategy } from "../lib/groqAI";
 import { getBotConfig, getEtherealCredentials } from "./configService";
 import { getAccountByIndex } from "../lib/lighter/lighterApi";
@@ -38,22 +39,36 @@ router.post("/analyze", async (req: AuthRequest, res) => {
       const config = await getEtherealCredentials(req.userId!).catch(() => null);
       const network: EtherealNetwork = (config?.etherealNetwork === "testnet") ? "testnet" : "mainnet";
 
-      const product = await getProductByTicker(marketSymbol!.trim(), network);
-      if (!product) {
+      const baseProduct = await getProductByTicker(marketSymbol!.trim(), network);
+      if (!baseProduct) {
         return res.status(404).json({ error: `Market Ethereal '${marketSymbol}' tidak ditemukan` });
       }
+
+      // Coba WS cache dulu (real-time, jika bot aktif), lalu REST API sebagai fallback
+      let livePrice: number = 0;
+      const wsPrice = getEtherealWsCachedPrice(baseProduct.id, 30_000);
+      if (wsPrice && wsPrice.toNumber() > 0) {
+        livePrice = wsPrice.toNumber();
+      } else {
+        const enriched = await getProductWithPrice(baseProduct.id, network).catch(() => null);
+        if (enriched && enriched.lastPrice > 0) {
+          livePrice = enriched.lastPrice;
+        }
+      }
+
+      const product = { ...baseProduct, lastPrice: livePrice };
 
       const result = await analyzeMarketForStrategy(strategyType, {
         exchange: "ethereal",
         symbol: product.displayTicker || product.ticker,
         type: "perp",
         lastPrice: product.lastPrice,
-        high24h: product.lastPrice * 1.03,
-        low24h: product.lastPrice * 0.97,
+        high24h: product.lastPrice > 0 ? product.lastPrice * 1.03 : 0,
+        low24h: product.lastPrice > 0 ? product.lastPrice * 0.97 : 0,
         volume24h: 0,
         priceChangePct24h: 0,
         minBaseAmount: product.minOrderSize,
-        minQuoteAmount: product.minOrderSize * product.lastPrice,
+        minQuoteAmount: product.minOrderSize * (product.lastPrice || 1),
       });
 
       return res.json({ ...result, availableBalance: undefined });

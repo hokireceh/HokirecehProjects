@@ -1,7 +1,7 @@
 # Bug & Technical Debt Tracker
 
 > Last updated: 2026-04-05
-> Status: BUG-ETH-006 + BUG-ETH-007 di-fix (2026-04-05) — tombol Edit + EthEditModal ditambah ke card Ethereal, format label post_only → Post-Only diperbaiki. 2 bug kritis Ethereal di-fix sebelumnya. BUG-ETH-005 + 3 DESIGN issues di-fix di sesi yang sama. DESIGN-001 + DESIGN-003 di-fix sesi berikutnya. BUG-WS-001 (WS price parser salah field) ditemukan via debug logging dan di-fix di sesi yang sama. BUG-AI-001 dicatat (belum difix).
+> Status: BUG-ETH-008 di-fix (2026-04-05) — Ethereal AI sekarang pakai live price dari REST API/WS cache, bukan lastPrice=0. BUG-ETH-006 + BUG-ETH-007 di-fix sebelumnya. BUG-ETH-005 + 3 DESIGN issues di-fix di sesi yang sama. DESIGN-001 + DESIGN-003 di-fix sesi berikutnya. BUG-WS-001 (WS price parser salah field) ditemukan via debug logging dan di-fix di sesi yang sama. BUG-AI-001 dicatat (belum difix).
 
 ---
 
@@ -624,6 +624,61 @@ Ganti semua `capitalize` CSS class di card label dengan `{formatOrderType(...)}`
 - Grid: `mode` (baris 911) dan `orderType` (baris 912)
 
 Hasil: `"post_only"` → `"Post-Only"`, `"neutral"` → `"Neutral"`, `"limit"` → `"Limit"`.
+
+---
+
+## [BUG-ETH-008] Ethereal AI Rekomendasikan Harga Ketinggalan Zaman (lastPrice = 0)
+
+**Status:** ✅ Fixed (2026-04-05)  
+**Severity:** HIGH — AI selalu kasih range harga BTC ~34.000–36.000 (harga lama dari training data) padahal harga aktual ~64.000–68.000  
+**File:** `artifacts/api-server/src/routes/ai.ts`
+
+**Gejala:**  
+Saat klik "Isi Otomatis Parameter (AI)" di form Ethereal Grid dengan market BTC-USD, AI mengisi:
+- Harga Bawah: 34.000  
+- Harga Atas: 36.000  
+
+Sedangkan Lighter dan Extended mengisi range yang benar (~64.500–68.800). Selisihnya hampir 2×.
+
+**Root cause (4-step chain):**
+
+1. `ai.ts` baris 41 memanggil `getProductByTicker()` untuk resolve market dari ticker
+2. `etherealMarkets.ts` — `parseProduct()` hardcode `lastPrice: 0` (baris 94) karena Ethereal product list API **tidak menyertakan harga pasar** dalam respons-nya
+3. `ai.ts` mengirim `lastPrice: 0` ke `analyzeMarketForStrategy()`
+4. `groqAI.ts` prompt ke AI: `Current Price: $0.0000` → AI tidak punya referensi harga → fallback ke training data (~34.000–36.000 untuk BTC, outdated)
+
+Lighter dan Extended tidak kena masalah ini karena:
+- Lighter: `getMarketInfo()` menggunakan WebSocket cache real-time
+- Extended: `getExtendedMarketInfo()` mengambil harga dari REST API yang menyertakan `lastPrice`
+
+Ethereal tidak punya fungsi setara yang aktif di branch AI-nya — padahal `getProductWithPrice()` sudah ada di `etherealMarkets.ts`.
+
+**Fix yang diapply (hanya `ai.ts`):**
+
+Tambah 2 import baru:
+```ts
+import { getProductByTicker, getProductWithPrice } from "../lib/ethereal/etherealMarkets";
+import { getEtherealWsCachedPrice } from "../lib/ethereal/etherealWs";
+```
+
+Update Ethereal branch — setelah dapat `baseProduct`, coba ambil live price dengan prioritas:
+1. **WS cache** `getEtherealWsCachedPrice(baseProduct.id, 30_000)` — real-time jika bot aktif (30 detik toleransi)
+2. **REST API** `getProductWithPrice(baseProduct.id, network)` — fallback via `/v1/product/market-price`
+3. **`livePrice = 0`** — last resort jika keduanya gagal (edge case: Ethereal API down)
+
+```ts
+let livePrice: number = 0;
+const wsPrice = getEtherealWsCachedPrice(baseProduct.id, 30_000);
+if (wsPrice && wsPrice.toNumber() > 0) {
+  livePrice = wsPrice.toNumber();
+} else {
+  const enriched = await getProductWithPrice(baseProduct.id, network).catch(() => null);
+  if (enriched && enriched.lastPrice > 0) {
+    livePrice = enriched.lastPrice;
+  }
+}
+const product = { ...baseProduct, lastPrice: livePrice };
+```
 
 ---
 
