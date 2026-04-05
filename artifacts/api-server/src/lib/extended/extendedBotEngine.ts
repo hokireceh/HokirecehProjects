@@ -1367,9 +1367,7 @@ export async function startExtendedBot(strategyId: number): Promise<boolean> {
       // dengan l2Key dari account API (field aktual di Extended Exchange API).
       // NB: API response menggunakan "l2Key" bukan "starkKey".
       const registeredStarkKey: string | null =
-        accountDetails
-          ? (accountDetails.l2Key ?? (accountDetails as any).starkKey ?? (accountDetails as any).stark_key ?? null)
-          : null;
+        accountDetails ? (accountDetails.l2Key ?? null) : null;
 
       logger.info(
         {
@@ -1426,25 +1424,29 @@ export async function startExtendedBot(strategyId: number): Promise<boolean> {
           { strategyId, userId },
           "[ExtendedBot] starkKey tidak tersedia di response account API — skip verifikasi mismatch."
         );
+        throw new Error(
+          `EXTENDED_BOT_VALIDATION_FAILED: [ExtendedBot] l2Key tidak tersedia dari API — tidak bisa verifikasi starkKey`
+        );
       }
 
       // ── Ambil l2Vault ─────────────────────────────────────────────────────────
       // Handle camelCase (l2Vault) dan snake_case (l2_vault) — Extended Exchange API
-      const rawVault = accountDetails
-        ? ((accountDetails as any).l2Vault ?? (accountDetails as any).l2_vault ?? null)
-        : null;
+      const rawVault = accountDetails ? (accountDetails.l2Vault ?? null) : null;
       if (rawVault != null) {
         const l2VaultStr = String(rawVault);
         l2VaultCache.set(userId, { l2Vault: l2VaultStr, fetchedAt: Date.now() });
         startCreds.collateralPosition = l2VaultStr;
         logger.info(
-          { strategyId, userId, l2Vault: l2VaultStr, accountId: (accountDetails as any)?.accountId },
+          { strategyId, userId, l2Vault: l2VaultStr, accountId: accountDetails?.accountId },
           "[ExtendedBot] l2Vault fetched from API — akan dipakai sebagai collateralPosition untuk signing"
         );
       } else {
         logger.warn(
           { strategyId, userId },
           "[ExtendedBot] Gagal fetch l2Vault dari API — fallback ke accountId yang tersimpan. Jika terjadi 'Invalid StarkEx signature', pastikan Account ID di Pengaturan diisi dengan l2Vault (bukan accountId)."
+        );
+        throw new Error(
+          `EXTENDED_BOT_VALIDATION_FAILED: [ExtendedBot] l2Vault tidak tersedia dari API — tidak bisa sign order`
         );
       }
     } catch (err: any) {
