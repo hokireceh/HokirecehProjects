@@ -1,7 +1,7 @@
 # Bug & Technical Debt Tracker
 
 > Last updated: 2026-04-05
-> Status: BUG-ETH-008 di-fix (2026-04-05) — Ethereal AI sekarang pakai live price dari REST API/WS cache, bukan lastPrice=0. BUG-ETH-006 + BUG-ETH-007 di-fix sebelumnya. BUG-ETH-005 + 3 DESIGN issues di-fix di sesi yang sama. DESIGN-001 + DESIGN-003 di-fix sesi berikutnya. BUG-WS-001 (WS price parser salah field) ditemukan via debug logging dan di-fix di sesi yang sama. BUG-AI-001 dicatat (belum difix). ENH-ETH-001 (tombol AI di EthEditModal) di-fix 2026-04-05.
+> Status: BUG-ETH-011 di-fix (2026-04-05) — runtime crash `strategies.find is not a function` akibat `apiFetch` fallback `{}` dan `??` bukan `Array.isArray`. BUG-ETH-008 di-fix sebelumnya — Ethereal AI sekarang pakai live price dari REST API/WS cache, bukan lastPrice=0. BUG-ETH-006 + BUG-ETH-007 di-fix sebelumnya. BUG-ETH-005 + 3 DESIGN issues di-fix di sesi yang sama. DESIGN-001 + DESIGN-003 di-fix sesi berikutnya. BUG-WS-001 (WS price parser salah field) ditemukan via debug logging dan di-fix di sesi yang sama. BUG-AI-001 dicatat (belum difix). ENH-ETH-001 (tombol AI di EthEditModal) di-fix 2026-04-05.
 
 ---
 
@@ -919,6 +919,61 @@ Pin pesan pause otomatis saat dikirim, unpin saat bot start kembali.
 
 ---
 
+## [BUG-ETH-011] Runtime Error `strategies.find is not a function` di EtherealStrategies.tsx
+
+**Status:** ✅ Fixed (2026-04-05)
+**Severity:** HIGH — halaman crash saat `strategies` state bukan array
+**File:** `artifacts/HK-Projects/src/pages/EtherealStrategies.tsx`
+
+**Gejala:**
+Runtime error `strategies.find is not a function` di baris 1602 (`const logDialog = strategies.find(...)`). Error terjadi setelah page load atau setelah operasi yang memanggil `loadAll()`.
+
+**Root cause (2 lapisan, keduanya di EtherealStrategies.tsx):**
+
+**1 — `apiFetch` fallback JSON parsing mengembalikan `{}` bukan `null` (baris 143):**
+```ts
+// SEBELUM (broken):
+const json = await res.json().catch(() => ({}));
+```
+Jika response tidak bisa di-parse sebagai JSON (body kosong, 204, atau malformed), `.catch` mengembalikan `{}` (object). Kemudian `return json` mengembalikan object tersebut alih-alih `null`.
+
+**2 — `loadAll` menggunakan `??` bukan `Array.isArray` (baris 1536):**
+```ts
+// SEBELUM (broken):
+setStrategies(strats ?? []);
+```
+Operator `??` hanya menangkap `null`/`undefined`. Kalau `strats = {}`, ekspresi `{} ?? []` tetap menghasilkan `{}` — bukan array. Sehingga `setStrategies({})` dipanggil, dan state `strategies` menjadi object.
+
+**Inkonsistensi:** polling interval di baris 1565 sudah pakai `Array.isArray` dengan benar, tapi `loadAll` tidak:
+```ts
+// Polling (sudah aman):
+apiFetch("/").then((data) => setStrategies(Array.isArray(data) ? data : [])).catch(() => {});
+// loadAll (belum aman — fixed sekarang):
+setStrategies(strats ?? []);
+```
+
+**Urutan kejadian:**
+```
+GET /api/ethereal/strategies/ → response tidak bisa di-parse JSON
+→ apiFetch catch → return {}
+→ strats = {}
+→ {} ?? [] = {}
+→ setStrategies({})
+→ strategies = {} (bukan array)
+→ render → strategies.find(...) → CRASH
+```
+
+**Fix yang diapply:**
+
+| Lokasi | Sebelum | Sesudah |
+|--------|---------|---------|
+| `apiFetch` baris 143 | `.catch(() => ({}))` | `.catch(() => null)` |
+| `apiFetch` baris 147 | `json.error` | `(json as any)?.error` (aman jika null) |
+| `loadAll` baris 1536 | `setStrategies(strats ?? [])` | `setStrategies(Array.isArray(strats) ? strats : [])` |
+| `loadAll` baris 1540 | `setMarkets(mks ?? [])` | `setMarkets(Array.isArray(mks) ? mks : [])` |
+
+---
+
 ## [IMPROVE-ETH-001] Grid Ethereal Optimal 15-30 Levels, Bukan 20-50
 
 **Status:** ⏳ Perlu divalidasi (prompt sudah diupdate, belum diverifikasi via live trading)  
@@ -972,6 +1027,7 @@ Monitor live trading Ethereal Grid 24-48 jam setelah fix BUG-AI-001 — pastikan
 | BUG-ETH-008 | ✅ Fixed (2026-04-05) | MEDIUM |
 | BUG-ETH-009 | ✅ Fixed (2026-04-05) | MEDIUM |
 | BUG-ETH-010 | ✅ Fixed (2026-04-05) | HIGH |
+| BUG-ETH-011 | ✅ Fixed (2026-04-05) | HIGH |
 | BUG-AI-001 | ✅ Fixed (2026-04-05) | MEDIUM |
 | BUG-ADMIN-001 | ✅ Fixed (2026-04-05) | LOW |
 | BUG-ADMIN-002 | ✅ Fixed (2026-04-05) | HIGH |
