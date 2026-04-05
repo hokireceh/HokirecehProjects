@@ -171,6 +171,24 @@ Berikut `as any` yang sudah dikonfirmasi memang diperlukan dan tidak berbahaya:
 
 ---
 
+## [NAV-001] Mobile Navigasi — Ethereal Tidak Ada di Menu "Lainnya"
+
+**Status:** ⏳ Pending Konfirmasi  
+**Severity:** LOW — UI only, tidak mempengaruhi fungsi trading  
+**File:** `artifacts/HK-Projects/src/components/layout/AppLayout.tsx` baris 119–123
+
+**Masalah:**  
+Menu "Lainnya" di bottom navigation mobile tidak mencantumkan link ke `/ethereal`. Pengguna mobile tidak bisa berpindah ke halaman Strategi Ethereal tanpa mengetik URL manual.
+
+**Fix:**  
+Tambah satu entry ke `moreItems`:
+```ts
+{ href: "/ethereal", label: "Strategi Ethereal", icon: Zap },
+```
+Icon `Zap` sudah di-import. Tidak ada perubahan lain yang diperlukan.
+
+---
+
 ## Status Fix
 
 | ID | Status | Priority |
@@ -182,3 +200,4 @@ Berikut `as any` yang sudah dikonfirmasi memang diperlukan dan tidak berbahaya:
 | TODO-002 | ✅ Resolved — `price=0n` dari OpenAPI spec | MEDIUM |
 | TODO-003 | ✅ Resolved — `uuidToBytes32()` implemented | MEDIUM |
 | TODO-004 | N/A — testnet tidak dipakai | LOW |
+| NAV-001 | ⏳ Pending Konfirmasi | LOW |
