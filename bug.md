@@ -700,6 +700,31 @@ Log Ethereal tidak digabung ke `combinedLogs` di Dashboard, sehingga Ethereal ti
 
 ---
 
+## [IMPROVE-001] Pesan Pause Telegram Tidak Terhapus Saat Bot Start Kembali
+
+**Status:** ⏳ Belum diimplementasi  
+**Severity:** LOW (UX improvement)  
+**File:** `artifacts/api-server/src/lib/etherealBotEngine.ts` atau `telegramBot.ts`
+
+**Gejala:**  
+Pesan "Bot Ethereal Di-Pause" di Telegram tetap ada setelah user start bot manual dari dashboard. Idealnya pesan dihapus atau diupdate menjadi "Bot sudah aktif kembali" saat bot di-start ulang, supaya tidak membingungkan user.
+
+---
+
+## [IMPROVE-002] Pesan Pause Telegram Tidak Di-Pin Otomatis
+
+**Status:** ⏳ Belum diimplementasi  
+**Severity:** LOW (UX improvement)  
+**File:** `artifacts/api-server/src/lib/telegramBot.ts`
+
+**Gejala:**  
+Pesan pause tidak di-pin di chat Telegram sehingga user bisa melewatkan notifikasi penting ini, terutama jika chat aktif.
+
+**Usulan:**  
+Pin pesan pause otomatis saat dikirim, unpin saat bot start kembali.
+
+---
+
 ## Status Fix
 
 | ID | Status | Priority |
@@ -729,3 +754,5 @@ Log Ethereal tidak digabung ke `combinedLogs` di Dashboard, sehingga Ethereal ti
 | BUG-ETH-009 | ⏳ Belum difix | MEDIUM |
 | BUG-ETH-010 | ✅ Fixed (2026-04-05) | HIGH |
 | BUG-AI-001 | ⏳ Belum difix | MEDIUM |
+| IMPROVE-001 | ⏳ Belum diimplementasi | LOW |
+| IMPROVE-002 | ⏳ Belum diimplementasi | LOW |
