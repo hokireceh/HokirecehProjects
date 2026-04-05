@@ -1,7 +1,7 @@
 # Bug & Technical Debt Tracker
 
 > Last updated: 2026-04-05
-> Status: 2 bug kritis Ethereal di-fix (2026-04-05). BUG-ETH-005 + 3 DESIGN issues (DESIGN-002, 004, 005) di-fix di sesi yang sama. DESIGN-003 + DESIGN-001 di-fix di sesi selanjutnya.
+> Status: 2 bug kritis Ethereal di-fix (2026-04-05). BUG-ETH-005 + 3 DESIGN issues (DESIGN-002, 004, 005) di-fix di sesi yang sama. DESIGN-003 + DESIGN-001 di-fix di sesi selanjutnya. BUG-AI-001 dicatat (belum difix).
 
 ---
 
@@ -525,6 +525,32 @@ Subaccount ID ditampilkan sebagai read-only display (bukan `<Input>`): tampilkan
 
 ---
 
+## [BUG-AI-001] AI Mengisi Stop Loss Tidak Masuk Akal untuk Ethereal Grid
+
+**Status:** ⏳ Belum difix  
+**Severity:** MEDIUM — Nilai SL yang salah dapat menyebabkan bot berhenti terlalu dini atau tidak pernah terpicu  
+**File:** `artifacts/api-server/src/lib/groqAI.ts`
+
+**Gejala:**  
+AI mengisi `stopLoss = 20` untuk pasangan BTC-USD saat user klik "Isi Otomatis Parameter (AI)" di form strategi Ethereal Grid. Padahal harga BTC berada di kisaran $35.000–$65.000 — nilai `20` tidak memiliki makna sebagai stop loss price yang valid dan akan menyebabkan bot langsung terpicu SL saat start (harga pasar jauh di atas SL).
+
+**Kemungkinan penyebab:**
+
+**1 — `ETHEREAL_SYSTEM_PROMPT` tidak mendefinisikan cara kalkulasi `stopLoss`**  
+Prompt Lighter dan Extended sudah memiliki instruksi eksplisit seperti `"stopLoss: 5–10% below lowerPrice"` beserta contoh kalkulasi. Ethereal hanya punya instruksi singkat tanpa detail kalkulasi — AI tidak tahu harus menghitung SL sebagai persentase di bawah `lowerPrice`, sehingga menghasilkan nilai sembarangan (mis. `20` sebagai angka literal dari contoh atau default).
+
+**2 — Tidak ada validasi/clamp di sisi frontend atau backend**  
+Nilai `stopLoss` yang dikembalikan AI langsung di-set ke form tanpa pengecekan apakah nilainya masuk akal relatif terhadap `lowerPrice` atau harga pasar saat ini.
+
+**Yang seharusnya terjadi:**  
+- `ETHEREAL_SYSTEM_PROMPT` harus mendefinisikan `stopLoss` secara eksplisit: `"stopLoss: angka absolut, 5–10% di bawah lowerPrice. Contoh: jika lowerPrice = 35000, stopLoss = 35000 * 0.93 = 32550"` — konsisten dengan format Lighter/Extended.
+- Opsional: tambah validasi di `analyzeMarketForStrategy` — jika `stopLoss` dikembalikan AI lebih rendah dari 1% `lowerPrice` atau lebih tinggi dari `lowerPrice`, fallback ke `lowerPrice * 0.93`.
+
+**Fix yang diperlukan (hanya `groqAI.ts`):**  
+Tambah field spec `stopLoss` yang eksplisit ke `ETHEREAL_SYSTEM_PROMPT` — sama persis dengan pola yang sudah ada di Lighter/Extended prompt.
+
+---
+
 ## Status Fix
 
 | ID | Status | Priority |
@@ -547,3 +573,4 @@ Subaccount ID ditampilkan sebagai read-only display (bukan `<Input>`): tampilkan
 | DESIGN-003 | ✅ Fixed (2026-04-05) | LOW |
 | DESIGN-004 | ✅ Fixed (2026-04-05) | LOW |
 | DESIGN-005 | ✅ Fixed (2026-04-05) | LOW |
+| BUG-AI-001 | ⏳ Belum difix | MEDIUM |
