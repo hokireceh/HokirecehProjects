@@ -232,18 +232,24 @@ await db.update(tradesTable).set({ status: "failed", ... })
 
 ## [BUG-ETH-003] AI Auto-fill Tidak Mengisi Harga Bawah dan Harga Atas di Form Strategi Ethereal
 
-**Status:** ⏳ Belum difix
+**Status:** ✅ Fixed (2026-04-05)
 **Severity:** MEDIUM — Field harga tetap 0, user harus isi manual setelah AI fill
-**File:** `artifacts/HK-Projects/src/pages/EtherealStrategies.tsx`
+**File:** `artifacts/api-server/src/lib/groqAI.ts`
 
 **Gejala:**
 Setelah klik "Isi Otomatis Parameter (AI)", field **Harga Bawah** dan **Harga Atas** tetap bernilai `0`. Field lain (Level Grid, Jumlah per Grid, Mode Grid, Tipe Order, Limit Price Offset) terisi dengan benar dari respons AI.
 
-**Kemungkinan penyebab:**
-Nama field yang dikembalikan AI (`lowerPrice`/`upperPrice` atau variannya) tidak cocok dengan field yang dibaca oleh handler auto-fill di komponen. Atau respons AI menggunakan key yang berbeda dari yang di-destructure di state setter.
+**Root cause (2 lapisan, keduanya di groqAI.ts):**
 
-**Referensi:**
-Screenshot terlampir — analisis AI berhasil muncul (10/10, risiko rendah), tapi kedua field harga kosong (nilai 0).
+Layer 1 — `ETHEREAL_SYSTEM_PROMPT` (baris ~204): `grid_params` hanya ditulis `{...}|null` tanpa field spec. Lighter dan Extended prompt sudah mendefinisikan semua field secara eksplisit. Karena field tidak dispesifikasikan, AI mengembalikan `lowerPrice: 0` dan `upperPrice: 0` sebagai default numerik.
+
+Layer 2 — `analyzeMarketForStrategy` (baris ~414–415): Fallback pakai `??` (nullish coalescing), yang tidak menangkap nilai `0`. Sehingga `0 ?? market.lastPrice * 0.95` = `0` — fallback tidak aktif.
+
+**Fix (hanya groqAI.ts):**
+
+FIX 1 — Tambah field spec lengkap ke `ETHEREAL_SYSTEM_PROMPT` (sama persis dengan Lighter/Extended).
+
+FIX 2 — Ganti `??` dengan `||` untuk `lowerPrice` dan `upperPrice` di grid_params parsing, sehingga nilai `0` akan trigger fallback ke `market.lastPrice * 0.95/1.05`.
 
 ---
 
@@ -279,4 +285,4 @@ Icon `Zap` sudah di-import. Tidak ada perubahan lain yang diperlukan.
 | NAV-001 | ✅ Fixed (2026-04-05) | LOW |
 | BUG-ETH-001 | ✅ Fixed (2026-04-05) | KRITIS |
 | BUG-ETH-002 | ✅ Fixed (2026-04-05) | KRITIS |
-| BUG-ETH-003 | ⏳ Belum difix | MEDIUM |
+| BUG-ETH-003 | ✅ Fixed (2026-04-05) | MEDIUM |
