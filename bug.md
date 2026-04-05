@@ -815,12 +815,15 @@ Penyebab identik dengan BUG-ETH-008. Hook `useEtherealLogs()` di Dashboard.tsx j
 
 ## [BUG-ADMIN-001] Input Password Login Admin Tidak Ada Toggle Show/Hide
 
-**Status:** ⏳ Belum difix  
+**Status:** ✅ Fixed (2026-04-05)  
 **Severity:** LOW (UX)  
-**File:** `artifacts/HK-Projects/src/pages/Admin.tsx` atau `Login.tsx`
+**File:** `artifacts/HK-Projects/src/pages/Admin.tsx`
 
 **Gejala:**  
 Field "Admin Password" tidak memiliki ikon mata untuk show/hide password. Settings Lighter dan Extended sudah memiliki toggle ini — halaman admin login tidak konsisten.
+
+**Fix yang diapply:**  
+Tambah state `showAdminPassword: boolean` + bungkus `<Input>` dalam `<div className="relative">` dengan `<button type="button">` absolute di kanan. Pola identik dengan Settings.tsx (`showKey`/`showPrivateKey`). `Eye`/`EyeOff` sudah di-import sebelumnya — tidak ada import baru.
 
 ---
 
@@ -970,7 +973,7 @@ Monitor live trading Ethereal Grid 24-48 jam setelah fix BUG-AI-001 — pastikan
 | BUG-ETH-009 | ✅ Fixed (2026-04-05) | MEDIUM |
 | BUG-ETH-010 | ✅ Fixed (2026-04-05) | HIGH |
 | BUG-AI-001 | ✅ Fixed (2026-04-05) | MEDIUM |
-| BUG-ADMIN-001 | ⏳ Belum difix | LOW |
+| BUG-ADMIN-001 | ✅ Fixed (2026-04-05) | LOW |
 | BUG-ADMIN-002 | ✅ Fixed (2026-04-05) | HIGH |
 | IMPROVE-ADMIN-001 | ✅ Implemented (2026-04-05) | MEDIUM |
 | IMPROVE-ADMIN-002 | ⏳ Perlu ditest | LOW |
