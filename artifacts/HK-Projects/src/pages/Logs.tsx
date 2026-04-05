@@ -55,7 +55,7 @@ async function fetchEtherealLogs(limit: number): Promise<UnifiedLog[]> {
   const res = await fetch(`/api/ethereal/strategies/logs/recent?limit=${limit}`, { credentials: "include" });
   if (!res.ok) return [];
   const json = await res.json();
-  return (json.logs ?? []).map((l: any) => ({
+  return (Array.isArray(json) ? json : (json.logs ?? [])).map((l: any) => ({
     key: `ethereal-${l.id}`,
     id: l.id,
     exchange: "ethereal" as const,
@@ -301,7 +301,7 @@ export default function Logs() {
                           <ExchangeLogo exchange={log.exchange} size={12} />
                         </span>
                         <span className="shrink-0 w-32 text-primary truncate">
-                          {log.strategyName || (log.exchange === "lighter" ? "Sistem Lighter" : "Sistem Extended")}
+                          {log.strategyName || (log.exchange === "lighter" ? "Sistem Lighter" : log.exchange === "ethereal" ? "Sistem Ethereal" : "Sistem Extended")}
                         </span>
                         <span className={`flex-1 min-w-0 break-words ${colorClass}`}>
                           {log.message}

@@ -674,29 +674,38 @@ Setiap kali auto-rerange trigger:
 
 ## [BUG-ETH-008] Log Ethereal Tidak Muncul di Halaman Log Sistem
 
-**Status:** ⏳ Belum difix  
+**Status:** ✅ Fixed (2026-04-05)  
 **Severity:** MEDIUM  
 **File:** `artifacts/HK-Projects/src/pages/Logs.tsx`
 
 **Gejala:**  
 Tab "Ethereal" tersedia di filter Log Sistem, tapi log bot Ethereal tidak muncul — halaman menampilkan "Belum ada log" padahal bot Ethereal sedang aktif berjalan.
 
-**Kemungkinan penyebab:**  
-Endpoint log Ethereal tidak di-fetch, atau response-nya tidak di-merge ke `allLogs` bersama log Lighter dan Extended.
+**Root Cause:**  
+Backend `GET /api/ethereal/strategies/logs/recent` mengembalikan raw array `[...]` langsung, sedangkan `GET /api/extended/strategies/logs/recent` mengembalikan `{ logs: [...] }` (wrapped object). Frontend `fetchEtherealLogs()` mem-parse response dengan `json.logs ?? []` yang mengasumsikan format wrapped — pada raw array `json.logs` selalu `undefined`, sehingga selalu fallback ke `[]`. Log ter-fetch tapi langsung dibuang.
+
+**Fix (frontend-only):**  
+`Logs.tsx` — `fetchEtherealLogs()`: ubah `(json.logs ?? [])` menjadi `(Array.isArray(json) ? json : (json.logs ?? []))` agar handle kedua format response. Tidak ada perubahan backend, tidak ada sentuhan kode Lighter atau Extended.
+
+**Fix sekunder (cosmetic):**  
+Fallback label `strategyName` untuk non-Lighter diubah dari selalu "Sistem Extended" menjadi ternary 3-cabang: `lighter` → "Sistem Lighter", `ethereal` → "Sistem Ethereal", default → "Sistem Extended".
 
 ---
 
 ## [BUG-ETH-009] Aktivitas Terbaru di Dashboard Kosong untuk Ethereal
 
-**Status:** ⏳ Belum difix  
+**Status:** ✅ Fixed (2026-04-05)  
 **Severity:** MEDIUM  
 **File:** `artifacts/HK-Projects/src/pages/Dashboard.tsx`
 
 **Gejala:**  
 Widget "Aktivitas Terbaru" menampilkan "Belum ada aktivitas bot" padahal bot Ethereal sedang berjalan aktif. Log Lighter dan Extended muncul di dashboard, log Ethereal tidak.
 
-**Kemungkinan penyebab:**  
-Log Ethereal tidak digabung ke `combinedLogs` di Dashboard, sehingga Ethereal tidak terrepresentasi di widget aktivitas.
+**Root Cause:**  
+Penyebab identik dengan BUG-ETH-008. Hook `useEtherealLogs()` di Dashboard.tsx juga mem-parse dengan `json.logs ?? []` pada response raw array dari endpoint Ethereal — selalu menghasilkan `[]`. `combinedLogs` sudah meng-include ethereal array tapi array-nya selalu kosong karena parsing salah.
+
+**Fix (frontend-only):**  
+`Dashboard.tsx` — `useEtherealLogs()`: ubah `.then(json => setData(json.logs ?? []))` menjadi `.then(json => setData(Array.isArray(json) ? json : (json.logs ?? [])))`. Error fallback `{ logs: [] }` juga dikoreksi menjadi `[]` (konsisten dengan format aktual). Tidak ada perubahan backend, tidak ada sentuhan kode Lighter atau Extended.
 
 ---
 
@@ -818,8 +827,8 @@ Pin pesan pause otomatis saat dikirim, unpin saat bot start kembali.
 | BUG-WS-001 | ✅ Fixed (2026-04-05) | KRITIS |
 | BUG-ETH-006 | ⏳ Belum difix | MEDIUM |
 | BUG-ETH-007 | ⏳ Belum difix | LOW |
-| BUG-ETH-008 | ⏳ Belum difix | MEDIUM |
-| BUG-ETH-009 | ⏳ Belum difix | MEDIUM |
+| BUG-ETH-008 | ✅ Fixed (2026-04-05) | MEDIUM |
+| BUG-ETH-009 | ✅ Fixed (2026-04-05) | MEDIUM |
 | BUG-ETH-010 | ✅ Fixed (2026-04-05) | HIGH |
 | BUG-AI-001 | ⏳ Belum difix | MEDIUM |
 | BUG-ADMIN-001 | ⏳ Belum difix | LOW |

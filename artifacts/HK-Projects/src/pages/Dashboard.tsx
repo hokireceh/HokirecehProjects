@@ -123,8 +123,8 @@ function useEtherealLogs(limit = 8) {
 
   const fetchLogs = () => {
     fetch(`/api/ethereal/strategies/logs/recent?limit=${limit}`, { credentials: "include" })
-      .then(r => r.ok ? r.json() : { logs: [] })
-      .then(json => setData(json.logs ?? []))
+      .then(r => r.ok ? r.json() : [])
+      .then(json => setData(Array.isArray(json) ? json : (json.logs ?? [])))
       .catch(() => setData([]))
       .finally(() => setLoading(false));
   };
@@ -653,7 +653,7 @@ export default function Dashboard() {
                     <div className="flex-1 min-w-0">
                       <div className="flex justify-between items-baseline gap-2">
                         <span className="font-medium text-foreground truncate">
-                          {log.strategyName || (log.exchange === "lighter" ? "Sistem Lighter DEX" : "Sistem Extended")}
+                          {log.strategyName || (log.exchange === "lighter" ? "Sistem Lighter DEX" : log.exchange === "ethereal" ? "Sistem Ethereal DEX" : "Sistem Extended")}
                         </span>
                         <span className="text-xs text-muted-foreground shrink-0 font-mono">
                           {formatWIBTime(log.createdAt)}
