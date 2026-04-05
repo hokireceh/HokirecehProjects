@@ -953,8 +953,9 @@ Monitor live trading Ethereal Grid 24-48 jam setelah fix BUG-AI-001 — pastikan
 | DESIGN-004 | ✅ Fixed (2026-04-05) | LOW |
 | DESIGN-005 | ✅ Fixed (2026-04-05) | LOW |
 | BUG-WS-001 | ✅ Fixed (2026-04-05) | KRITIS |
-| BUG-ETH-006 | ⏳ Belum difix | MEDIUM |
-| BUG-ETH-007 | ⏳ Belum difix | LOW |
+| BUG-ETH-006 | ✅ Fixed (2026-04-05) | MEDIUM |
+| BUG-ETH-007 | ✅ Fixed (2026-04-05) | LOW |
+| ENH-ETH-001 | ✅ Fixed (2026-04-05) | MEDIUM |
 | BUG-ETH-008 | ✅ Fixed (2026-04-05) | MEDIUM |
 | BUG-ETH-009 | ✅ Fixed (2026-04-05) | MEDIUM |
 | BUG-ETH-010 | ✅ Fixed (2026-04-05) | HIGH |
