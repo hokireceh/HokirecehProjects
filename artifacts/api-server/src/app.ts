@@ -60,10 +60,10 @@ const authLimiter = rateLimit({
   message: { error: "Terlalu banyak percobaan login. Coba lagi dalam 15 menit." },
 });
 
-// General API: 200 requests per 15 minutes per IP
+// General API: 1000 requests per 15 minutes per IP
 const apiLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  limit: 200,
+  limit: 1000,
   standardHeaders: "draft-8",
   legacyHeaders: false,
   skip: (req) => req.path.startsWith("/health"),

@@ -273,7 +273,7 @@ Icon `Zap` sudah di-import. Tidak ada perubahan lain yang diperlukan.
 
 ## [BUG-ETH-004] Market Dropdown Stuck "Memuat market..." di Modal Buat Strategi
 
-**Status:** 🔍 Audit selesai — belum difix  
+**Status:** ✅ Fixed (2026-04-05) — Fix A applied (rate limiter dinaikkan)  
 **Severity:** HIGH — blocker UX: user tidak bisa buat strategi Ethereal sama sekali  
 **File:** `artifacts/HK-Projects/src/pages/EtherealStrategies.tsx` (fetch logic) + `artifacts/api-server/src/app.ts` (rate limiter)
 
@@ -395,4 +395,4 @@ Keduanya harus difix agar bug tidak muncul lagi:
 | BUG-ETH-001 | ✅ Fixed (2026-04-05) | KRITIS |
 | BUG-ETH-002 | ✅ Fixed (2026-04-05) | KRITIS |
 | BUG-ETH-003 | ✅ Fixed (2026-04-05) | MEDIUM |
-| BUG-ETH-004 | 🔍 Audit selesai — pending fix | HIGH |
+| BUG-ETH-004 | ✅ Fixed (2026-04-05) — Fix A | HIGH |
