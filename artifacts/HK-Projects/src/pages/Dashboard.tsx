@@ -43,6 +43,20 @@ interface ExtAccountData {
   }>;
 }
 
+interface EtherealAccountData {
+  hasCredentials: boolean;
+  isConnected: boolean;
+  network?: string;
+  balances: Array<{ tokenName: string; amount: string; available: string }>;
+  positions: Array<{
+    id: string;
+    productId: string;
+    side: "long" | "short";
+    size: string;
+    unrealizedPnl: string;
+  }>;
+}
+
 interface UnifiedLog {
   key: string;
   exchange: "lighter" | "extended" | "ethereal";
@@ -117,6 +131,24 @@ function useEtherealStrategies() {
   return { data, loading };
 }
 
+function useEtherealAccount() {
+  const [data, setData] = useState<EtherealAccountData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const fetchData = () => {
+    fetch("/api/ethereal/strategies/account", { credentials: "include" })
+      .then(r => r.ok ? r.json() : null)
+      .then(json => setData(json))
+      .catch(() => setData(null))
+      .finally(() => setLoading(false));
+  };
+  useEffect(() => {
+    fetchData();
+    const interval = setInterval(fetchData, 30000);
+    return () => clearInterval(interval);
+  }, []);
+  return { data, loading };
+}
+
 function useEtherealLogs(limit = 8) {
   const [data, setData] = useState<Array<{ id: number; strategyName: string | null; level: string; message: string; details: string | null; createdAt: string }> | null>(null);
   const [loading, setLoading] = useState(true);
@@ -143,18 +175,31 @@ function useEtherealLogs(limit = 8) {
 function EtherealSection({
   strategies,
   loadingStrategies,
+  account,
+  loadingAccount,
 }: {
   strategies: { id: number; name: string; type: string; marketSymbol: string; isRunning: boolean }[] | null;
   loadingStrategies: boolean;
+  account: EtherealAccountData | null;
+  loadingAccount: boolean;
 }) {
   const ethRunning = strategies?.filter(s => s.isRunning) ?? [];
   const ethTotal = strategies?.length ?? 0;
+  const notConfigured = !loadingAccount && account !== null && !account.hasCredentials;
+  const positions = account?.positions ?? [];
+  const totalEquity = (account?.balances ?? []).reduce((sum, b) => sum + parseFloat(b.amount || "0"), 0);
+  const totalPnl = positions.reduce((sum, p) => sum + parseFloat(p.unrealizedPnl || "0"), 0);
 
   return (
     <div className="space-y-4">
       <div className="flex items-center gap-2">
         <ExchangeLogo exchange="ethereal" size={18} />
         <h2 className="text-lg font-semibold text-foreground">Ethereal DEX</h2>
+        {account?.network && (
+          <span className="text-xs px-2 py-0.5 rounded-full bg-purple-500/10 text-purple-400 border border-purple-500/20 font-mono">
+            {account.network}
+          </span>
+        )}
         <Link
           href="/ethereal"
           className="ml-auto text-sm text-purple-400 hover:text-purple-300 flex items-center gap-1"
@@ -163,49 +208,147 @@ function EtherealSection({
         </Link>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <Card className="glass-panel hover:-translate-y-1 transition-transform duration-300 border-purple-500/10">
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Bot Ethereal Aktif</CardTitle>
-            <div className="w-8 h-8 rounded-full bg-purple-500/10 flex items-center justify-center">
-              <Activity className="w-4 h-4 text-purple-400" />
+      {notConfigured ? (
+        <Card className="glass-panel border-purple-500/10">
+          <CardContent className="py-6">
+            <div className="flex flex-col items-center gap-3 text-center text-muted-foreground">
+              <Zap className="w-8 h-8 text-purple-400 opacity-30" />
+              <p className="text-sm">API Key Ethereal belum dikonfigurasi.</p>
+              <Link href="/ethereal-config" className="text-purple-400 hover:underline text-sm">
+                Konfigurasi sekarang →
+              </Link>
             </div>
-          </CardHeader>
-          <CardContent>
-            {loadingStrategies ? (
-              <div className="h-8 w-16 bg-muted animate-pulse rounded" />
-            ) : (
-              <div className="text-2xl font-bold text-foreground font-mono">
-                {ethRunning.length}{" "}
-                <span className="text-muted-foreground text-sm font-sans font-normal">/ {ethTotal}</span>
-              </div>
-            )}
-            <p className="text-xs text-muted-foreground mt-1">Strategi dikonfigurasi</p>
           </CardContent>
         </Card>
+      ) : (
+        <>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <Card className="glass-panel hover:-translate-y-1 transition-transform duration-300 border-purple-500/10">
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <CardTitle className="text-sm font-medium text-muted-foreground">Bot Ethereal Aktif</CardTitle>
+                <div className="w-8 h-8 rounded-full bg-purple-500/10 flex items-center justify-center">
+                  <Activity className="w-4 h-4 text-purple-400" />
+                </div>
+              </CardHeader>
+              <CardContent>
+                {loadingStrategies ? (
+                  <div className="h-8 w-16 bg-muted animate-pulse rounded" />
+                ) : (
+                  <div className="text-2xl font-bold text-foreground font-mono">
+                    {ethRunning.length}{" "}
+                    <span className="text-muted-foreground text-sm font-sans font-normal">/ {ethTotal}</span>
+                  </div>
+                )}
+                <p className="text-xs text-muted-foreground mt-1">Strategi dikonfigurasi</p>
+              </CardContent>
+            </Card>
 
-        {strategies && strategies.length > 0 && (
+            <Card className="glass-panel hover:-translate-y-1 transition-transform duration-300 border-purple-500/10">
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <CardTitle className="text-sm font-medium text-muted-foreground">Ekuitas Ethereal</CardTitle>
+                <div className="w-8 h-8 rounded-full bg-purple-500/10 flex items-center justify-center">
+                  <Wallet className="w-4 h-4 text-purple-400" />
+                </div>
+              </CardHeader>
+              <CardContent>
+                {loadingAccount ? (
+                  <div className="h-8 w-24 bg-muted animate-pulse rounded" />
+                ) : account?.balances && account.balances.length > 0 ? (
+                  <>
+                    <PriceDisplay value={totalEquity} format="currency" colored={false} className="text-2xl font-bold text-foreground" />
+                    <p className="text-xs text-muted-foreground mt-1">
+                      {account.balances.map(b => b.tokenName).join(", ")}
+                    </p>
+                  </>
+                ) : (
+                  <p className="text-sm text-muted-foreground">—</p>
+                )}
+              </CardContent>
+            </Card>
+
+            <Card className="glass-panel hover:-translate-y-1 transition-transform duration-300 border-purple-500/10">
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <CardTitle className="text-sm font-medium text-muted-foreground">Posisi Ethereal</CardTitle>
+                <div className="w-8 h-8 rounded-full bg-purple-500/10 flex items-center justify-center">
+                  <ArrowRightLeft className="w-4 h-4 text-purple-400" />
+                </div>
+              </CardHeader>
+              <CardContent>
+                {loadingAccount ? (
+                  <div className="h-8 w-16 bg-muted animate-pulse rounded" />
+                ) : (
+                  <div className="text-2xl font-bold text-foreground font-mono">{positions.length}</div>
+                )}
+                <p className="text-xs text-muted-foreground mt-1">Posisi terbuka</p>
+              </CardContent>
+            </Card>
+
+            <Card className="glass-panel hover:-translate-y-1 transition-transform duration-300 border-purple-500/10">
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <CardTitle className="text-sm font-medium text-muted-foreground">PnL Belum Terealisasi</CardTitle>
+                <div className="w-8 h-8 rounded-full bg-purple-500/10 flex items-center justify-center">
+                  <TrendingUp className="w-4 h-4 text-purple-400" />
+                </div>
+              </CardHeader>
+              <CardContent>
+                {loadingAccount ? (
+                  <div className="h-8 w-24 bg-muted animate-pulse rounded" />
+                ) : positions.length > 0 ? (
+                  <PriceDisplay value={totalPnl} format="currency" showIcon className="text-2xl font-bold" />
+                ) : (
+                  <p className="text-sm text-muted-foreground">—</p>
+                )}
+                <p className="text-xs text-muted-foreground mt-1">Dari posisi terbuka</p>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Posisi terbuka Ethereal */}
           <Card className="glass-panel border-purple-500/10">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">Bot Berjalan</CardTitle>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <ExchangeLogo exchange="ethereal" size={14} />
+                Posisi Terbuka Ethereal
+              </CardTitle>
+              <CardDescription>Eksposur risiko di Ethereal DEX</CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="space-y-1">
-                {strategies.filter(s => s.isRunning).map(s => (
-                  <div key={s.id} className="flex items-center gap-2 text-xs">
-                    <span className="w-1.5 h-1.5 rounded-full bg-purple-400 animate-pulse shrink-0" />
-                    <span className="font-medium truncate">{s.name}</span>
-                    <span className="text-muted-foreground font-mono shrink-0">{s.marketSymbol}</span>
-                  </div>
-                ))}
-                {ethRunning.length === 0 && (
-                  <p className="text-xs text-muted-foreground">Tidak ada bot berjalan</p>
-                )}
-              </div>
+              {loadingAccount ? (
+                <div className="space-y-4">
+                  {[1, 2].map(i => <div key={i} className="h-12 bg-muted animate-pulse rounded-lg" />)}
+                </div>
+              ) : positions.length === 0 ? (
+                <div className="text-center py-8 text-muted-foreground flex flex-col items-center">
+                  <AlertTriangle className="w-8 h-8 mb-2 opacity-20" />
+                  <p>Tidak ada posisi terbuka di Ethereal.</p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {positions.map(pos => {
+                    const pnl = parseFloat(pos.unrealizedPnl || "0");
+                    return (
+                      <div key={pos.id} className="flex items-center justify-between p-3 rounded-lg bg-background border border-border/50 hover:border-purple-500/30 transition-colors">
+                        <div className="flex items-center gap-3">
+                          <div className={`px-2 py-1 rounded text-xs font-bold ${pos.side === "long" ? "bg-success/20 text-success" : "bg-destructive/20 text-destructive"}`}>
+                            {pos.side.toUpperCase()}
+                          </div>
+                          <div>
+                            <div className="font-bold text-foreground font-mono">{pos.productId}</div>
+                            <div className="text-xs text-muted-foreground font-mono">Size: {pos.size}</div>
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <PriceDisplay value={pnl} format="currency" showIcon />
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </CardContent>
           </Card>
-        )}
-      </div>
+        </>
+      )}
     </div>
   );
 }
@@ -403,6 +546,7 @@ export default function Dashboard() {
   const { data: extAccount, loading: loadingExtAccount } = useExtendedAccount();
   const { data: extLogs, loading: loadingExtLogs } = useExtendedLogs(8);
   const { data: ethStrategies, loading: loadingEthStrategies } = useEtherealStrategies();
+  const { data: ethAccount, loading: loadingEthAccount } = useEtherealAccount();
   const { data: ethLogs, loading: loadingEthLogs } = useEtherealLogs(8);
 
   const activeStrategies = strategiesData?.strategies?.filter(s => s.isActive) || [];
@@ -604,6 +748,8 @@ export default function Dashboard() {
         <EtherealSection
           strategies={ethStrategies}
           loadingStrategies={loadingEthStrategies}
+          account={ethAccount}
+          loadingAccount={loadingEthAccount}
         />
       </section>
 
