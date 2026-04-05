@@ -1,7 +1,7 @@
 # Bug & Technical Debt Tracker
 
 > Last updated: 2026-04-05
-> Status: 2 bug kritis Ethereal di-fix (2026-04-05). BUG-ETH-005 + 3 DESIGN issues (DESIGN-002, 004, 005) di-fix di sesi yang sama. DESIGN-003 + DESIGN-001 di-fix di sesi selanjutnya. BUG-AI-001 dicatat (belum difix).
+> Status: 2 bug kritis Ethereal di-fix (2026-04-05). BUG-ETH-005 + 3 DESIGN issues di-fix di sesi yang sama. DESIGN-001 + DESIGN-003 di-fix sesi berikutnya. BUG-WS-001 (WS price parser salah field) ditemukan via debug logging dan di-fix di sesi yang sama. BUG-AI-001 dicatat (belum difix).
 
 ---
 
@@ -525,6 +525,55 @@ Subaccount ID ditampilkan sebagai read-only display (bukan `<Input>`): tampilkan
 
 ---
 
+## [BUG-WS-001] Ethereal WS Price Parser — Salah Field Name, Harga Selalu Null
+
+**Status:** ✅ Fixed (2026-04-05)  
+**Severity:** KRITIS — Bot tidak pernah bisa baca harga market, selalu log "Harga market tidak tersedia" 10 detik setelah start  
+**File:** `artifacts/api-server/src/lib/ethereal/etherealWs.ts` — fungsi `handleMarketPrice`
+
+**Gejala:**  
+Bot Ethereal log `"Harga market tidak tersedia"` setiap tick sejak start. WS connect dan subscribe berhasil (terlihat di log), tapi harga tidak pernah masuk ke cache.
+
+**Root cause (dikonfirmasi via `s.onAny` debug logging):**  
+`handleMarketPrice` mencoba membaca harga dari field:
+```ts
+priceStr = obj.price ?? obj.lastPrice ?? obj.markPrice ?? obj.midPrice;
+```
+
+Tapi Ethereal mainnet sebenarnya mengirim payload dengan format:
+```json
+{
+  "productId": "bc7d5575-...",
+  "bestAskPrice": "66840",
+  "bestBidPrice": "66839",
+  "oraclePrice": "66873.11547953",
+  "price24hAgo": "66963.28",
+  "t": 1775378401444
+}
+```
+
+Tidak ada field `price`, `lastPrice`, `markPrice`, atau `midPrice` — semua miss → `priceStr = undefined` → parser return di baris 94 → cache tidak terisi → `ethGetCurrentPrice` return `null` → warning.
+
+**Metode discovery:**  
+Tambah `s.onAny` logger sementara untuk intercept semua raw event nama apapun. Langsung terlihat event bernama `"MarketPrice"` dikirim setiap ~1 detik, tapi field names berbeda dari yang di-expect.
+
+**Fix (hanya `etherealWs.ts` — `handleMarketPrice`):**  
+Tambah fallback ke `bestAskPrice`/`bestBidPrice` (mid price) dan `oraclePrice`:
+```ts
+if (obj.price ?? obj.lastPrice ?? obj.markPrice ?? obj.midPrice) {
+  priceStr = obj.price ?? obj.lastPrice ?? obj.markPrice ?? obj.midPrice;
+} else if (obj.bestAskPrice && obj.bestBidPrice) {
+  priceStr = String((parseFloat(obj.bestAskPrice) + parseFloat(obj.bestBidPrice)) / 2);
+} else if (obj.oraclePrice) {
+  priceStr = obj.oraclePrice;
+}
+```
+
+**Verifikasi post-fix:**  
+Log setelah restart — tidak ada "Harga market tidak tersedia", `[AutoRerange]` langsung aktif membandingkan harga $66.839 ke range grid. AI dipanggil karena harga di luar range konfig lama.
+
+---
+
 ## [BUG-AI-001] AI Mengisi Stop Loss Tidak Masuk Akal untuk Ethereal Grid
 
 **Status:** ⏳ Belum difix  
@@ -573,4 +622,5 @@ Tambah field spec `stopLoss` yang eksplisit ke `ETHEREAL_SYSTEM_PROMPT` — sama
 | DESIGN-003 | ✅ Fixed (2026-04-05) | LOW |
 | DESIGN-004 | ✅ Fixed (2026-04-05) | LOW |
 | DESIGN-005 | ✅ Fixed (2026-04-05) | LOW |
+| BUG-WS-001 | ✅ Fixed (2026-04-05) | KRITIS |
 | BUG-AI-001 | ⏳ Belum difix | MEDIUM |

@@ -78,9 +78,17 @@ function handleMarketPrice(data: unknown): void {
       const obj = data as Record<string, any>;
 
       // Shape utama: { productId, price } atau { productId, lastPrice }
+      // Ethereal mainnet mengirim: bestAskPrice, bestBidPrice, oraclePrice (tanpa field "price")
       if (typeof obj.productId === "string") {
         productId = obj.productId;
-        priceStr = obj.price ?? obj.lastPrice ?? obj.markPrice ?? obj.midPrice;
+        if (obj.price ?? obj.lastPrice ?? obj.markPrice ?? obj.midPrice) {
+          priceStr = obj.price ?? obj.lastPrice ?? obj.markPrice ?? obj.midPrice;
+        } else if (obj.bestAskPrice && obj.bestBidPrice) {
+          // Mid price dari best ask + best bid
+          priceStr = String((parseFloat(obj.bestAskPrice) + parseFloat(obj.bestBidPrice)) / 2);
+        } else if (obj.oraclePrice) {
+          priceStr = obj.oraclePrice;
+        }
       }
 
       // Shape alternatif: { data: { productId, price } }
@@ -140,11 +148,6 @@ export function connect(network: EtherealNetwork = "mainnet"): void {
     isConnected = true;
     reconnectDelay = 2_000;
     resubscribeAll();
-  });
-
-  // DEBUG SEMENTARA — log semua raw event dari server
-  s.onAny((event: string, data: unknown) => {
-    logger.info({ event, data }, "[Ethereal WS] Raw event received");
   });
 
   // Event name yang dikonfirmasi dari docs: "MarketPrice"
