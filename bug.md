@@ -1,7 +1,7 @@
 # Bug & Technical Debt Tracker
 
 > Last updated: 2026-04-05
-> Status: BUG-ETH-008 di-fix (2026-04-05) — Ethereal AI sekarang pakai live price dari REST API/WS cache, bukan lastPrice=0. BUG-ETH-006 + BUG-ETH-007 di-fix sebelumnya. BUG-ETH-005 + 3 DESIGN issues di-fix di sesi yang sama. DESIGN-001 + DESIGN-003 di-fix sesi berikutnya. BUG-WS-001 (WS price parser salah field) ditemukan via debug logging dan di-fix di sesi yang sama. BUG-AI-001 dicatat (belum difix).
+> Status: BUG-ETH-008 di-fix (2026-04-05) — Ethereal AI sekarang pakai live price dari REST API/WS cache, bukan lastPrice=0. BUG-ETH-006 + BUG-ETH-007 di-fix sebelumnya. BUG-ETH-005 + 3 DESIGN issues di-fix di sesi yang sama. DESIGN-001 + DESIGN-003 di-fix sesi berikutnya. BUG-WS-001 (WS price parser salah field) ditemukan via debug logging dan di-fix di sesi yang sama. BUG-AI-001 dicatat (belum difix). ENH-ETH-001 (tombol AI di EthEditModal) di-fix 2026-04-05.
 
 ---
 
@@ -596,6 +596,24 @@ Card strategi Ethereal tidak memiliki tombol Edit. Lighter dan Extended keduanya
 - Tambah `EthEditModal` component inline: pre-fill semua field dari `strategy.dcaConfig` / `strategy.gridConfig` via `useEffect([strategy])`, validasi input, call `PUT /:strategyId` via `apiFetch`
 - Tambah `onEdit={() => setEditStrategy(s)}` ke setiap card render
 - Tambah `<EthEditModal strategy={editStrategy} onClose={...} onSaved={loadAll} />` di main page JSX
+
+---
+
+## [ENH-ETH-001] Tombol AI Analyze Tidak Ada di Form Edit Strategi Ethereal
+
+**Status:** ✅ Fixed (2026-04-05)  
+**Severity:** MEDIUM — UX gap: Lighter dan Extended sudah punya tombol AI di modal Edit, Ethereal tidak  
+**File:** `artifacts/HK-Projects/src/pages/EtherealStrategies.tsx`
+
+**Konteks:**  
+BUG-ETH-006 menambahkan `EthEditModal` dari nol, tapi tanpa fitur AI auto-fill. Lighter dan Extended keduanya sudah punya tombol "Isi Otomatis Parameter (AI)" di modal Edit masing-masing. Ini adalah enhancement lanjutan dari BUG-ETH-006 — bukan bug terpisah.
+
+**Fix yang diapply (hanya `EtherealStrategies.tsx`):**
+- Tambah state `aiLoading` dan `aiResult` di `EthEditModal`
+- Tambah `useEffect([strategy])` untuk reset `aiResult` saat strategy berbeda dibuka (tidak ada stale AI result dari strategy sebelumnya)
+- Tambah fungsi `handleAIAnalyze`: memanggil `POST /api/ai/analyze` dengan `exchange: "ethereal"`, ticker market saat ini, dan strategyType — lalu mengisi semua field form secara otomatis dari response AI
+- Tambah tombol "Isi Otomatis Parameter (AI)" + `AIInsightCard` di JSX form — konsisten dengan pola Lighter/Extended
+- `AIInsightCard` sudah ada sebagai shared component, tidak perlu buat baru
 
 ---
 
