@@ -51,7 +51,7 @@ interface EtherealAccountData {
   positions: Array<{
     id: string;
     productId: string;
-    side: "long" | "short";
+    side: "long" | "short" | number;
     size: string;
     unrealizedPnl: string;
   }>;
@@ -326,11 +326,13 @@ function EtherealSection({
                 <div className="space-y-3">
                   {positions.map(pos => {
                     const pnl = parseFloat(pos.unrealizedPnl || "0");
+                    const isLong = pos.side === "long" || pos.side === 0;
+                    const sideLabel = typeof pos.side === "number" ? (pos.side === 0 ? "LONG" : "SHORT") : String(pos.side).toUpperCase();
                     return (
                       <div key={pos.id} className="flex items-center justify-between p-3 rounded-lg bg-background border border-border/50 hover:border-purple-500/30 transition-colors">
                         <div className="flex items-center gap-3">
-                          <div className={`px-2 py-1 rounded text-xs font-bold ${pos.side === "long" ? "bg-success/20 text-success" : "bg-destructive/20 text-destructive"}`}>
-                            {pos.side.toUpperCase()}
+                          <div className={`px-2 py-1 rounded text-xs font-bold ${isLong ? "bg-success/20 text-success" : "bg-destructive/20 text-destructive"}`}>
+                            {sideLabel}
                           </div>
                           <div>
                             <div className="font-bold text-foreground font-mono">{pos.productId}</div>
