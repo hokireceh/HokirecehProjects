@@ -1,7 +1,7 @@
 # Bug & Technical Debt Tracker
 
-> Last updated: 2026-04-04
-> Status: Temuan dari audit sesi ini — belum ada yang di-fix.
+> Last updated: 2026-04-05
+> Status: 2 bug kritis Ethereal ditemukan dan di-fix pada 2026-04-05.
 
 ---
 
@@ -171,6 +171,65 @@ Berikut `as any` yang sudah dikonfirmasi memang diperlukan dan tidak berbahaya:
 
 ---
 
+## [BUG-ETH-001] `stopEtherealBot` — `db.update()` Tanpa `.set()` (Duplicate Broken Line)
+
+**Status:** ✅ Fixed (2026-04-05)
+**Severity:** KRITIS — Bot tidak bisa stop di DB, restart server akan restore semua bot yang seharusnya sudah berhenti
+**File:** `artifacts/api-server/src/lib/ethereal/etherealBotEngine.ts` baris 981 (sebelum fix)
+
+**Masalah:**
+Terdapat dua baris `await db.update(strategiesTable)` yang berurutan. Baris pertama tidak punya `.set()`:
+
+```ts
+// SEBELUM (broken):
+await db.update(strategiesTable)         // ← BROKEN: tanpa .set(), SQL error
+if (!skipDbUpdate) await db.update(strategiesTable)
+  .set({ isRunning: false, ... })
+  .where(eq(strategiesTable.id, strategyId));
+```
+
+JavaScript ASI menyisipkan semicolon setelah baris pertama → `db.update(tableName)` tanpa `.set()` dieksekusi, menyebabkan Drizzle error atau SQL syntax error. Setiap pemanggilan `stopEtherealBot` (stop manual, stop loss, take profit, rerange timeout) akan throw exception → `isRunning` tetap `true` di DB.
+
+**Fix:**
+Hapus baris pertama yang broken. Hanya conditional block yang valid yang dipertahankan:
+
+```ts
+// SESUDAH (fixed):
+if (!skipDbUpdate) await db.update(strategiesTable)
+  .set({ isRunning: false, updatedAt: new Date(), nextRunAt: null })
+  .where(eq(strategiesTable.id, strategyId));
+```
+
+---
+
+## [BUG-ETH-002] `pollPendingEtherealTrades` — Order Timeout Tidak Di-Cancel On-Chain
+
+**Status:** ✅ Fixed (2026-04-05)
+**Severity:** KRITIS — Ghost order tetap terbuka di exchange, bisa fill diam-diam tanpa tercatat di DB
+**File:** `artifacts/api-server/src/lib/ethereal/etherealBotEngine.ts` — blok `else if (ageMs > ETH_TRADE_TIMEOUT_MS)`
+
+**Masalah:**
+Ketika LIMIT order melewati timeout 30 menit tanpa fill terdeteksi, kode langsung mark trade sebagai `"failed"` di DB tanpa memanggil `cancelOrder`. Order tetap hidup di Ethereal dan bisa terisi kapan saja saat harga kembali ke level tersebut — mengubah posisi user secara tersembunyi tanpa tercatat.
+
+**Fix:**
+Tambah blok `try/catch` sebelum mark failed: panggil `signCancelOrder` + `cancelOrder` menggunakan top-level imports yang sudah ada. Jika cancel gagal, error di-log tapi flow tetap mark `"failed"` (fail-safe):
+
+```ts
+try {
+  const cancelNonce = generateNonce();
+  const cancelSignedAt = generateSignedAt();
+  const cancelSig = await signCancelOrder(creds.privateKey, { ... }, creds.network);
+  await cancelOrder({ data: { ... }, signature: cancelSig }, creds.network);
+  logger.info(..., "[EtherealBot] Poll: order cancelled on-chain before timeout mark");
+} catch (cancelErr) {
+  logger.error(..., "[EtherealBot] Poll: cancelOrder gagal — tetap mark failed");
+}
+// baru mark failed di DB
+await db.update(tradesTable).set({ status: "failed", ... })
+```
+
+---
+
 ## [NAV-001] Mobile Navigasi — Ethereal Tidak Ada di Menu "Lainnya"
 
 **Status:** ✅ Fixed (2026-04-05)  
@@ -201,3 +260,5 @@ Icon `Zap` sudah di-import. Tidak ada perubahan lain yang diperlukan.
 | TODO-003 | ✅ Resolved — `uuidToBytes32()` implemented | MEDIUM |
 | TODO-004 | N/A — testnet tidak dipakai | LOW |
 | NAV-001 | ✅ Fixed (2026-04-05) | LOW |
+| BUG-ETH-001 | ✅ Fixed (2026-04-05) | KRITIS |
+| BUG-ETH-002 | ✅ Fixed (2026-04-05) | KRITIS |

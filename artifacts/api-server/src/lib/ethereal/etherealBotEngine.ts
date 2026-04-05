@@ -978,8 +978,7 @@ export async function stopEtherealBot(strategyId: number, skipDbUpdate = false):
     }
   }
 
-  await db.update(strategiesTable)
-    if (!skipDbUpdate) await db.update(strategiesTable)
+  if (!skipDbUpdate) await db.update(strategiesTable)
     .set({ isRunning: false, updatedAt: new Date(), nextRunAt: null })
     .where(eq(strategiesTable.id, strategyId));
 
@@ -1172,6 +1171,38 @@ export async function pollPendingEtherealTrades(): Promise<void> {
           }
         }
       } else if (ageMs > ETH_TRADE_TIMEOUT_MS) {
+        // Batalkan order di Ethereal sebelum mark failed
+        try {
+          const cancelNonce = generateNonce();
+          const cancelSignedAt = generateSignedAt();
+          const cancelSig = await signCancelOrder(
+            creds.privateKey,
+            {
+              sender: creds.walletAddress,
+              subaccount: creds.subaccountName,
+              orderIds: [orderId],
+              nonce: cancelNonce,
+              signedAt: cancelSignedAt,
+            },
+            creds.network
+          );
+          await cancelOrder(
+            {
+              data: {
+                subaccount: creds.subaccountName,
+                sender: creds.walletAddress,
+                nonce: cancelNonce.toString(),
+                orderIds: [orderId],
+              },
+              signature: cancelSig,
+            },
+            creds.network
+          );
+          logger.info({ tradeId: trade.id, orderId }, "[EtherealBot] Poll: order cancelled on-chain before timeout mark");
+        } catch (cancelErr) {
+          logger.error({ err: cancelErr, tradeId: trade.id, orderId }, "[EtherealBot] Poll: cancelOrder gagal — tetap mark failed");
+        }
+
         // Sudah 30 menit tidak ada fill — tandai failed
         // User bisa cek status manual di explorer.ethereal.trade
         await db.update(tradesTable)
