@@ -180,8 +180,13 @@ export async function getProductWithPrice(
     // ignore price fetch error
   }
 
-  const mid = priceData?.price ? parseFloat(priceData.price) : undefined;
-  logger.info({ mid, bestAsk: (priceData as any)?.bestAskPrice, bestBid: (priceData as any)?.bestBidPrice }, "[Markets Debug] getProductWithPrice result");
+  const mid =
+    priceData?.bestAskPrice && priceData?.bestBidPrice
+      ? (parseFloat(priceData.bestAskPrice) + parseFloat(priceData.bestBidPrice)) / 2
+      : priceData?.price
+      ? parseFloat(priceData.price)
+      : undefined;
+  logger.info({ mid, bestAsk: priceData?.bestAskPrice, bestBid: priceData?.bestBidPrice, legacyPrice: priceData?.price }, "[Markets Debug] getProductWithPrice result");
   return mid !== undefined ? { ...product, lastPrice: mid } : product;
 }
 

@@ -174,7 +174,9 @@ export interface EtherealFill {
 
 export interface EtherealMarketPrice {
   productId: string;
-  price: string;
+  price?: string;
+  bestAskPrice?: string;
+  bestBidPrice?: string;
 }
 
 // ─── Order submission types ────────────────────────────────────────────────────
