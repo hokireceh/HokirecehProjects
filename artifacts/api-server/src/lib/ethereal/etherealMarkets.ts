@@ -173,16 +173,16 @@ export async function getProductWithPrice(
   const product = await getProductInfo(productId, network);
   if (!product) return null;
 
+  let priceData: Awaited<ReturnType<typeof getMarketPrice>> = null;
   try {
-    const priceData = await getMarketPrice(productId, network);
-    if (priceData?.price) {
-      return { ...product, lastPrice: parseFloat(priceData.price) };
-    }
+    priceData = await getMarketPrice(productId, network);
   } catch {
     // ignore price fetch error
   }
 
-  return product;
+  const mid = priceData?.price ? parseFloat(priceData.price) : undefined;
+  logger.info({ mid, bestAsk: (priceData as any)?.bestAskPrice, bestBid: (priceData as any)?.bestBidPrice }, "[Markets Debug] getProductWithPrice result");
+  return mid !== undefined ? { ...product, lastPrice: mid } : product;
 }
 
 export function invalidateProductCache(network?: EtherealNetwork): void {

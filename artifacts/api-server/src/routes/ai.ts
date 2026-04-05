@@ -7,6 +7,7 @@ import { getEtherealWsCachedPrice } from "../lib/ethereal/etherealWs";
 import { analyzeMarketForStrategy } from "../lib/groqAI";
 import { getBotConfig, getEtherealCredentials } from "./configService";
 import { getAccountByIndex } from "../lib/lighter/lighterApi";
+import { logger } from "../lib/logger";
 import type { ExtendedNetwork } from "../lib/extended/extendedApi";
 import type { EtherealNetwork } from "../lib/ethereal/etherealApi";
 
@@ -46,15 +47,22 @@ router.post("/analyze", async (req: AuthRequest, res) => {
 
       // Coba WS cache dulu (real-time, jika bot aktif), lalu REST API sebagai fallback
       let livePrice: number = 0;
+      let enriched: Awaited<ReturnType<typeof getProductWithPrice>> | null = null;
       const wsPrice = getEtherealWsCachedPrice(baseProduct.id, 30_000);
       if (wsPrice && wsPrice.toNumber() > 0) {
         livePrice = wsPrice.toNumber();
       } else {
-        const enriched = await getProductWithPrice(baseProduct.id, network).catch(() => null);
+        enriched = await getProductWithPrice(baseProduct.id, network).catch(() => null);
         if (enriched && enriched.lastPrice > 0) {
           livePrice = enriched.lastPrice;
         }
       }
+      logger.info({
+        wsPrice: wsPrice?.toNumber() ?? null,
+        livePrice,
+        enrichedLastPrice: enriched?.lastPrice ?? null,
+        enrichedError: "check catch",
+      }, "[AI Debug] Ethereal price resolution");
 
       const product = { ...baseProduct, lastPrice: livePrice };
 
