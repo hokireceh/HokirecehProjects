@@ -439,8 +439,7 @@ export function startTelegramBot() {
   // ─── AUTO-RERANGE: Daftarkan action handler approve/reject ───────────────
   // Dipasang di sini (setelah session middleware) agar session tersedia jika dibutuhkan.
   // startBot/stopBot di-import secara lazy untuk menghindari circular dependency.
-  // Callbacks dispatch berdasarkan strategy.exchange — mendukung Lighter dan Extended.
-  // Ethereal: rerange via Telegram belum didukung (guard eksplisit, tidak fall-through ke Lighter).
+  // Callbacks dispatch berdasarkan strategy.exchange — mendukung Lighter, Extended, dan Ethereal.
   registerRerangeHandlers(
     bot,
     async (strategyId) => {
@@ -453,8 +452,8 @@ export function startTelegramBot() {
         return startExtendedBot(strategyId);
       }
       if (strat?.exchange === "ethereal") {
-        logger.warn({ strategyId }, "[TelegramBot] Ethereal rerange approve not yet supported via Telegram");
-        return false;
+        const { startEtherealBot } = await import("./ethereal/etherealBotEngine");
+        return startEtherealBot(strategyId);
       }
       const { startBot } = await import("./lighter/lighterBotEngine");
       return startBot(strategyId);
@@ -469,8 +468,8 @@ export function startTelegramBot() {
         return stopExtendedBot(strategyId);
       }
       if (strat?.exchange === "ethereal") {
-        logger.warn({ strategyId }, "[TelegramBot] Ethereal rerange reject not yet supported via Telegram");
-        return false;
+        const { stopEtherealBot } = await import("./ethereal/etherealBotEngine");
+        return stopEtherealBot(strategyId);
       }
       const { stopBot } = await import("./lighter/lighterBotEngine");
       return stopBot(strategyId);

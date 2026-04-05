@@ -622,7 +622,7 @@ Dengan contoh kalkulasi angka absolut agar AI menghasilkan nilai yang valid rela
 
 ## [BUG-ETH-010] Auto-Rerange Ethereal — Konfirmasi Tidak Bisa Di-Approve, Bot Selalu Pause
 
-**Status:** ⏳ Belum difix  
+**Status:** ✅ Fixed (2026-04-05)  
 **Severity:** HIGH — Bot Ethereal akan selalu PAUSE otomatis 20 menit setelah auto-rerange trigger karena tidak ada jalur konfirmasi yang berfungsi  
 **File utama:** `artifacts/api-server/src/lib/telegramBot.ts`  
 **File terkait:** `artifacts/api-server/src/lib/autoRerange.ts`
@@ -727,5 +727,5 @@ Log Ethereal tidak digabung ke `combinedLogs` di Dashboard, sehingga Ethereal ti
 | BUG-ETH-007 | ⏳ Belum difix | LOW |
 | BUG-ETH-008 | ⏳ Belum difix | MEDIUM |
 | BUG-ETH-009 | ⏳ Belum difix | MEDIUM |
-| BUG-ETH-010 | ⏳ Belum difix | HIGH |
+| BUG-ETH-010 | ✅ Fixed (2026-04-05) | HIGH |
 | BUG-AI-001 | ⏳ Belum difix | MEDIUM |
