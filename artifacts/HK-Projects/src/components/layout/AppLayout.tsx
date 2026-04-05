@@ -120,6 +120,7 @@ const moreItems = [
   { href: "/trades", label: "Trade", icon: History },
   { href: "/logs", label: "Log", icon: Terminal },
   { href: "/ai-advisor", label: "AI Advisor", icon: Sparkles },
+  { href: "/ethereal", label: "Strategi Ethereal", icon: Zap },
 ];
 
 function MobileMoreMenu({ location }: { location: string }) {
