@@ -1562,7 +1562,7 @@ export default function EtherealStrategies() {
     loadAll();
     loadAccount();
     const t = setInterval(() => {
-      apiFetch("/").then(setStrategies).catch(() => {});
+      apiFetch("/").then((data) => setStrategies(Array.isArray(data) ? data : [])).catch(() => {});
     }, 10000);
     return () => clearInterval(t);
   }, [loadAll, loadAccount]);
