@@ -140,8 +140,8 @@ async function apiFetch(path: string, init?: RequestInit) {
     headers: { "Content-Type": "application/json" },
     ...init,
   });
-  const json = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(json.error ?? `HTTP ${res.status}`);
+  const json = await res.json().catch(() => null);
+  if (!res.ok) throw new Error((json as any)?.error ?? `HTTP ${res.status}`);
   return json;
 }
 
@@ -1533,8 +1533,8 @@ export default function EtherealStrategies() {
         apiFetch("/"),
         apiFetch("/markets"),
       ]);
-      setStrategies(strats ?? []);
-      setMarkets(mks ?? []);
+      setStrategies(Array.isArray(strats) ? strats : []);
+      setMarkets(Array.isArray(mks) ? mks : []);
     } catch {
       // ignore
     } finally {
